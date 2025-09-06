@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Pretvarjanje fizikalnih količin — 5 stopenj (paket 5 nalog)</title>
+<style>
+  :root{
+    --bg:#0f172a;        /* slate-900 */
+    --panel:#111827;     /* gray-900 */
+    --card:#1f2937;      /* gray-800 */
+    --ink:#e5e7eb;       /* gray-200 */
+    --muted:#9ca3af;     /* gray-400 */
+    --good:#10b981;      /* emerald */
+    --bad:#ef4444;       /* red */
+    --btn:#334155;       /* slate-700 */
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial;
+    padding:24px;
+  }
+  h1{font-size:20px; margin:0 0 12px 0}
+  .wrap{max-width:1100px; margin:0 auto}
+  .panel{
+    background:var(--panel); border-radius:14px; padding:16px 16px 10px; box-shadow:0 6px 18px #0008;
+  }
+  label{font-size:13px; color:var(--muted); display:block; margin-bottom:6px}
+  select{
+    background:var(--card); color:var(--ink); border:1px solid #000; border-radius:10px; padding:10px 12px; min-width:220px;
+  }
+  .btn{
+    background:var(--btn); color:var(--ink); border:0; border-radius:12px;
+    padding:10px 14px; cursor:pointer; font-weight:600; transition:transform .04s ease, background .2s;
+  }
+  .btn:hover{transform:translateY(-1px)}
+  .btn.primary{ background:linear-gradient(180deg,#2563eb,#1d4ed8)}
+  .card{
+    background:var(--card); border-radius:14px; padding:16px; border:1px solid #000;
+  }
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px}
+  .sep{height:1px; background:#000; margin:12px 0}
+  .tasks .task{ margin-top:14px; border:1px dashed #223; border-radius:12px; padding:12px }
+  .task-header{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .task-title{font-size:18px; flex:1}
+  .units{color:var(--muted)}
+  .hint, .solution{
+    font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    background:#0b1220; padding:10px 12px; border-radius:10px; border:1px dashed #223; color:#c7d2fe; margin-top:8px;
+  }
+  .controls{display:flex; gap:8px; flex-wrap:wrap}
+  .kpi{display:flex; gap:12px; margin-top:10px; flex-wrap:wrap}
+  .kpi > div{background:#0b1220; padding:8px 12px; border-radius:10px; border:1px solid #000; color:#cbd5e1}
+  .status{font-weight:700}
+  .status.good{color:var(--good)}
+  .status.bad{color:var(--bad)}
+  .footer-note{color:var(--muted); font-size:13px; margin-top:8px}
+  input.answer{
+    background:var(--card); color:var(--ink); border:1px solid #000; border-radius:10px; padding:8px 10px; min-width:180px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Pretvarjanje fizikalnih količin — stopnje A1…C1</h1>
+
+  <div class="panel">
+    <div class="grid">
+      <div>
+        <label for="kolicina">Količina</label>
+        <select id="kolicina">
+          <option value="masa">Masa</option>
+          <option value="dolzina">Dolžina</option>
+          <option value="povrsina">Površina</option>
+          <option value="prostornina">Prostornina</option>
+          <option value="cas">Čas</option>
+        </select>
+      </div>
+      <div>
+        <label for="tezavnost">Težavnost</label>
+        <select id="tezavnost">
+          <option value="A1">A1 — zelo lahko</option>
+          <option value="A2">A2 — lahko</option>
+          <option value="B1">B1 — srednje</option>
+          <option value="B2">B2 — težko</option>
+          <option value="C1">C1 — vesoljec</option>
+        </select>
+      </div>
+      <div>
+        <label for="smer">Smer</label>
+        <select id="smer">
+          <option value="down">Večja → manjša</option>
+          <option value="up">Manjša → večja</option>
+          <option value="both">Obe</option>
+        </select>
+      </div>
+      <div style="align-self:end">
+        <button id="btnMake5" class="btn primary">Ustvari 5 nalog</button>
+      </div>
+    </div>
+
+    <div id="tasks" class="tasks"></div>
+
+    <div class="sep"></div>
+    <div class="controls" style="justify-content:space-between">
+      <div class="kpi">
+        <div>Pravilno: <span id="ok">0</span></div>
+        <div>Skupaj: <span id="all">0</span></div>
+        <div>Natančnost: <span id="pct">0%</span></div>
+      </div>
+      <div class="controls">
+        <button id="btnCheckAll" class="btn">Preveri</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <strong>Navodilo:</strong>
+    <ul>
+      <li>Vnesi samo <em>številko</em> rezultata (enote so že podane).</li>
+      <li>Uporabi lahko <strong>vejico</strong> ali <strong>piko</strong> (npr. 0,25 ali 0.25).</li>
+      <li>Odgovor se šteje za pravilen, če se ujema z rešitvijo do <strong>8 decimalnih mest</strong>.</li>
+      <li>Pri <strong>Času</strong> se prikažejo samo naloge, kjer ima rezultat največ <strong>3 decimalke</strong>.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   POPOLNOMA TRDI (hard-coded) PARI — po kategorijah, stopnjah in SMERI.
+   Vsak par: { from, to, factor, value:{fixed:[], ranges:[{min,max,weight,decimals}]} }
+   Opcija "both" se dinamično zgradi iz (down + up) v buildPool().
+   ============================================================ */
+
+const CONFIG = {
+
+/* ────────────────────────── MASA ────────────────────────── */
+masa: {
+  A1: {
+    down: [
+      {from:'kg', to:'g',  factor:1000, value:{fixed:[], ranges:[
+        {min:1, max:99, weight:2, decimals:1},
+        {min:0.1, max:0.9, weight:1, decimals:1}
+      ]}},
+      {from:'g',  to:'mg', factor:1000, value:{fixed:[], ranges:[
+        {min:10, max:900, weight:3, decimals:1},
+        {min:0.1,  max:9.9, weight:1, decimals:1}
+      ]}},
+    ],
+    up: [
+      {from:'mg', to:'g',  factor:1/1000, value:{fixed:[], ranges:[
+        {min:100, max:999, weight:2, decimals:0},
+        {min:1,   max:99,  weight:1, decimals:0}
+      ]}},
+      {from:'g',  to:'kg', factor:1/1000, value:{fixed:[], ranges:[
+        {min:100, max:900, weight:2, decimals:0},
+        {min:10,  max:90,  weight:1, decimals:0}
+      ]}},
+    ]
+  },
+
+  A2: {
+    down: [
+		{from:'kg', to:'g',  factor:1000, value:{fixed:[], ranges:[
+        {min:1, max:99, weight:2, decimals:2},
+        {min:0.1, max:0.99, weight:1, decimals:2}
+      ]}},
+      {from:'g',  to:'mg', factor:1000, value:{fixed:[], ranges:[
+        {min:1, max:999, weight:3, decimals:2},
+        {min:0.01,  max:9.99, weight:1, decimals:2}
+      ]}},
+      {from:'kg', to:'dag', factor:100, value:{fixed:[], ranges:[
+        {min:1, max:99, weight:2, decimals:2},
+        {min:0.01, max:0.99, weight:1, decimals:2}
+      ]}},
+      {from:'dag', to:'g', factor:10, value:{fixed:[], ranges:[
+        {min:1, max:99, weight:3, decimals:2}
+      ]}},
+    ],
+    up: [
+		{from:'mg', to:'g',  factor:1/1000, value:{fixed:[], ranges:[
+        {min:100, max:999, weight:2, decimals:1},
+        {min:1,   max:99,  weight:1, decimals:1}
+      ]}},
+      {from:'g',  to:'kg', factor:1/1000, value:{fixed:[], ranges:[
+        {min:100, max:999, weight:3, decimals:1}
+      ]}},
+      {from:'g',  to:'dag', factor:1/10, value:{fixed:[], ranges:[
+        {min:10, max:999, weight:3, decimals:2}
+      ]}},
+    ]
+  },
+
+  B1: {
+  down: [
+    // ► iz A1 + A2 (povišani min/max/decimals)
+    {from:'kg', to:'g',  factor:1000, value:{fixed:[], ranges:[
+      {min:1,   max:999,  weight:2, decimals:2},
+      {min:0.10,max:0.99, weight:1, decimals:2}
+    ]}},
+    {from:'g',  to:'mg', factor:1000, value:{fixed:[], ranges:[
+      {min:1,   max:999,  weight:2, decimals:2},
+      {min:0.01,max:9.99, weight:1, decimals:2}
+    ]}},
+    {from:'kg', to:'dag', factor:100, value:{fixed:[], ranges:[
+      {min:1,   max:999,  weight:2, decimals:2},
+      {min:0.01,max:0.99, weight:1, decimals:2}
+    ]}},
+    {from:'dag',to:'g',   factor:10,  value:{fixed:[], ranges:[
+      {min:1,   max:999,  weight:3, decimals:2}
+    ]}},
+
+    // ► NOVO v B1
+    {from:'t',  to:'kg',  factor:1000, value:{fixed:[], ranges:[
+      {min:0.10,max:9.99, weight:3, decimals:2}
+    ]}},
+    {from:'g',  to:'μg',  factor:1e6,  value:{fixed:[], ranges:[
+      {min:0.10,max:9.99, weight:2, decimals:2}
+    ]}},
+    {from:'mg', to:'μg',  factor:1000, value:{fixed:[], ranges:[
+      {min:10,  max:999,  weight:3, decimals:2}
+    ]}}
+  ],
+  up: [
+    // ► povratne iz A1 + A2
+    {from:'mg', to:'g',   factor:1/1000, value:{fixed:[], ranges:[
+      {min:100, max:9999, weight:2, decimals:3},
+      {min:1,   max:99,   weight:1, decimals:3}
+    ]}},
+    {from:'g',  to:'kg',  factor:1/1000, value:{fixed:[], ranges:[
+      {min:100, max:9999, weight:2, decimals:3}
+    ]}},
+    {from:'g',  to:'dag', factor:1/10,   value:{fixed:[], ranges:[
+      {min:10,  max:9999, weight:3, decimals:2}
+    ]}},
+    {from:'dag',to:'kg',  factor:1/100,  value:{fixed:[], ranges:[
+      {min:10,  max:9999, weight:2, decimals:2}
+    ]}},
+
+    // ► povratne iz NOVO
+    {from:'kg', to:'t',   factor:1/1000, value:{fixed:[], ranges:[
+      {min:200, max:9900, weight:3, decimals:2}
+    ]}},
+    {from:'μg', to:'g',   factor:1/1e6,  value:{fixed:[], ranges:[
+      {min:2e5, max:9e6,  weight:3, decimals:2}
+    ]}},
+    {from:'μg', to:'mg',  factor:1/1000, value:{fixed:[], ranges:[
+      {min:2e3, max:9e5,  weight:3, decimals:2}
+    ]}}
+  ]
+},
+
+// ===== MASA — B2 =====
+// Dodamo še več parov z "skoki" (t↔dag, t↔mg, kg↔mg), vključimo *vse* iz A1+A2+B1.
+// Še večje vrednosti, do 3 decimale.
+B2: {
+  down: [
+    // ► Vsi iz A1 + A2 + B1 (brez ponavljanja tukaj; naštejemo glavne za jasnost)
+    {from:'t',  to:'kg',  factor:1000, value:{fixed:[], ranges:[
+      {min:0.20,max:19.99,weight:3, decimals:2}
+    ]}},
+    {from:'kg', to:'g',   factor:1000, value:{fixed:[], ranges:[
+      {min:1,   max:9999, weight:2, decimals:2}
+    ]}},
+    {from:'g',  to:'mg',  factor:1000, value:{fixed:[], ranges:[
+      {min:1,   max:9999, weight:2, decimals:2}
+    ]}},
+    {from:'mg', to:'μg',  factor:1000, value:{fixed:[], ranges:[
+      {min:10,  max:9999, weight:2, decimals:2}
+    ]}},
+    {from:'kg', to:'dag', factor:100,  value:{fixed:[], ranges:[
+      {min:1,   max:9999, weight:2, decimals:2}
+    ]}},
+    {from:'dag',to:'g',   factor:10,   value:{fixed:[], ranges:[
+      {min:1,   max:9999, weight:2, decimals:2}
+    ]}},
+
+    // ► NOVO v B2
+    {from:'t',  to:'dag', factor:1e5,  value:{fixed:[], ranges:[
+      {min:0.20,max:9.99, weight:2, decimals:2}
+    ]}},
+    {from:'t',  to:'mg',  factor:1e9,  value:{fixed:[], ranges:[
+      {min:0.20,max:2.00, weight:1, decimals:3}
+    ]}},
+    {from:'kg', to:'mg',  factor:1e6,  value:{fixed:[], ranges:[
+      {min:0.20,max:9.99, weight:2, decimals:3}
+    ]}},
+    {from:'g',  to:'μg',  factor:1e6,  value:{fixed:[], ranges:[
+      {min:0.10,max:99.99,weight:2, decimals:2}
+    ]}}
+  ],
+  up: [
+    // ► povratne iz vseh prejšnjih stopenj
+    {from:'kg', to:'t',   factor:1/1000, value:{fixed:[], ranges:[
+      {min:200, max:99000,weight:3, decimals:2}
+    ]}},
+    {from:'g',  to:'kg',  factor:1/1000, value:{fixed:[], ranges:[
+      {min:200, max:99000,weight:3, decimals:2}
+    ]}},
+    {from:'mg', to:'g',   factor:1/1000, value:{fixed:[], ranges:[
+      {min:200, max:99000,weight:3, decimals:2}
+    ]}},
+    {from:'μg', to:'mg',  factor:1/1000, value:{fixed:[], ranges:[
+      {min:200, max:99000,weight:3, decimals:2}
+    ]}},
+    {from:'dag',to:'kg',  factor:1/100,  value:{fixed:[], ranges:[
+      {min:200, max:99000,weight:3, decimals:2}
+    ]}},
+    {from:'g',  to:'dag', factor:1/10,   value:{fixed:[], ranges:[
+      {min:200, max:99000,weight:3, decimals:2}
+    ]}},
+
+    // ► povratne iz NOVO
+    {from:'dag',to:'t',   factor:1/1e5,  value:{fixed:[], ranges:[
+      {min:2e4, max:9e5,  weight:3, decimals:2}
+    ]}},
+    {from:'mg', to:'t',   factor:1/1e9,  value:{fixed:[], ranges:[
+      {min:2e8, max:9e8,  weight:3, decimals:2}
+    ]}},
+    {from:'mg', to:'kg',  factor:1/1e6,  value:{fixed:[], ranges:[
+      {min:2e5, max:9e6,  weight:3, decimals:2}
+    ]}},
+    {from:'μg', to:'g',   factor:1/1e6,  value:{fixed:[], ranges:[
+      {min:2e5, max:9e7,  weight:3, decimals:2}
+    ]}}
+  ]
+},
+
+// ===== MASA — C1 =====
+// Ekstremne pretvorbe, dodamo ng in “velike skoke”, vključimo *vse* iz A1+A2+B1+B2.
+// Še večje številke, 3–4 decimale kjer smiselno.
+C1: {
+  down: [
+    // ► vse iz nižjih stopenj (ključne ohranimo tu, +)
+    {from:'t',  to:'kg',  factor:1000,  value:{fixed:[], ranges:[
+      {min:0.50,max:49.99,weight:3, decimals:3}
+    ]}},
+    {from:'kg', to:'g',   factor:1000,  value:{fixed:[], ranges:[
+      {min:1,    max:99999,weight:2, decimals:3}
+    ]}},
+    {from:'g',  to:'mg',  factor:1000,  value:{fixed:[], ranges:[
+      {min:1,    max:99999,weight:2, decimals:3}
+    ]}},
+    {from:'mg', to:'μg',  factor:1000,  value:{fixed:[], ranges:[
+      {min:10,   max:99999,weight:2, decimals:3}
+    ]}},
+    {from:'kg', to:'dag', factor:100,   value:{fixed:[], ranges:[
+      {min:1,    max:99999,weight:2, decimals:3}
+    ]}},
+    {from:'dag',to:'g',   factor:10,    value:{fixed:[], ranges:[
+      {min:1,    max:99999,weight:2, decimals:3}
+    ]}},
+
+    // ► NOVO v C1
+    {from:'kg', to:'μg',  factor:1e9,   value:{fixed:[], ranges:[
+      {min:0.20,max:9.999, weight:2, decimals:3}
+    ]}},
+    {from:'g',  to:'ng',  factor:1e9,   value:{fixed:[], ranges:[
+      {min:0.20,max:9.999, weight:2, decimals:3}
+    ]}},
+    {from:'t',  to:'g',   factor:1e6,   value:{fixed:[], ranges:[
+      {min:0.20,max:9.999, weight:2, decimals:3}
+    ]}},
+    {from:'t',  to:'mg',  factor:1e9,   value:{fixed:[], ranges:[
+      {min:0.20,max:3.000, weight:1, decimals:3}
+    ]}},
+    {from:'μg', to:'ng',  factor:1000,  value:{fixed:[], ranges:[
+      {min:10,  max:99999, weight:2, decimals:3}
+    ]}}
+  ],
+  up: [
+    // ► povratne iz vseh nižjih stopenj
+    {from:'kg', to:'t',   factor:1/1000, value:{fixed:[], ranges:[
+      {min:500, max:999000,weight:3, decimals:3}
+    ]}},
+    {from:'g',  to:'kg',  factor:1/1000, value:{fixed:[], ranges:[
+      {min:500, max:999000,weight:3, decimals:3}
+    ]}},
+    {from:'mg', to:'g',   factor:1/1000, value:{fixed:[], ranges:[
+      {min:500, max:999000,weight:3, decimals:3}
+    ]}},
+    {from:'μg', to:'mg',  factor:1/1000, value:{fixed:[], ranges:[
+      {min:500, max:999000,weight:3, decimals:3}
+    ]}},
+    {from:'dag',to:'kg',  factor:1/100,  value:{fixed:[], ranges:[
+      {min:500, max:999000,weight:3, decimals:3}
+    ]}},
+    {from:'g',  to:'dag', factor:1/10,   value:{fixed:[], ranges:[
+      {min:500, max:999000,weight:3, decimals:3}
+    ]}},
+
+    // ► povratne iz NOVO
+    {from:'μg', to:'kg',  factor:1/1e9,  value:{fixed:[], ranges:[
+      {min:2e8, max:9e10, weight:3, decimals:3}
+    ]}},
+    {from:'ng', to:'g',   factor:1/1e9,  value:{fixed:[], ranges:[
+      {min:2e8, max:9e10, weight:3, decimals:3}
+    ]}},
+    {from:'g',  to:'t',   factor:1/1e6,  value:{fixed:[], ranges:[
+      {min:2e5, max:9e8,  weight:3, decimals:3}
+    ]}},
+    {from:'mg', to:'t',   factor:1/1e9,  value:{fixed:[], ranges:[
+      {min:2e8, max:9e11, weight:3, decimals:3}
+    ]}},
+    {from:'ng', to:'μg',  factor:1/1000, value:{fixed:[], ranges:[
+      {min:2e5, max:9e10, weight:3, decimals:3}
+    ]}}
+  ]
+}
+},
+
+/* ────────────────────────── DOLŽINA ────────────────────────── */
+dolzina: {
+  // A1 — slightly harder: decimals in DOWN, integers in UP
+  A1: {
+    down: [
+      {from:'m',  to:'cm', factor:100,  value:{fixed:[], ranges:[
+        {min:1,   max:99,  weight:2, decimals:1},
+        {min:0.1, max:0.9, weight:1, decimals:1}
+      ]}},
+      {from:'cm', to:'mm', factor:10,   value:{fixed:[], ranges:[
+        {min:5,   max:990, weight:3, decimals:1},
+        {min:0.1, max:9.9, weight:1, decimals:1}
+      ]}},
+    ],
+    up: [
+      {from:'mm', to:'cm', factor:1/10,   value:{fixed:[], ranges:[
+        {min:100, max:999, weight:2, decimals:0},
+        {min:10,  max:99,  weight:1, decimals:0}
+      ]}},
+      {from:'cm', to:'m',  factor:1/100,  value:{fixed:[], ranges:[
+        {min:100, max:900, weight:2, decimals:0},
+        {min:10,  max:90,  weight:1, decimals:0}
+      ]}},
+    ]
+  },
+
+  // A2 — include A1 pairs; add dm and km; increase decimals/size
+  A2: {
+    down: [
+      // A1 carried over, tougher
+      {from:'m',  to:'cm', factor:100,  value:{fixed:[], ranges:[
+        {min:1,    max:999,  weight:2, decimals:2},
+        {min:0.10, max:0.99, weight:1, decimals:2}
+      ]}},
+      {from:'cm', to:'mm', factor:10,   value:{fixed:[], ranges:[
+        {min:1,    max:999,  weight:3, decimals:2},
+        {min:0.01, max:9.99, weight:1, decimals:2}
+      ]}},
+
+      // NEW units: dm, km
+      {from:'m',  to:'dm', factor:10,   value:{fixed:[], ranges:[
+        {min:1,    max:999,  weight:2, decimals:2},
+        {min:0.10, max:0.99, weight:1, decimals:2}
+      ]}},
+      {from:'dm', to:'cm', factor:10,   value:{fixed:[], ranges:[
+        {min:1,    max:999,  weight:3, decimals:2}
+      ]}},
+      {from:'km', to:'m',  factor:1000, value:{fixed:[], ranges:[
+        {min:0.10, max:9.99, weight:3, decimals:2}
+      ]}},
+    ],
+    up: [
+      {from:'mm', to:'cm', factor:1/10,   value:{fixed:[], ranges:[
+        {min:100, max:9999, weight:2, decimals:1}
+      ]}},
+      {from:'cm', to:'m',  factor:1/100,  value:{fixed:[], ranges:[
+        {min:100, max:9999, weight:3, decimals:1}
+      ]}},
+      {from:'dm', to:'m',  factor:1/10,   value:{fixed:[], ranges:[
+        {min:10,  max:9999, weight:3, decimals:2}
+      ]}},
+      {from:'cm', to:'dm', factor:1/10,   value:{fixed:[], ranges:[
+        {min:10,  max:9999, weight:3, decimals:2}
+      ]}},
+      {from:'m',  to:'km', factor:1/1000, value:{fixed:[], ranges:[
+        {min:100, max:9999, weight:3, decimals:1}
+      ]}},
+    ]
+  },
+
+  // B1 — add μm; include all previous; bump sizes/decimals (mostly 2)
+  B1: {
+    down: [
+      // previous
+      {from:'km', to:'m',  factor:1000, value:{fixed:[], ranges:[{min:0.20,max:19.99,weight:3,decimals:2}]}},
+      {from:'m',  to:'dm', factor:10,   value:{fixed:[], ranges:[{min:1,   max:9999, weight:2,decimals:2}]}},
+      {from:'dm', to:'cm', factor:10,   value:{fixed:[], ranges:[{min:1,   max:9999, weight:3,decimals:2}]}},
+      {from:'m',  to:'cm', factor:100,  value:{fixed:[], ranges:[{min:1,   max:9999, weight:2,decimals:2}]}},
+      {from:'cm', to:'mm', factor:10,   value:{fixed:[], ranges:[{min:1,   max:9999, weight:3,decimals:2}]}},
+
+      // NEW: μm
+      {from:'m',  to:'μm', factor:1e6,  value:{fixed:[], ranges:[{min:0.20,max:9.99, weight:2,decimals:2}]}},
+      {from:'cm', to:'μm', factor:1e4,  value:{fixed:[], ranges:[{min:1,   max:999,  weight:2,decimals:2}]}},
+      {from:'mm', to:'μm', factor:1000, value:{fixed:[], ranges:[{min:10,  max:9999, weight:2,decimals:2}]}}
+    ],
+    up: [
+      {from:'mm', to:'cm', factor:1/10,   value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:1}]}},
+      {from:'cm', to:'dm', factor:1/10,   value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:2}]}},
+      {from:'dm', to:'m',  factor:1/10,   value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:2}]}},
+      {from:'m',  to:'km', factor:1/1000, value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:1}]}},
+
+      {from:'μm', to:'m',  factor:1/1e6,  value:{fixed:[], ranges:[{min:2e5, max:9e6,  weight:3,decimals:0}]}},
+      {from:'μm', to:'cm', factor:1/1e4,  value:{fixed:[], ranges:[{min:2e4, max:9e6,  weight:3,decimals:0}]}},
+      {from:'μm', to:'mm', factor:1/1000, value:{fixed:[], ranges:[{min:2e3, max:9e6,  weight:3,decimals:0}]}}
+    ]
+  },
+
+  // B2 — add nm; include all previous; push to 3 decimals in down where useful
+  B2: {
+    down: [
+      // strong conversions
+      {from:'km', to:'cm', factor:100000, value:{fixed:[], ranges:[{min:0.20,max:9.99, weight:2,decimals:3}]}},
+      {from:'km', to:'mm', factor:1e6,    value:{fixed:[], ranges:[{min:0.20,max:9.99, weight:2,decimals:3}]}},
+      {from:'m',  to:'mm', factor:1000,   value:{fixed:[], ranges:[{min:0.20,max:99.99,weight:2,decimals:3}]}},
+
+      // with μm (from B1)
+      {from:'cm', to:'μm', factor:1e4,    value:{fixed:[], ranges:[{min:10,  max:9999, weight:2,decimals:3}]}},
+      {from:'m',  to:'μm', factor:1e6,    value:{fixed:[], ranges:[{min:0.20,max:19.99,weight:2,decimals:3}]}},
+
+      // NEW: nm
+      {from:'m',  to:'nm', factor:1e9,    value:{fixed:[], ranges:[{min:0.20,max:9.99, weight:2,decimals:3}]}},
+      {from:'μm', to:'nm', factor:1000,   value:{fixed:[], ranges:[{min:10,  max:9999, weight:2,decimals:3}]}}
+    ],
+    up: [
+      {from:'mm', to:'m',  factor:1/1000,  value:{fixed:[], ranges:[{min:200, max:990000, weight:3,decimals:1}]}},
+      {from:'cm', to:'km', factor:1/100000,value:{fixed:[], ranges:[{min:2e4, max:9e6,   weight:3,decimals:1}]}},
+      {from:'μm', to:'m',  factor:1/1e6,   value:{fixed:[], ranges:[{min:2e5, max:9e8,   weight:3,decimals:0}]}},
+      {from:'nm', to:'m',  factor:1/1e9,   value:{fixed:[], ranges:[{min:2e8, max:9e9,   weight:3,decimals:0}]}},
+      {from:'nm', to:'μm', factor:1/1000,  value:{fixed:[], ranges:[{min:2e5, max:9e9,   weight:3,decimals:0}]}}
+    ]
+  },
+
+  // C1 — extreme spans; keep decimals in down
+  C1: {
+    down: [
+      {from:'km', to:'μm', factor:1e9,  value:{fixed:[], ranges:[{min:0.50,max:49.999,weight:3,decimals:3}]}},
+      {from:'m',  to:'nm', factor:1e9,  value:{fixed:[], ranges:[{min:0.50,max:99.999,weight:3,decimals:3}]}},
+      {from:'cm', to:'nm', factor:1e7,  value:{fixed:[], ranges:[{min:10,  max:99999, weight:2,decimals:3}]}}
+    ],
+    up: [
+      {from:'nm', to:'m',  factor:1/1e9, value:{fixed:[], ranges:[{min:5e8, max:9e10, weight:3,decimals:0}]}},
+      {from:'μm', to:'km', factor:1/1e9, value:{fixed:[], ranges:[{min:5e8, max:9e10, weight:3,decimals:0}]}}
+    ]
+  }
+},
+
+/* ────────────────────────── POVRŠINA ────────────────────────── */
+povrsina: {
+  // A1 — decimals in DOWN
+  A1: {
+    down: [
+      {from:'m²',  to:'cm²', factor:1e4, value:{fixed:[], ranges:[
+        {min:1,    max:99,  weight:2, decimals:1},
+        {min:0.1,  max:0.9, weight:1, decimals:1}
+      ]}},
+      {from:'cm²', to:'mm²', factor:100,  value:{fixed:[], ranges:[
+        {min:10,   max:990, weight:3, decimals:1},
+        {min:0.1,  max:9.9, weight:1, decimals:1}
+      ]}},
+    ],
+    up: [
+      {from:'mm²', to:'cm²', factor:1/100, value:{fixed:[], ranges:[
+        {min:100,  max:999, weight:2, decimals:1},
+        {min:10,   max:99,  weight:1, decimals:1}
+      ]}},
+      {from:'cm²', to:'m²',  factor:1/1e4, value:{fixed:[], ranges:[
+        {min:100,  max:900, weight:2, decimals:1},
+        {min:10,   max:90,  weight:1, decimals:1}
+      ]}},
+	  
+    ]
+  },
+
+  // A2 — include A1; add dm² and km²
+  A2: {
+    down: [
+      // A1 carried
+      {from:'m²',  to:'cm²', factor:1e4,  value:{fixed:[], ranges:[
+        {min:1,     max:999, weight:2, decimals:2},
+        {min:0.10,  max:0.99,weight:1, decimals:2}
+      ]}},
+      {from:'cm²', to:'mm²', factor:100,   value:{fixed:[], ranges:[
+        {min:1,     max:999, weight:3, decimals:2},
+        {min:0.01,  max:9.99,weight:1, decimals:2}
+      ]}},
+
+      // NEW dm², km²
+      {from:'m²',  to:'dm²', factor:100,   value:{fixed:[], ranges:[
+        {min:1,     max:999, weight:2, decimals:2}
+      ]}},
+      {from:'dm²', to:'cm²', factor:100,   value:{fixed:[], ranges:[
+        {min:1,     max:999, weight:3, decimals:2}
+      ]}},
+      {from:'km²', to:'m²',  factor:1e6,   value:{fixed:[], ranges:[
+        {min:0.10,  max:9.99,weight:3, decimals:2}
+      ]}},
+    ],
+    up: [
+      {from:'mm²', to:'cm²', factor:1/100,  value:{fixed:[], ranges:[{min:100, max:9999, weight:2,decimals:1}]}},
+      {from:'cm²', to:'dm²', factor:1/100,  value:{fixed:[], ranges:[{min:100, max:9999, weight:3,decimals:2}]}},
+      {from:'dm²', to:'m²',  factor:1/100,  value:{fixed:[], ranges:[{min:100, max:9999, weight:3,decimals:2}]}},
+      {from:'m²',  to:'km²', factor:1/1e6,  value:{fixed:[], ranges:[{min:100, max:9999, weight:3,decimals:1}]}}
+    ]
+  },
+
+  // B1 — include all; push decimals to 2; add m²↔mm² hard cases
+  B1: {
+    down: [
+      {from:'km²', to:'m²',  factor:1e6,  value:{fixed:[], ranges:[{min:0.20,max:19.99,weight:3,decimals:2}]}},
+      {from:'m²',  to:'dm²', factor:100,  value:{fixed:[], ranges:[{min:1,   max:9999, weight:2,decimals:2}]}},
+      {from:'dm²', to:'cm²', factor:100,  value:{fixed:[], ranges:[{min:1,   max:9999, weight:3,decimals:2}]}},
+      {from:'m²',  to:'cm²', factor:1e4,  value:{fixed:[], ranges:[{min:1,   max:9999, weight:2,decimals:2}]}},
+      {from:'cm²', to:'mm²', factor:100,  value:{fixed:[], ranges:[{min:1,   max:9999, weight:3,decimals:2}]}},
+      {from:'m²',  to:'mm²', factor:1e6,  value:{fixed:[], ranges:[{min:0.20,max:9.99, weight:2,decimals:2}]}}
+    ],
+    up: [
+      {from:'mm²', to:'cm²', factor:1/100, value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:1}]}},
+      {from:'cm²', to:'dm²', factor:1/100, value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:2}]}},
+      {from:'dm²', to:'m²',  factor:1/100, value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:2}]}},
+      {from:'m²',  to:'km²', factor:1/1e6, value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:1}]}}
+    ]
+  },
+
+  // B2 — tougher spans; add km²↔cm²
+  B2: {
+    down: [
+      {from:'km²', to:'cm²', factor:1e10, value:{fixed:[], ranges:[{min:0.20,max:9.99, weight:2,decimals:3}]}},
+      {from:'m²',  to:'mm²', factor:1e6,  value:{fixed:[], ranges:[{min:0.20,max:99.99,weight:2,decimals:3}]}}
+    ],
+    up: [
+      {from:'cm²', to:'km²', factor:1/1e10, value:{fixed:[], ranges:[{min:2e8, max:9e10, weight:3,decimals:0}]}},
+      {from:'mm²', to:'m²',  factor:1/1e6,  value:{fixed:[], ranges:[{min:2e5, max:9e8,  weight:3,decimals:0}]}}
+    ]
+  },
+
+  // C1 — extremes
+  C1: {
+    down: [
+      {from:'km²', to:'mm²', factor:1e12, value:{fixed:[], ranges:[{min:0.50,max:49.999,weight:3,decimals:3}]}}
+    ],
+    up: [
+      {from:'mm²', to:'km²', factor:1/1e12, value:{fixed:[], ranges:[{min:5e10, max:9e12, weight:3,decimals:2}]}}
+    ]
+  }
+},
+
+/* ────────────────────────── PROSTORNINA ────────────────────────── */
+prostornina: {
+  // A1 — decimals in DOWN; include l, ml and dm³, cm³
+  A1: {
+    down: [
+      {from:'l',   to:'ml',  factor:1000, value:{fixed:[], ranges:[
+        {min:0.2,  max:9.9,  weight:2, decimals:1},
+        {min:0.10, max:0.99, weight:1, decimals:1}
+      ]}},
+      {from:'dm³', to:'cm³', factor:1000, value:{fixed:[], ranges:[
+        {min:0.2,  max:9.9,  weight:2, decimals:1}
+      ]}},
+    ],
+    up: [
+      {from:'ml',  to:'l',   factor:1/1000, value:{fixed:[], ranges:[
+        {min:100,  max:999, weight:2, decimals:0},
+        {min:10,   max:99,  weight:1, decimals:0}
+      ]}},
+      {from:'cm³', to:'dm³', factor:1/1000, value:{fixed:[], ranges:[
+        {min:100,  max:900, weight:2, decimals:0},
+        {min:10,   max:90,  weight:1, decimals:0}
+      ]}},
+    ]
+  },
+
+  // A2 — include A1; add m³ and l↔cm³
+  A2: {
+    down: [
+      {from:'l',   to:'ml',  factor:1000,  value:{fixed:[], ranges:[{min:0.20,max:19.99,weight:2,decimals:2}]}},
+      {from:'dm³', to:'cm³', factor:1000,  value:{fixed:[], ranges:[{min:0.20,max:19.99,weight:2,decimals:2}]}},
+
+      {from:'m³',  to:'l',   factor:1000,  value:{fixed:[], ranges:[
+        {min:0.10, max:9.99, weight:3, decimals:2}
+      ]}},
+      {from:'l',   to:'cm³', factor:1000,  value:{fixed:[], ranges:[
+        {min:0.20, max:9.99, weight:3, decimals:2}
+      ]}},
+    ],
+    up: [
+      {from:'ml',  to:'l',   factor:1/1000, value:{fixed:[], ranges:[{min:100,  max:9999, weight:3,decimals:1}]}},
+      {from:'cm³', to:'dm³', factor:1/1000, value:{fixed:[], ranges:[{min:100,  max:9999, weight:3,decimals:1}]}},
+      {from:'l',   to:'m³',  factor:1/1000, value:{fixed:[], ranges:[{min:200,  max:9900, weight:3,decimals:1}]}},
+      {from:'cm³', to:'l',   factor:1/1000, value:{fixed:[], ranges:[{min:200,  max:9900, weight:3,decimals:1}]}}
+    ]
+  },
+
+  // B1 — include all; add m³↔cm³ and cm³↔mm³
+  B1: {
+    down: [
+      {from:'m³',  to:'l',   factor:1000,  value:{fixed:[], ranges:[{min:0.20,max:29.99,weight:3,decimals:2}]}},
+      {from:'l',   to:'cm³', factor:1000,  value:{fixed:[], ranges:[{min:0.20,max:29.99,weight:3,decimals:2}]}},
+      {from:'m³',  to:'cm³', factor:1e6,   value:{fixed:[], ranges:[{min:0.20,max:9.99, weight:2,decimals:2}]}},
+      {from:'cm³', to:'mm³', factor:1000,  value:{fixed:[], ranges:[{min:10,  max:9999, weight:2,decimals:2}]}}
+    ],
+    up: [
+      {from:'cm³', to:'l',   factor:1/1000, value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:1}]}},
+      {from:'l',   to:'m³',  factor:1/1000, value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:1}]}},
+      {from:'cm³', to:'m³',  factor:1/1e6,  value:{fixed:[], ranges:[{min:2e5, max:9e7,  weight:3,decimals:0}]}},
+      {from:'mm³', to:'cm³', factor:1/1000, value:{fixed:[], ranges:[{min:2e3, max:9e6,  weight:3,decimals:0}]}}
+    ]
+  },
+
+  // B2 — push to 3 decimals; add m³↔mm³
+  B2: {
+    down: [
+      {from:'m³',  to:'mm³', factor:1e9,   value:{fixed:[], ranges:[{min:0.20,max:9.999, weight:2,decimals:3}]}},
+      {from:'l',   to:'mm³', factor:1e6,   value:{fixed:[], ranges:[{min:0.20,max:9.999, weight:2,decimals:3}]}}
+    ],
+    up: [
+      {from:'mm³', to:'m³',  factor:1/1e9,  value:{fixed:[], ranges:[{min:2e8, max:9e10, weight:3,decimals:0}]}},
+      {from:'mm³', to:'l',   factor:1/1e6,  value:{fixed:[], ranges:[{min:2e5, max:9e9,  weight:3,decimals:0}]}}
+    ]
+  },
+
+  // C1 — extremes
+  C1: {
+    down: [
+      {from:'m³',  to:'mm³', factor:1e9,  value:{fixed:[], ranges:[{min:0.50,max:49.999,weight:3,decimals:3}]}}
+    ],
+    up: [
+      {from:'mm³', to:'m³',  factor:1/1e9, value:{fixed:[], ranges:[{min:5e8, max:9e11, weight:3,decimals:0}]}}
+    ]
+  }
+},
+
+/* ────────────────────────── ČAS ────────────────────────── */
+cas: {
+  // A1 — decimals in DOWN allowed (≤3 will be enforced by your filter)
+  A1: {
+    down: [
+      {from:'h',   to:'min', factor:60,  value:{fixed:[], ranges:[
+        {min:0.5,  max:9.9,  weight:2, decimals:1},
+        {min:0.10, max:0.99, weight:1, decimals:2}
+      ]}},
+      {from:'min', to:'s',   factor:60,  value:{fixed:[], ranges:[
+        {min:5,    max:990,  weight:3, decimals:1},
+        {min:0.5,  max:9.9,  weight:1, decimals:1}
+      ]}},
+    ],
+    up: [
+      {from:'s',   to:'min', factor:1/60, value:{fixed:[], ranges:[
+        {min:20,   max:300,  weight:3, decimals:0}
+      ]}},
+      {from:'min', to:'h',   factor:1/60, value:{fixed:[], ranges:[
+        {min:20,   max:300,  weight:3, decimals:0}
+      ]}},
+    ]
+  },
+
+  // A2 — include A1; add d↔h
+  A2: {
+    down: [
+      {from:'h',   to:'min', factor:60,  value:{fixed:[], ranges:[{min:0.50,max:19.99,weight:2,decimals:2}]}},
+      {from:'min', to:'s',   factor:60,  value:{fixed:[], ranges:[{min:5,   max:999,  weight:3,decimals:2}]}},
+
+      {from:'d',   to:'h',   factor:24,  value:{fixed:[], ranges:[{min:0.5, max:9.9,  weight:3,decimals:2}]}}
+    ],
+    up: [
+      {from:'s',   to:'min', factor:1/60, value:{fixed:[], ranges:[{min:100, max:5000, weight:3,decimals:0}]}},
+      {from:'min', to:'h',   factor:1/60, value:{fixed:[], ranges:[{min:100, max:5000, weight:3,decimals:0}]}},
+      {from:'h',   to:'d',   factor:1/24, value:{fixed:[], ranges:[{min:12,  max:240,  weight:3,decimals:0}]}}
+    ]
+  },
+
+  // B1 — include all; add h↔s heavy spans
+  B1: {
+    down: [
+      {from:'h',   to:'s',   factor:3600, value:{fixed:[], ranges:[{min:0.50,max:9.99, weight:3,decimals:2}]}}
+    ],
+    up: [
+      {from:'s',   to:'h',   factor:1/3600, value:{fixed:[], ranges:[{min:600, max:7200, weight:3,decimals:0}]}}
+    ]
+  },
+
+  // B2 — include all; add d↔min big spans
+  B2: {
+    down: [
+      {from:'d',   to:'min', factor:1440, value:{fixed:[], ranges:[{min:0.50,max:9.99, weight:3,decimals:2}]}}
+    ],
+    up: [
+      {from:'min', to:'d',   factor:1/1440, value:{fixed:[], ranges:[{min:500, max:20000, weight:3,decimals:0}]}}
+    ]
+  },
+
+  // C1 — include all; add teden↔h
+  C1: {
+    down: [
+      {from:'teden', to:'h', factor:168, value:{fixed:[], ranges:[{min:0.50,max:1.50, weight:3,decimals:2}]}}
+    ],
+    up: [
+      {from:'h',     to:'teden', factor:1/168, value:{fixed:[], ranges:[{min:50, max:300, weight:3,decimals:0}]}}
+    ]
+  }
+},
+
+}; // END CONFIG
+
+/* ============================ Generator & UI ============================ */
+
+const $ = sel => document.querySelector(sel);
+
+// 8-decimalno ujemanje (kot prej)
+const roundTo = (n, d = 8) => { const p = 10 ** d; return Math.round((+n + Number.EPSILON) * p) / p; };
+const equal8  = (a, b)   => roundTo(a, 8) === roundTo(b, 8);
+
+// format izpisa z vejico
+function fmt(x,dec=12){
+  const s = (Math.round(x*10**dec)/10**dec).toString();
+  if (s.includes('e') || s.includes('E')) return s.replace('.',',');
+  if (!s.includes('.')) return s.replace('.',',');
+  let out = s.replace(/0+$/,'').replace(/\.$/,'');
+  return out.replace('.',',');
+}
+function toNumber(text){
+  if (typeof text === 'number') return text;
+  const s = (text||'').toString().trim().replace(/\s+/g,'').replace(',','.');
+  const n = Number(s);
+  return isFinite(n) ? n : NaN;
+}
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)] }
+function pickWeighted(ranges){
+  const total = ranges.reduce((s,r)=>s+(r.weight||1),0);
+  let t = Math.random()*total;
+  for (const r of ranges){
+    t -= (r.weight||1);
+    if (t<=0) return r;
+  }
+  return ranges[ranges.length-1];
+}
+function chooseValue(spec){
+  if (!spec) return 1;
+  const fixed = spec.fixed||[];
+  if (fixed.length>0) return pick(fixed);
+  const ranges = spec.ranges||[{min:1,max:9,weight:1,decimals:0}];
+  const r = pickWeighted(ranges);
+  const raw = r.min + Math.random()*(r.max - r.min);
+  const d = r.decimals||0;
+  return Math.round(raw * 10**d)/10**d;
+}
+
+// štetje decimalk (za filtriranje Čas ≤ 3 decimalk)
+function decimalsCount(n){
+  const s = n.toString();
+  if (s.includes('e') || s.includes('E')) return 10; // znanstvena notacija → veliko decimalk
+  const p = s.split('.');
+  return p[1] ? p[1].length : 0;
+}
+
+function buildPool(cat, level, smer){
+  const L = (CONFIG[cat]||{})[level] || {};
+  if (smer === 'both') return [...(L.down||[]), ...(L.up||[])];
+  return L[smer] || [];
+}
+
+function makeOneTask(cat, level, smer){
+  const pool = buildPool(cat, level, smer);
+  let tries = 0;
+  while (tries < 20){
+    tries++;
+    const pair = pick(pool);
+    const given = chooseValue(pair.value);
+    const result = given * pair.factor;
+
+    // filter za ČAS: rezultat mora imeti ≤ 3 decimalke
+    if (cat === 'cas' && decimalsCount(result) > 3) continue;
+
+    return {
+      pair, given, result,
+      text:`${fmt(given)} ${pair.from} = ? ${pair.to}`,
+      hint:`Namig: 1 ${pair.from} = ${fmt(pair.factor)} ${pair.to}`,
+      solution:`${fmt(given)} ${pair.from} = <strong>${fmt(result)}</strong> ${pair.to}`
+    };
+  }
+  // če po 20 poskusih nič ne ustreza, vrni zadnjega
+  const pair = pick(pool);
+  const given = chooseValue(pair.value);
+  const result = given * pair.factor;
+  return {
+    pair, given, result,
+    text:`${fmt(given)} ${pair.from} = ? ${pair.to}`,
+    hint:`Namig: 1 ${pair.from} = ${fmt(pair.factor)} ${pair.to}`,
+    solution:`${fmt(given)} ${pair.from} = <strong>${fmt(result)}</strong> ${pair.to}`
+  };
+}
+
+function taskCard(t, idx){
+  const id = `task_${idx}`;
+  return `
+  <div class="task" data-idx="${idx}">
+    <div class="task-header">
+      <div class="task-title">#${idx+1}: Pretvori <strong>${fmt(t.given)} <span class="units">${t.pair.from}</span></strong> v <strong><span class="units">${t.pair.to}</span></strong>.</div>
+      <input class="answer" id="${id}_input" type="text" placeholder="vnesi odgovor (npr. 12)" />
+      <button class="btn" id="${id}_check">Preveri to</button>
+      <button class="btn" id="${id}_hint">Pokaži namig</button>
+      <button class="btn" id="${id}_solve">Pokaži rešitev</button>
+    </div>
+    <div class="hint" id="${id}_hintbox" style="display:none;"></div>
+    <div class="solution" id="${id}_solbox" style="display:none;"></div>
+  </div>`;
+}
+
+let state = {
+  cat:'masa', level:'A1', smer:'down',
+  tasks:[],
+  correct:0, total:0
+};
+
+function renderTasks(){
+  const container = $("#tasks");
+  container.innerHTML = state.tasks.map((t,i)=>taskCard(t,i)).join("");
+  state.tasks.forEach((t,i)=>{
+    const id = `task_${i}`;
+    $(`#${id}_hint`).addEventListener("click", ()=>{
+      const box = $(`#${id}_hintbox`);
+      box.textContent = t.hint;
+      box.style.display = "block";
+    });
+    $(`#${id}_solve`).addEventListener("click", ()=>{
+      const box = $(`#${id}_solbox`);
+      box.innerHTML = t.solution;
+      box.style.display = "block";
+    });
+    $(`#${id}_check`).addEventListener("click", ()=>checkOne(i));
+  });
+}
+
+function makeFive(){
+  state.tasks = Array.from({length:5}, ()=>makeOneTask(state.cat, state.level, state.smer));
+  renderTasks();
+}
+
+function checkOne(i){
+  const t = state.tasks[i];
+  const id = `task_${i}`;
+  const user = toNumber($(`#${id}_input`).value);
+  const sol = t.result;
+
+  const ok = isFinite(user) && equal8(user, sol);
+
+  state.total++;
+  if (ok) state.correct++;
+  updateKPI();
+
+  const solBox = $(`#${id}_solbox`);
+  if (!ok) {
+    const hintBox = $(`#${id}_hintbox`);
+    hintBox.textContent = t.hint;
+    hintBox.style.display = "block";
+  } else {
+    $(`#${id}_hintbox`).style.display = "none";
+  }
+  solBox.innerHTML = t.solution + ` <span class="${ok?'status good':'status bad'}" style="margin-left:8px;">${ok?'Pravilno!':'Ni pravilno.'}</span>`;
+  solBox.style.display = "block";
+}
+
+function checkAll(){
+  state.tasks.forEach((_,i)=>checkOne(i));
+}
+
+function updateKPI(){
+  $("#ok").textContent = state.correct;
+  $("#all").textContent = state.total;
+  const pct = state.total ? Math.round(100*state.correct/state.total) : 0;
+  $("#pct").textContent = pct + "%";
+}
+
+$("#btnMake5").addEventListener("click", makeFive);
+$("#btnCheckAll").addEventListener("click", checkAll);
+
+$("#kolicina").addEventListener("change", e => { state.cat = e.target.value; makeFive(); });
+$("#tezavnost").addEventListener("change", e => { state.level = e.target.value; makeFive(); });
+$("#smer").addEventListener("change", e => { state.smer = e.target.value; makeFive(); });
+
+// inicialno polni
+makeFive();
+</script>
+</body>
+</html>
