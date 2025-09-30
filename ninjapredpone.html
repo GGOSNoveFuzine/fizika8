@@ -138,7 +138,7 @@ function spawnRound(){
   for(const v of labels){
     const r = rand(minR,maxR);
     let x, y=spawnY, tries=0; do{ x=rand(80,CAN.width-80); tries++; } while(!fits(x,y,r,tokens)&&tries<50);
-    const vx = rand(-130,130); // počasnejše vodoravno
+    const vx = rand(-100,100); // počasnejše vodoravno
     const vy = rand(-1600,-1380); // malenkost večji začetni skok
     tokens.push({type:'ball', value:v, x, y, r, vx, vy, ax:0, ay:900, alive:true, sliced:false}); // manjša gravitacija → višje in počasneje
   }
