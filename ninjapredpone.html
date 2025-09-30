@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SI Ninja — desetiške predpone (center target)</title>
+  <style>
+    :root{
+      --bg1:#0a0f1f; --bg2:#0b132b; --panel:#0f1730; --accent:#22d3ee; --good:#22c55e; --bad:#ef4444; --ink:#e5e7eb;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{background:radial-gradient(1100px 680px at 70% -180px,#1b285a 0%,#0b132b 55%,#070c18 100%);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;overflow:hidden}
+    header{position:fixed;inset:auto 0 0 0;display:flex;gap:.6rem;justify-content:space-between;align-items:center;padding:.5rem .8rem;background:linear-gradient(180deg,rgba(5,10,22,.0),rgba(5,10,22,.35));pointer-events:none}
+    .pill{pointer-events:auto;border:1px solid #1e2a4a;background:#0c152c;border-radius:999px;padding:.25rem .6rem;font-weight:700}
+    .row{display:flex;gap:.5rem;align-items:center}
+    .btn{pointer-events:auto;border:0;border-radius:12px;padding:.45rem .7rem;background:#1f2937;color:#e5e7eb;font-weight:700;cursor:pointer}
+    .btn:active{transform:translateY(1px)}
+    #stage{position:absolute;inset:0}
+    canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+    /* CILJ V SREDINI */
+    #centerTarget{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;z-index:5;user-select:none;pointer-events:none}
+    #centerTarget .label{font-size:clamp(32px,7vw,72px);font-weight:900;letter-spacing:.5px;color:var(--accent);text-shadow:0 2px 10px rgba(0,0,0,.55)}
+    #centerTarget .hint{margin-top:.25rem;opacity:.9}
+    /* Overlay za premor/konc */
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:10}
+    .overlay.show{display:flex}
+    .card{background:var(--panel);border:1px solid #203055;border-radius:16px;padding:1rem;min-width:min(92vw,520px)}
+    .card h2{margin:.2rem 0 0}
+    .kbd{padding:.05rem .3rem;border:1px solid #334155;border-bottom-width:2px;border-radius:6px;background:#0b1220}
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game" width="1280" height="720" aria-label="Igralno platno"></canvas>
+  </div>
+
+  <!-- ciljni napis v SREDINI zaslona -->
+  <div id="centerTarget">
+    <div class="label" id="lblPrefix">—</div>
+    <div class="hint" id="lblHint">Ujemi pravilno številsko vrednost (npr. mili = 0,001)</div>
+  </div>
+
+  <header>
+    <div class="row">
+      <div class="pill">Točke: <span id="score">0</span></div>
+      <div class="pill">Življenja: <span id="lives">3</span></div>
+      <div class="pill">Kombinacija: <span id="combo">0</span></div>
+    </div>
+    <div class="row">
+      <button class="btn" id="btnPause">Premor (P)</button>
+      <button class="btn" id="btnReset">Ponastavi (R)</button>
+      <button class="btn" id="btnMute">Zvok: vklopljen (M)</button>
+    </div>
+  </header>
+
+  <div id="pauseOverlay" class="overlay">
+    <div class="card">
+      <h2 id="ovTitle">Premor</h2>
+      <p id="ovMsg">Pritisni <span class="kbd">P</span> za nadaljevanje ali gumb.</p>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="btn" id="btnContinue">Nadaljuj</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ====== Konstante in UI ======
+const CAN = document.getElementById('game');
+const CTX = CAN.getContext('2d');
+const UI = {
+  score: document.getElementById('score'),
+  lives: document.getElementById('lives'),
+  combo: document.getElementById('combo'),
+  centerLabel: document.getElementById('lblPrefix'),
+  pause: document.getElementById('pauseOverlay'),
+  btnPause: document.getElementById('btnPause'),
+  btnReset: document.getElementById('btnReset'),
+  btnMute: document.getElementById('btnMute'),
+  btnContinue: document.getElementById('btnContinue'),
+  ovTitle: document.getElementById('ovTitle'),
+  ovMsg: document.getElementById('ovMsg'),
+};
+
+// Samo desetiške predpone (OBSTOJEČE)
+const PREFIXES = [
+  { key:'k',  name:'kilo',  value:1000   },
+  { key:'h',  name:'hekto', value:100    },
+  { key:'da', name:'deka',  value:10     },
+  { key:'d',  name:'deci',  value:0.1    },
+  { key:'c',  name:'centi', value:0.01   },
+  { key:'m',  name:'mili',  value:0.001  },
+];
+const ALLOWED = PREFIXES.map(p=>p.value);
+
+// Stanje
+const S = {
+  score:0,lives:3,combo:0,comboLeft:0,comboTimeout:1200,
+  muted:false,paused:false,
+  target:null, // {name,value}
+  entities:[], // krogle/bombe
+  trails:[],
+};
+
+// Zvok (minimal synth)
+const AC = (window.AudioContext||window.webkitAudioContext)?new (window.AudioContext||window.webkitAudioContext)():null;
+function beep(kind='slice'){
+  if(S.muted||!AC) return; const o=AC.createOscillator(), g=AC.createGain(); o.connect(g).connect(AC.destination);
+  o.type='sine'; let f1=600,f2=300,d=0.12; if(kind==='bomb'){f1=120;f2=60;d=0.22} if(kind==='wrong'){f1=220;f2=140;d=0.18} if(kind==='ok'){f1=540;f2=420;d=0.1} if(kind==='combo'){f1=700;f2=900;d=0.12}
+  const t=AC.currentTime; o.frequency.setValueAtTime(f1,t); o.frequency.exponentialRampToValueAtTime(f2,t+d*0.9); g.gain.value=0.08; g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.start(); o.stop(t+d);
+}
+
+// Pomožne
+function numToLabel(x){ const s=String(x); return s.includes('.')?s.replace('.',','):s; }
+function rand(a,b){return a+Math.random()*(b-a)}
+function pick(a){return a[Math.floor(Math.random()*a.length)]}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a}
+
+// Spawn logika (1 pravilna + 3 motilci izključno iz ALLOWED; opcijska bomba)
+function spawnRound(){
+  const target = pick(PREFIXES); S.target = target;
+  UI.centerLabel.textContent = `${target.name}`;
+
+  const pool = ALLOWED.filter(v=>v!==target.value);
+  const labels = shuffle([target.value, ...shuffle(pool).slice(0,3)]);
+  const addBomb = Math.random()<0.3;
+
+  // Geometrija in fizika — VEČJE številke in VIŠJI skoki
+  const minR=86, maxR=104; // večje krogle
+  const spawnY = CAN.height + 48;
+  const tokens = [];
+
+  function fits(x,y,r,arr){
+    for(const t of arr){ const dx=x-t.x, dy=y-t.y; if(Math.hypot(dx,dy) < (r+t.r)+30) return false; } return true;
+  }
+
+  // Položi krogle v spodnji pas, z manj prekrivanja
+  for(const v of labels){
+    const r = rand(minR,maxR);
+    let x, y=spawnY, tries=0; do{ x=rand(80,CAN.width-80); tries++; } while(!fits(x,y,r,tokens)&&tries<50);
+    const vx = rand(-130,130); // počasnejše vodoravno
+    const vy = rand(-1600,-1380); // malenkost večji začetni skok
+    tokens.push({type:'ball', value:v, x, y, r, vx, vy, ax:0, ay:900, alive:true, sliced:false}); // manjša gravitacija → višje in počasneje
+  }
+  if(addBomb){
+    const r = rand(minR*0.9,maxR*0.9); let x, y=spawnY, tries=0; do{ x=rand(80,CAN.width-80); tries++; } while(!fits(x,y,r,tokens)&&tries<50);
+    const vx = rand(-150,150), vy = rand(-1180,-1040);
+    tokens.push({type:'bomb', x, y, r, vx, vy, ax:0, ay:900, alive:true, sliced:false});
+  }
+
+  S.entities.push(...tokens);
+}
+
+function resetGame(){ S.score=0;S.lives=3;S.combo=0;S.comboLeft=0;S.entities.length=0;S.trails.length=0; spawnRound(); updateUI(); }
+function updateUI(){ UI.score.textContent=S.score; UI.lives.textContent=S.lives; UI.combo.textContent=S.combo; }
+
+// Vnos in sled rezila
+const pointer={x:0,y:0,lastX:0,lastY:0,down:false};
+function addTrail(x,y){ S.trails.push({x,y,life:220}); }
+CAN.addEventListener('pointerdown',e=>{pointer.down=true; const r=CAN.getBoundingClientRect(); pointer.x=(e.clientX-r.left)*CAN.width/r.width; pointer.y=(e.clientY-r.top)*CAN.height/r.height; addTrail(pointer.x,pointer.y)});
+CAN.addEventListener('pointermove',e=>{const r=CAN.getBoundingClientRect(); const x=(e.clientX-r.left)*CAN.width/r.width; const y=(e.clientY-r.top)*CAN.height/r.height; if(pointer.down) addTrail(x,y); pointer.lastX=pointer.x; pointer.lastY=pointer.y; pointer.x=x; pointer.y=y;});
+window.addEventListener('pointerup',()=>{pointer.down=false});
+
+// Fizika + risanje
+let last=performance.now();
+function loop(now){ const dtRaw=now-last; last=now; const dt=Math.min(0.033, dtRaw/1000); if(!S.paused){ step(dt,dtRaw); draw(); } requestAnimationFrame(loop); }
+
+function step(dt,dtRaw){
+  if(S.comboLeft>0){ S.comboLeft-=dtRaw; if(S.comboLeft<=0){S.combo=0; UI.combo.textContent='0';} }
+
+  // gibanje
+  for(const e of S.entities){ if(!e.alive) continue; e.vx += (e.ax||0)*dt; e.vy += (e.ay||0)*dt; e.x += e.vx*dt; e.y += e.vy*dt; }
+
+  // blago odrivanje (anti-overlap)
+  for(let i=0;i<S.entities.length;i++){
+    const a=S.entities[i]; if(!a.alive) continue;
+    for(let j=i+1;j<S.entities.length;j++){
+      const b=S.entities[j]; if(!b.alive) continue; const dx=b.x-a.x, dy=b.y-a.y; const d=Math.hypot(dx,dy); const min=(a.r+b.r)+12; if(d>0 && d<min){ const push=(min-d)*0.5; const nx=dx/d, ny=dy/d; a.x-=nx*push; a.y-=ny*push; b.x+=nx*push; b.y+=ny*push; }
+    }
+  }
+
+  // rezi
+  if(pointer.down){ const {lastX:x1,lastY:y1,x:x2,y:y2}=pointer; for(const e of S.entities){ if(!e.alive||e.sliced) continue; if(segCircle(x1,y1,x2,y2,e.x,e.y,e.r*1.45)){ e.sliced=true; onSlice(e); } } }
+
+  // izginjanje (padejo spodaj)
+  for(const e of S.entities){ if(e.alive && e.y-e.r>CAN.height+80){ e.alive=false; if(e.type==='ball' && S.target && e.value===S.target.value){ loseLife(); beep('wrong'); flash('#330'); } } }
+
+  // čiščenje
+  S.entities=S.entities.filter(e=>e.alive);
+  S.trails.forEach(t=>t.life-=dtRaw); S.trails=S.trails.filter(t=>t.life>0);
+
+  // nova runda
+  if(S.entities.length===0) spawnRound();
+}
+
+function draw(){ const w=CAN.width,h=CAN.height; CTX.clearRect(0,0,w,h);
+  // mrežica
+  CTX.save(); CTX.globalAlpha=.06; CTX.strokeStyle='#9ac5ff'; for(let x=0;x<w;x+=100){ CTX.beginPath(); CTX.moveTo(x,0); CTX.lineTo(x,h); CTX.stroke(); } for(let y=0;y<h;y+=100){ CTX.beginPath(); CTX.moveTo(0,y); CTX.lineTo(w,y); CTX.stroke(); } CTX.restore();
+  // entitete
+  for(const e of S.entities){ if(e.type==='ball') drawBall(e); else drawBomb(e); }
+  // trail
+  CTX.save(); for(const t of S.trails){ const a=Math.max(0,Math.min(1,t.life/220)); CTX.globalAlpha=.22*a; CTX.beginPath(); CTX.arc(t.x,t.y, 28*a, 0,Math.PI*2); CTX.fillStyle='white'; CTX.fill(); } CTX.restore();
+}
+
+function drawBall(e){ CTX.save(); const g=CTX.createRadialGradient(e.x-e.r*.3,e.y-e.r*.4,e.r*.2,e.x,e.y,e.r*1.1); g.addColorStop(0,'#1f3b5a'); g.addColorStop(1,'#0b1728'); CTX.fillStyle=g; CTX.beginPath(); CTX.arc(e.x,e.y,e.r,0,Math.PI*2); CTX.fill(); CTX.lineWidth=2; CTX.strokeStyle='#1e293b'; CTX.stroke(); CTX.fillStyle='#facc15'; CTX.textAlign='center'; CTX.textBaseline='middle'; CTX.font=`900 ${Math.round(e.r*0.95)}px system-ui`; CTX.shadowColor='rgba(0,0,0,.55)'; CTX.shadowBlur=8; CTX.fillText(numToLabel(e.value), e.x, e.y+1); CTX.restore(); }
+function drawBomb(e){ CTX.save(); CTX.beginPath(); CTX.arc(e.x,e.y,e.r,0,Math.PI*2); CTX.fillStyle='#1f2937'; CTX.fill(); CTX.lineWidth=2; CTX.strokeStyle='#111827'; CTX.stroke(); CTX.font=`700 ${Math.round(e.r*.8)}px system-ui`; CTX.textAlign='center'; CTX.textBaseline='middle'; CTX.fillStyle='#ef4444'; CTX.fillText('💣',e.x,e.y+1); CTX.restore(); }
+
+function onSlice(e){ if(e.type==='bomb'){ e.alive=false; loseLife(); flash('#3a0000'); beep('bomb'); return; } const ok=(S.target && e.value===S.target.value); if(ok){ e.alive=false; addScore(10); extendCombo(); flash('#062'); beep('ok'); for(const k of S.entities){ if(k!==e && k.type==='ball') k.alive=false; } } else { e.alive=false; loseLife(); flash('#301'); beep('wrong'); } }
+function addScore(n){ S.score+=n; UI.score.textContent=S.score; }
+function extendCombo(){ S.combo+=1; UI.combo.textContent=S.combo; S.comboLeft=S.comboTimeout; if(S.combo%3===0) beep('combo'); }
+function loseLife(){ S.lives=Math.max(0,S.lives-1); UI.lives.textContent=S.lives; if(S.lives===0) gameOver(); }
+function gameOver(){ S.paused=true; UI.pause.classList.add('show'); UI.ovTitle.textContent='Konec igre'; UI.ovMsg.innerHTML=`Rezultat: <b>${S.score}</b>. Pritisni <span class="kbd">R</span> za novo igro.`; }
+
+function flash(color){ CAN.style.boxShadow=`0 0 0 0 ${color}`; CAN.animate([{boxShadow:`0 0 0 0 ${color}`},{boxShadow:`0 0 96px 8px ${color}`}],{duration:120,direction:'reverse'}); }
+
+function segCircle(x1,y1,x2,y2,cx,cy,r){ const dx=x2-x1, dy=y2-y1; const fx=x1-cx, fy=y1-cy; const a=dx*dx+dy*dy; const b=2*(fx*dx+fy*dy); const c=fx*fx+fy*fy-r*r; let disc=b*b-4*a*c; if(disc<0) return false; disc=Math.sqrt(disc); const t1=(-b-disc)/(2*a), t2=(-b+disc)/(2*a); return (t1>=0&&t1<=1)||(t2>=0&&t2<=1); }
+
+// Kontrole
+UI.btnPause.onclick=()=>togglePause();
+UI.btnContinue.onclick=()=>togglePause(false);
+UI.btnReset.onclick=()=>{ S.paused=false; UI.pause.classList.remove('show'); resetGame(); };
+UI.btnMute.onclick=()=>{ S.muted=!S.muted; UI.btnMute.textContent=`Zvok: ${S.muted?'izklopljen':'vklopljen'} (M)` };
+function togglePause(force){ if(typeof force==='boolean') S.paused=!force; else S.paused=!S.paused; if(S.paused){ UI.pause.classList.add('show'); } else { UI.pause.classList.remove('show'); last=performance.now(); } }
+window.addEventListener('keydown',e=>{ if(e.key==='p'||e.key==='P') togglePause(); else if(e.key==='r'||e.key==='R'){ S.paused=false; UI.pause.classList.remove('show'); resetGame(); } else if(e.key==='m'||e.key==='M'){ UI.btnMute.click(); } });
+
+// Velikost
+function fitCanvas(){ const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1)); const r=CAN.getBoundingClientRect(); CAN.width=Math.round(r.width*dpr); CAN.height=Math.round((window.innerHeight)*dpr); }
+window.addEventListener('resize',fitCanvas);
+fitCanvas(); resetGame(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>
