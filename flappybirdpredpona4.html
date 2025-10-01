@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Flappy Predpone — gorivo & metri</title>
+  <style>
+    :root{
+      --bg:#0f172a; /* slate-900 */
+      --fg:#e2e8f0; /* slate-200 */
+      --accent:#22d3ee; /* cyan-400 */
+      --good:#10b981; /* emerald-500 */
+      --bad:#ef4444; /* red-500 */
+      --panel:#111827cc; /* slate-900/80 */
+    }
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans",sans-serif}
+    #wrap{position:relative;max-width:900px;margin:0 auto;height:100vh;display:flex;flex-direction:column}
+    header{display:flex;gap:.5rem;align-items:center;justify-content:space-between;padding:.5rem .75rem;background:#00000033}
+    header .title{font-weight:700;letter-spacing:.3px}
+    header .controls{display:flex;align-items:center;gap:.5rem;font-size:.9rem}
+    #game{flex:1;position:relative}
+    canvas{width:100%;height:100%;display:block;background:linear-gradient(#0ea5e9,#1e3a8a)}
+    .hud{position:absolute;left:0;right:0;top:0;display:flex;gap:.5rem;align-items:center;justify-content:space-between;padding:.5rem .75rem;pointer-events:none}
+    .chip{background:var(--panel);backdrop-filter:blur(6px);padding:.35rem .6rem;border-radius:12px;font-weight:600;font-size:.9rem}
+    .fuel{display:flex;align-items:center;gap:.5rem}
+    .bar{width:140px;height:10px;background:#00000055;border-radius:9999px;overflow:hidden}
+    .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#fde047,#f59e0b,#10b981)}
+    .target{font-weight:800;color:#eab308;font-size:1.6rem}
+    .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;background:#00000088;color:var(--fg)}
+    .card{background:var(--panel);padding:1rem 1.2rem;border-radius:16px;box-shadow:0 10px 30px #00000066;max-width:90%;text-align:center}
+    button{appearance:none;border:none;background:var(--accent);color:#003042;font-weight:800;padding:.7rem 1rem;border-radius:12px;cursor:pointer}
+    button:hover{filter:brightness(1.05)}
+    .small{font-size:.85rem;opacity:.85}
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <header>
+      <div class="title">Flappy Predpone</div>
+      <div class="controls">
+        <span class="small">Klik/tap ali presledek = zamah</span>
+        <button id="btnMute" aria-pressed="false" title="Zvok vklop/izklop">🔊</button>
+      </div>
+    </header>
+    <div id="game">
+      <canvas id="canvas"></canvas>
+      <div class="hud">
+        <div class="chip">Razdalja: <b id="dist">0 m</b></div>
+        <div class="chip target">Cilj: <span id="target">—</span></div>
+        <div class="chip fuel"><span>Gorivo</span><div class="bar"><i id="fuelFill"></i></div></div>
+      </div>
+      <div id="start" class="overlay" role="dialog" aria-modal="true">
+        <div class="card">
+          <h2 style="margin:.2rem 0">🚴‍♀️ Zbiraš gorivo z <em>pravimi</em> predponami!</h2>
+          <p class="small">Cilj se zamenja vsakih 15 sekund. Pravilne kartice ti dodajo gorivo; napačne ga vzamejo.</p>
+          <p class="small">Cilj: <b id="startTarget">—</b></p>
+          <button id="btnStart">Začni</button>
+        </div>
+      </div>
+      <div id="gameover" class="overlay" style="display:none" role="dialog" aria-modal="true">
+        <div class="card">
+          <h2 style="margin:.2rem 0">🏁 Konec! </h2>
+          <p>Prevozil(a) si <b id="finalDist">0 m</b></p>
+          <div id="stats" class="small" style="text-align:left;white-space:pre-line;margin-top:.5rem"></div>
+          <button id="btnRestart">Igraj znova</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <audio id="sfxFlap" preload="auto"><source src="data:audio/wav;base64,UklGRl4AAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAAChAAAAAAA=" type="audio/wav"></audio>
+  <audio id="sfxGood" preload="auto"><source src="data:audio/wav;base64,UklGRl4AAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAAChAAAAAAA=" type="audio/wav"></audio>
+  <audio id="sfxBad" preload="auto"><source src="data:audio/wav;base64,UklGRl4AAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAAChAAAAAAA=" type="audio/wav"></audio>
+
+  <script>
+  // --- Utility: DPR-friendly canvas ---
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  function resizeCanvas(){
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0); // draw in CSS pixels
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  // --- Game data ---
+  const SPEED = 2.2;         // px per frame in CSS pixels
+  const GRAVITY = 0.35;      // px/frame^2
+  const FLAP_V = -6.2;       // px/frame
+  const PIPE_W = 70;
+  const PIPE_INTERVAL = 3500;// ms, horizontal spacing
+  const FUEL_MAX = 100;
+  const FUEL_DRAIN = 5;      // per second
+  const FUEL_HIT_GOOD = 18;  // on good pickup
+  const FUEL_HIT_BAD = 12;   // penalty
+
+  // Ratio-based vertical gap (scales with screen height)
+  const PIPE_GAP_RATIO = 0.35; // 35% of current canvas height
+  function getPipeGap(){
+    const h = canvas.height / (window.devicePixelRatio||1);
+    return h * PIPE_GAP_RATIO;
+  }
+  // UI scaling helper for phones vs desktops
+  function uiScale(){
+    const h = canvas.getBoundingClientRect().height;
+    // Scale down on small screens, cap at 1 on larger
+    return Math.max(0.1, Math.min(1, h / 1000));
+  }
+
+  // Goal rotation every 15 s
+  const GOAL_DURATION_MS = 15000;
+  let nextGoalAt = 0;
+
+  const PREFIXES = [
+  { name:'kilo',  pow:3,  forms:['1000','10³'] },
+  { name:'hekto', pow:2,  forms:['100','10²'] },
+  { name:'deka',  pow:1,  forms:['10','10¹'] },
+  { name:'deci',  pow:-1, forms:['0,1','0.1','10⁻¹'] },
+  { name:'centi', pow:-2, forms:['0,01','0.01','10⁻²'] },
+  { name:'mili',  pow:-3, forms:['0,001','0.001','10⁻³'] }
+];
+
+  // Stats per prefix
+  const stats = Object.fromEntries(PREFIXES.map(p=>[p.name,{good:0,bad:0}]));
+
+  // Choose a random target prefix each run
+  let target = PREFIXES[Math.floor(Math.random()*PREFIXES.length)];
+
+  function setNewTarget(){
+    let prev = target;
+    do { target = PREFIXES[Math.floor(Math.random()*PREFIXES.length)]; } while(target===prev && PREFIXES.length>1);
+    targetEl.textContent = `${target.name}`;
+    nextGoalAt = performance.now() + GOAL_DURATION_MS;
+  }
+
+  // DOM HUD
+  const distEl = document.getElementById('dist');
+  const targetEl = document.getElementById('target');
+  const startTargetEl = document.getElementById('startTarget');
+  const fuelFillEl = document.getElementById('fuelFill');
+  const startOverlay = document.getElementById('start');
+  const overOverlay = document.getElementById('gameover');
+  const finalDistEl = document.getElementById('finalDist');
+  const statsEl = document.getElementById('stats');
+
+  // SFX
+  const sfxFlap = document.getElementById('sfxFlap');
+  const sfxGood = document.getElementById('sfxGood');
+  const sfxBad  = document.getElementById('sfxBad');
+  let muted = false;
+  const btnMute = document.getElementById('btnMute');
+  btnMute.addEventListener('click', ()=>{
+    muted = !muted;
+    btnMute.textContent = muted ? '🔇' : '🔊';
+  });
+  function play(sfx){ if(!muted){ try { sfx.currentTime = 0; sfx.play(); } catch(_){} } }
+
+  // Player
+  const player = { x: 120, y: 220, v: 0, r: 14 };
+  let fuel = FUEL_MAX * 0.7;
+  let distance = 0;
+
+  // Pipes and pickups
+  const pipes = []; // {x, topH}
+  const pickups = []; // {x,y,text,isGood,vy}
+  let lastPipeAt = 0;
+
+  // State
+  let running = false;
+  let lastTime = 0;
+
+  // Input
+  function flap(){
+    if(!running){ return; }
+    player.v = FLAP_V;
+    play(sfxFlap);
+  }
+  window.addEventListener('keydown', (e)=>{ if(e.code==='Space'){ e.preventDefault(); flap(); } });
+  canvas.addEventListener('pointerdown', ()=> flap());
+
+  // Collisions helper
+  function inRect(px,py, rx,ry,rw,rh){ return px>rx && px<rx+rw && py>ry && py<ry+rh; }
+
+  function spawnPipe(){
+    const h = canvas.height / (window.devicePixelRatio||1);
+    const gap = getPipeGap();
+    const minTop = 60, minBottom = 80;
+    const gapY = Math.random()*(h-minTop-minBottom-gap) + minTop;
+    pipes.push({ x: (canvas.width/(window.devicePixelRatio||1))+20, topH: gapY, passed:false });
+
+    // Spawn 3–5 pickups around the gap; ~2/3 correct for the current target
+    const count = 5 + Math.floor(Math.random()*3); // 5,6,7
+    const numGood = Math.max(1, Math.round(count*0.66));
+    const order = Array.from({length:count}, (_,i)=> i < numGood);
+    // shuffle order
+    for(let i=order.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
+
+    for(let i=0;i<count;i++){
+      const isGood = order[i];
+      const txt = isGood
+        ? target.forms[Math.floor(Math.random()*target.forms.length)]
+        : randomWrongForm();
+      const margin = Math.min(30, gap*0.2);
+      const py = Math.random()*(gap - 2*margin) + (gapY + margin);
+      // spread them a bit horizontally so they don't overlap perfectly
+      const baseX = (pipes.length
+      ? (pipes[pipes.length-1].x + PIPE_W/2) // center of gap when a pipe exists
+      : ((canvas.width/(window.devicePixelRatio||1))+20 + 40) // fallback on first spawn
+      );
+      pickups.push({ x: baseX + i*32, y: py, text: txt, isGood, vy: (Math.random()*0.6-0.3) });
+    }
+  }
+
+  function randomWrongForm(){
+    // pick a form from a non-target prefix
+    let other;
+    do { other = PREFIXES[Math.floor(Math.random()*PREFIXES.length)]; } while(other===target);
+    return other.forms[Math.floor(Math.random()*other.forms.length)];
+  }
+
+  function reset(){
+    resizeCanvas();
+    // reset stats
+    for(const k in stats){ stats[k].good = 0; stats[k].bad = 0; }
+
+    target = PREFIXES[Math.floor(Math.random()*PREFIXES.length)];
+    targetEl.textContent = `${target.name}`;
+    startTargetEl.textContent = targetEl.textContent;
+    nextGoalAt = performance.now() + GOAL_DURATION_MS;
+
+    player.x = Math.max(100, canvas.getBoundingClientRect().width*0.2);
+    player.y = canvas.getBoundingClientRect().height*0.45;
+    player.v = 0;
+
+    fuel = FUEL_MAX*0.7; updateFuelBar();
+    distance = 0; distEl.textContent = '0 m';
+
+    pipes.length = 0; pickups.length = 0; lastPipeAt = 0;
+    lastTime = performance.now();
+  }
+
+  function start(){ running = true; startOverlay.style.display='none'; overOverlay.style.display='none'; lastTime = performance.now(); }
+  function gameOver(){
+    running = false; overOverlay.style.display='flex'; finalDistEl.textContent = distEl.textContent;
+    // render stats summary
+    const lines = PREFIXES.map(p=>{
+      const s = stats[p.name];
+      const total = s.good + s.bad;
+      if(total===0) return null;
+      return `${p.name}: ${s.good}/${total} ✅`;
+    }).filter(Boolean);
+    statsEl.textContent = lines.length? lines.join('\n') : 'Zberi pravilne kartice, da vidiš povratne informacije.';
+  }
+
+  document.getElementById('btnStart').addEventListener('click', ()=>{ reset(); start(); });
+  document.getElementById('btnRestart').addEventListener('click', ()=>{ reset(); start(); });
+
+  // Fuel HUD
+  function updateFuelBar(){
+    const pct = Math.max(0, Math.min(1, fuel / FUEL_MAX));
+    fuelFillEl.style.width = (pct*140) + 'px';
+  }
+
+  // Main loop
+  function loop(t){
+    const dt = Math.min(50, t - lastTime); // ms (cap)
+    lastTime = t;
+
+    const w = canvas.getBoundingClientRect().width;
+    const h = canvas.getBoundingClientRect().height;
+
+    // physics while running
+    if(running){
+      // rotate goal every GOAL_DURATION_MS
+      if(t >= nextGoalAt){ setNewTarget(); }
+
+      // drain fuel
+      fuel -= (FUEL_DRAIN * dt / 1000);
+      if(fuel <= 0){ fuel = 0; updateFuelBar(); return gameOver(); }
+
+      // pipes
+      if(t - lastPipeAt > PIPE_INTERVAL){ lastPipeAt = t; spawnPipe(); }
+      for(const p of pipes){ p.x -= SPEED; }
+      while(pipes.length && pipes[0].x + PIPE_W < -20){ pipes.shift(); }
+
+      // pickups
+      for(const c of pickups){ c.x -= SPEED; c.y += c.vy; }
+      while(pickups.length && pickups[0].x < -100){ pickups.shift(); }
+
+      // player
+      player.v += GRAVITY;
+      player.y += player.v;
+
+      // distance
+      distance += SPEED * (dt/16.67); // normalize to ~60fps units
+      distEl.textContent = Math.floor(distance/3) + ' m';
+
+      // collisions with ground/ceiling
+      if(player.y < 0 || player.y > h){ return gameOver(); }
+
+      // collisions with pipes
+      for(const p of pipes){
+        const gap = getPipeGap();
+        if( inRect(player.x, player.y, p.x, 0, PIPE_W, p.topH) ||
+            inRect(player.x, player.y, p.x, p.topH + gap, PIPE_W, h - (p.topH + gap)) ){
+          return gameOver();
+        }
+      }
+
+      // pickups collision
+      for(let i=pickups.length-1;i>=0;i--){
+        const c = pickups[i];
+        const s = uiScale();
+      ctx.font = `600 ${Math.round(18*s)}px system-ui, sans-serif`;
+      const tw = ctx.measureText(c.text).width;
+      const cw = Math.max(90*s, tw + 40*s), ch = 52*s;
+        if(inRect(player.x, player.y, c.x - cw/2, c.y - ch/2, cw, ch)){
+          const isGoodNow = target.forms.includes(c.text);
+          if(isGoodNow){
+            fuel = Math.min(FUEL_MAX, fuel + FUEL_HIT_GOOD);
+            play(sfxGood);
+            stats[target.name].good++;
+          } else {
+            fuel = Math.max(0, fuel - FUEL_HIT_BAD);
+            play(sfxBad);
+            stats[target.name].bad++;
+          }
+          updateFuelBar();
+          pickups.splice(i,1);
+        }
+      }
+    }
+
+    // draw
+    ctx.clearRect(0,0,w,h);
+
+    // parallax background (simple stripes)
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = '#ffffff';
+    for(let x = (-(distance%40)); x < w; x+=40){ ctx.fillRect(x,0,2,h); }
+    ctx.globalAlpha = 1;
+
+    // pipes
+    for(const p of pipes){
+      const gap = getPipeGap();
+      ctx.fillStyle = '#14532d';
+      ctx.fillRect(p.x, 0, PIPE_W, p.topH);
+      ctx.fillRect(p.x, p.topH + gap, PIPE_W, h - (p.topH + gap));
+      // edges
+      ctx.fillStyle = '#16a34a';
+      ctx.fillRect(p.x, p.topH - 10, PIPE_W, 10);
+      ctx.fillRect(p.x, p.topH + gap, PIPE_W, 10);
+    }
+
+    // pickups
+    for(const c of pickups){
+      ctx.font = '600 18px system-ui, sans-serif';
+        const tw = ctx.measureText(c.text).width;
+        const cw = Math.max(64, tw+28), ch = 38;
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      roundRect(ctx, -cw/2, -ch/2, cw, ch, 8, true);
+      ctx.fillStyle = '#0b1020';
+      ctx.font = '600 18px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(c.text, 0, 1);
+      ctx.restore();
+    }
+
+    // player (bike circle)
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    ctx.beginPath();
+    ctx.arc(0,0, player.r, 0, Math.PI*2);
+    ctx.fillStyle = '#22d3ee';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(-10,10,6,0,Math.PI*2); ctx.arc(10,10,6,0,Math.PI*2); ctx.fillStyle='#e0f2fe'; ctx.fill();
+    ctx.restore();
+
+    requestAnimationFrame(loop);
+  }
+
+  function roundRect(ctx, x, y, w, h, r, fill){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y,x+w,y+h,rr);
+    ctx.arcTo(x+w,y+h,x,y+h,rr);
+    ctx.arcTo(x,y+h,x,y,rr);
+    ctx.arcTo(x,y,x+w,y,rr);
+    if(fill) ctx.fill(); else ctx.stroke();
+  }
+
+  // Kickoff
+  resizeCanvas();
+  targetEl.textContent = `${target.name}`;
+  startTargetEl.textContent = targetEl.textContent;
+  nextGoalAt = performance.now() + GOAL_DURATION_MS;
+  requestAnimationFrame((t)=>{ lastTime=t; loop(t); });
+
+  // Accessibility: pause on blur
+  window.addEventListener('blur', ()=>{ if(running){ running=false; } });
+  window.addEventListener('focus', ()=>{ if(!running && startOverlay.style.display==='none' && overOverlay.style.display==='none'){ running=true; lastTime=performance.now(); } });
+  </script>
+</body>
+</html>
