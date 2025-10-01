@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Enakomerno gibanje – kviz način (s, v, t)</title>
+  <style>
+    :root{
+      --bg:#0f172a;--card:#111827;--muted:#94a3b8;--fg:#e5e7eb;
+      --accent:#22d3ee;--accent-2:#60a5fa;--axis:#cbd5e1;--tick:#94a3b8;--good:#34d399;--bad:#f87171;--stop:#ff4d6d
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;background:radial-gradient(1200px 600px at 10% -10%,#1f2937 0%,var(--bg) 40%);color:var(--fg);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,"Helvetica Neue",Arial,"Apple Color Emoji","Segoe UI Emoji";
+      min-height:100svh;display:grid;place-items:start;padding:24px
+    }
+    .app{
+      width:min(1150px,100%);margin-inline:auto;
+      background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));
+      border:1px solid rgba(255,255,255,.06);border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,.45);
+      padding:22px clamp(16px,3vw,30px)
+    }
+    h1{margin:0 0 6px 0;font-size:clamp(20px,2.6vw,30px);letter-spacing:.2px}
+    .sub{margin:0 0 14px 0;color:var(--muted);font-size:14px}
+    .panel{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center}
+    @media (max-width:820px){.panel{grid-template-columns:1fr}}
+    .picker{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{
+      appearance:none;border:1px solid rgba(255,255,255,.14);background:#0b1220;color:var(--fg);
+      padding:8px 12px;border-radius:999px;cursor:pointer;font-weight:700
+    }
+    .chip.active{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#0b1220;border:0}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .stat{background:#0b1220;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:10px 12px;text-align:center}
+    .stat .label{color:var(--muted);font-size:12px}
+    .stat .value{font-size:clamp(18px,2.2vw,22px);font-weight:700}
+    .grid{display:grid;gap:24px;margin-top:14px}
+    @media (min-width:960px){.grid{grid-template-columns:1.2fr .8fr}}
+    .stage,.card{background:#0b1220;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:clamp(10px,2.2vw,16px)}
+    svg{width:100%;height:260px;display:block}
+    .note{margin-top:6px;color:var(--muted);font-size:12px}
+    .controls{display:flex;flex-wrap:wrap;gap:8px}
+    button{
+      appearance:none;border:0;border-radius:14px;padding:10px 14px;font-weight:700;color:#0b1220;
+      background:linear-gradient(180deg,var(--accent),var(--accent-2));cursor:pointer
+    }
+    button.secondary{background:#1f2937;color:var(--fg);border:1px solid rgba(255,255,255,.12)}
+    .io{display:grid;gap:8px;margin-top:10px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    input[type="text"]{
+      background:#0e172a;border:1px solid rgba(255,255,255,.12);border-radius:12px;color:var(--fg);
+      padding:10px 12px;min-width:160px;font-weight:700
+    }
+    .feedback{font-weight:800}
+    .ok{color:var(--good)}
+    .bad{color:var(--bad)}
+    .hint,.solution{
+      background:#0c1426;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 12px;color:var(--fg)
+    }
+    .hidden{display:none !important}
+    .legend{position:absolute;inset:auto 10px 8px auto;background:#0b1220aa;padding:6px 8px;border-radius:10px;font-size:12px;color:var(--muted);border:1px solid rgba(255,255,255,.1)}
+    .canWrap{position:relative}
+    canvas{width:100%;height:240px;display:block;border-radius:14px;background:#0b1220}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Enakomerno gibanje – kviz način</h1>
+    <p class="sub">Učenec izbere, kaj želi izračunati (<b>t</b>, <b>v</b> ali <b>s</b>). <u>Vedno se prikažeta točno dve številčni količini</u>, tretja (iskana) je skrita. Pri reševanju za <b>čas</b> je <b>hitrost</b> vedno jasno prikazana kot številka.</p>
+
+    <div class="panel">
+      <div class="picker" role="group" aria-label="Kaj želiš izračunati?">
+        <button class="chip active" data-target="t">Rešujem za čas T</button>
+        <button class="chip" data-target="v">Rešujem za hitrost v</button>
+        <button class="chip" data-target="s">Rešujem za pot s</button>
+      </div>
+      <div class="controls">
+        <button id="newTask">Nova naloga</button>
+        <button id="playBtn">Predvajaj</button>
+        <button id="pauseBtn" class="secondary">Pavza</button>
+        <button id="resetBtn" class="secondary">Ponastavi</button>
+      </div>
+    </div>
+
+    <!-- STATISTIKA: tukaj vedno pokažemo točno dve številki; tretjo (iskano) skrijemo -->
+    <div class="stats" style="margin-top:10px">
+      <div class="stat" id="sBox"><div class="label">Pot s (D)</div><div class="value" id="sOut">—</div></div>
+      <div class="stat" id="tBox"><div class="label">Čas T</div><div class="value" id="tOut">—</div></div>
+      <div class="stat" id="vBox"><div class="label">Hitrost v</div><div class="value" id="vOut">—</div></div>
+      <div class="stat"><div class="label">Trenutno</div><div class="value" id="liveOut">0,0 m / 0,0 s</div></div>
+    </div>
+
+    <div class="grid">
+      <!-- Levo: animacija -->
+      <div class="stage">
+        <svg id="svg" viewBox="0 0 1000 260" aria-label="Številčna os z animacijo kolesa">
+          <g id="axis"></g>
+          <!-- preprost bike; fokus je na nalogi -->
+          <g id="bike" transform="translate(60,155)">
+            <circle cx="0" cy="0" r="18" fill="#0b1220" stroke="#e2e8f0" stroke-width="3"></circle>
+            <circle cx="48" cy="0" r="18" fill="#0b1220" stroke="#e2e8f0" stroke-width="3"></circle>
+            <polyline points="-2,-2 18,-22 40,-2 8,-2 24,-10 28,-2" fill="none" stroke="#60a5fa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+            <line x1="28" y1="-24" x2="48" y2="-24" stroke="#60a5fa" stroke-width="3" stroke-linecap="round"></line>
+            <line x1="20" y1="-18" x2="8" y2="-18" stroke="#60a5fa" stroke-width="3" stroke-linecap="round"></line>
+            <circle cx="20" cy="-2" r="3" fill="#60a5fa"></circle>
+          </g>
+        </svg>
+
+        <!-- I/O cona -->
+        <div class="io">
+          <div class="row">
+            <label for="answer"><b>Tvoj rezultat</b> (<span id="unitLabel">s</span>):</label>
+            <input type="text" id="answer" placeholder="npr. 12,5" inputmode="decimal" />
+            <button id="checkBtn">Preveri</button>
+            <button id="hintBtn" class="secondary">Namig</button>
+            <button id="showBtn" class="secondary">Pokaži rešitev</button>
+          </div>
+          <div class="row">
+            <span id="feedback" class="feedback"></span>
+          </div>
+          <div id="hintBox" class="hint hidden"></div>
+          <div id="solutionBox" class="solution hidden"></div>
+          <div class="note">Vnesi samo število. Decimalno vejico ali piko program sam popravi. Toleranca preverjanja ±0,1.</div>
+        </div>
+      </div>
+
+      <!-- Desno: grafi (vedno vidna, nič ne skrivamo) -->
+      <div class="card">
+        <h3 style="margin:0 0 10px 0">Grafi</h3>
+        <div style="display:grid;gap:20px">
+          <div class="canWrap" id="sWrap">
+            <canvas id="sChart"></canvas>
+            <div class="legend">s(t) – pot</div>
+          </div>
+          <div class="canWrap" id="vWrap">
+            <canvas id="vChart"></canvas>
+            <div class="legend">v(t) – hitrost</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="note">Pravila vidnosti: vedno sta številčno prikazani dve količini, iskana je skrita. Pri reševanju za <b>T</b> je <b>v</b> vedno izpisano kot število.</p>
+  </div>
+
+  <!-- Chart.js (CDN stabilna veja) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    // ============ Majhne util funkcije ============
+    const rndInt = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+    const fmt = (n,d=1)=>Number(n).toFixed(d).replace('.',','); // za prikaz
+    const toComma = (x,dec=2)=>Number(x).toFixed(dec).replace('.',',');  // za korake rešitve
+    const niceUp = (val)=>{ const p = Math.pow(10, Math.floor(Math.log10(Math.max(1,val))));
+      const r = val/p; const f = r<=1?1:r<=2?2:r<=5?5:10; return f*p; };
+    const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
+    const parseNum = (str)=> Number(String(str||'').replace(',','.').trim());
+
+    // ============ DOM ============
+    const axisLayer=document.getElementById('axis');
+    const bike=document.getElementById('bike');
+    const sOut=document.getElementById('sOut');
+    const tOut=document.getElementById('tOut');
+    const vOut=document.getElementById('vOut');
+    const sBox=document.getElementById('sBox');
+    const tBox=document.getElementById('tBox');
+    const vBox=document.getElementById('vBox');
+    const liveOut=document.getElementById('liveOut');
+
+    const chips=[...document.querySelectorAll('.chip')];
+    const newTaskBtn=document.getElementById('newTask');
+    const playBtn=document.getElementById('playBtn');
+    const pauseBtn=document.getElementById('pauseBtn');
+    const resetBtn=document.getElementById('resetBtn');
+
+    const answer=document.getElementById('answer');
+    const unitLabel=document.getElementById('unitLabel');
+    const checkBtn=document.getElementById('checkBtn');
+    const hintBtn=document.getElementById('hintBtn');
+    const showBtn=document.getElementById('showBtn');
+    const feedback=document.getElementById('feedback');
+    const hintBox=document.getElementById('hintBox');
+    const solutionBox=document.getElementById('solutionBox');
+
+    const sWrap=document.getElementById('sWrap');
+    const vWrap=document.getElementById('vWrap');
+
+    // ============ Stanje naloge ============
+    let mode = 't'; // 't' | 'v' | 's' — katero količino rešujemo
+    let D=60, T=12, V=5;         // podatki za nalogo
+    let R=70;                    // dolžina osi (m), da ostane nekaj "rezerve"
+    const startX=60, endX=940;   // širina osi v SVG
+    let req=null, pausedAt=0, running=false; let lastElapsedSec=0;
+
+    // grafi
+    let sChart, vChart;
+    let XMAX_PAD, SMAX_PAD, VMAX_PAD;
+
+    // ============ Številčna os + posebna oznaka pri D ============
+    function drawAxis(){
+      axisLayer.innerHTML='';
+      const line=(x1,y1,x2,y2,stroke='#cbd5e1',w=3)=>{
+        const L=document.createElementNS('http://www.w3.org/2000/svg','line');
+        L.setAttribute('x1',x1);L.setAttribute('y1',y1);L.setAttribute('x2',x2);L.setAttribute('y2',y2);
+        L.setAttribute('stroke',stroke);L.setAttribute('stroke-width',w);axisLayer.appendChild(L);
+      };
+      const text=(x,y,t,fs=14,fill='#e5e7eb',weight='normal')=>{
+        const el=document.createElementNS('http://www.w3.org/2000/svg','text');
+        el.setAttribute('x',x);el.setAttribute('y',y);
+        el.setAttribute('fill',fill);
+        el.setAttribute('font-size',fs);
+        el.setAttribute('font-weight',weight);
+        el.setAttribute('text-anchor','middle');
+        el.textContent=t;axisLayer.appendChild(el);
+      };
+
+      // glavna črta
+      line(startX,155,endX,155,'#cbd5e1',3.5);
+
+      // kljukice in oznake 0..R
+      const tickStep = R<=20?1:(R<=50?5:10);
+      for(let m=0;m<=R;m+=tickStep){
+        const x = startX + (m/R)*(endX-startX);
+        line(x,150,x,165,'#94a3b8',2);
+        text(x,190,String(m));
+      }
+
+      // posebna (rdeča) oznaka pri D – ostane vidna (zahteve spremembe se nanašajo na številčne prikaze)
+      const xStop = startX + (D/R)*(endX-startX);
+      line(xStop,146,xStop,170,'var(--stop)',4);
+      text(xStop,140,`${D} m`,18,'var(--stop)','800');
+    }
+    function setBikeX(x){ bike.setAttribute('transform',`translate(${x},155)`); }
+
+    // ============ Grafi (Chart.js) ============
+    function computePaddedBounds(){
+      XMAX_PAD = niceUp(T*1.10);
+      SMAX_PAD = niceUp(D*1.10);
+      VMAX_PAD = niceUp(V*1.30);
+    }
+    function makeCharts(){
+      if(sChart){ sChart.destroy(); } if(vChart){ vChart.destroy(); }
+      computePaddedBounds();
+
+      const grid = 'rgba(148,163,184,0.35)';
+      const label = '#e5e7eb';
+      const baseScales = (xMax, yMax, xLabel, yLabel)=>({
+        x: { type:'linear', min:0, suggestedMax:xMax, grid:{color:grid}, ticks:{color:label, stepSize:1}, title:{display:true,text:xLabel,color:'#94a3b8'} },
+        y: { min:0, suggestedMax:yMax, grid:{color:grid}, ticks:{color:label}, title:{display:true,text:yLabel,color:'#94a3b8'} }
+      });
+
+      // s(t)
+      sChart = new Chart(document.getElementById('sChart').getContext('2d'),{
+        type:'line',
+        data:{datasets:[{label:'s(t)',data:[{x:0,y:0}],tension:0,pointRadius:2,borderWidth:2}]},
+        options:{animation:false,responsive:true,scales:baseScales(XMAX_PAD,SMAX_PAD,'t [s]','s [m]'),plugins:{legend:{display:false}}}
+      });
+
+      // v(t)
+      vChart = new Chart(document.getElementById('vChart').getContext('2d'),{
+        type:'line',
+        data:{datasets:[{label:'v(t)',data:[{x:0,y:V}],tension:0,pointRadius:2,borderWidth:2}]},
+        options:{animation:false,responsive:true,scales:baseScales(XMAX_PAD,VMAX_PAD,'t [s]','v [m/s]'),plugins:{legend:{display:false}}}
+      });
+    }
+    function updateCharts(tNow){
+      const sNow = V*tNow;
+      sChart.data.datasets[0].data = [{x:0,y:0},{x:tNow,y:sNow}];
+      vChart.data.datasets[0].data = [{x:0,y:V},{x:tNow,y:V}];
+
+      if(tNow > XMAX_PAD*0.98){ XMAX_PAD = niceUp(tNow*1.15); sChart.options.scales.x.suggestedMax = XMAX_PAD; vChart.options.scales.x.suggestedMax = XMAX_PAD; }
+      if(sNow > SMAX_PAD*0.98){ SMAX_PAD = niceUp(sNow*1.20); sChart.options.scales.y.suggestedMax = SMAX_PAD; }
+      if(V > VMAX_PAD*0.98){ VMAX_PAD = niceUp(V*1.30); vChart.options.scales.y.suggestedMax = VMAX_PAD; }
+
+      sChart.update('none'); vChart.update('none');
+    }
+
+    // ============ Vidnost številčnih količin (glavna sprememba) ============
+    function applyVisibilityByMode(){
+      // najprej pokažemo vse tri "boxe"
+      sBox.classList.remove('hidden');
+      tBox.classList.remove('hidden');
+      vBox.classList.remove('hidden');
+
+      // potem skrijemo samo tistega, ki ga rešujemo
+      if(mode==='t'){ // rešujemo za čas → skrij T, POKAŽI s in v (v mora biti številka!)
+        tBox.classList.add('hidden');
+        unitLabel.textContent='s';
+      } else if(mode==='v'){ // rešujemo za hitrost → skrij v, POKAŽI s in T
+        vBox.classList.add('hidden');
+        unitLabel.textContent='m/s';
+      } else { // mode === 's' → skrij s, POKAŽI T in v
+        sBox.classList.add('hidden');
+        unitLabel.textContent='m';
+      }
+    }
+
+    // ============ Nova naloga ============
+    function newTask(){
+      // naključno določimo podatke v šolskem rangu
+      D = rndInt(10,100);       // pot (m)
+      T = rndInt(5,20);         // čas (s)
+      V = D / T;                // hitrost (m/s)
+      const extra = Math.max(5, Math.round(D*0.15));
+      R = niceUp(D + extra);
+
+      // posodobimo številčne prikaze (dve od treh bosta vidni glede na applyVisibilityByMode)
+      sOut.textContent = `${D} m`;
+      tOut.textContent = `${T} s`;
+      vOut.textContent = `${(Math.round(V*100)/100).toString().replace('.',',')} m/s`;
+
+      drawAxis();
+      setBikeX(startX);
+
+      makeCharts();
+      updateCharts(0);
+
+      // počistimo IO
+      feedback.textContent=''; feedback.className='feedback';
+      hintBox.textContent=''; hintBox.classList.add('hidden');
+      solutionBox.textContent=''; solutionBox.classList.add('hidden');
+      answer.value='';
+
+      applyVisibilityByMode(); // ključ: tukaj zagotovimo, da bosta vidni točno dve številki
+    }
+
+    // ============ Animacija ============
+    function cancelAnim(){ if(req){ cancelAnimationFrame(req); req=null; } }
+    function play(){
+      if(running) return;
+      running=true; playBtn.textContent='Teče…';
+      const duration = T*1000;
+      const startStamp = performance.now() - pausedAt;
+
+      const loop=(now)=>{
+        if(!running) return;
+        const elapsed = Math.min(now - startStamp, duration);
+        const p = elapsed/duration;
+        const sNow = p * D;
+        const x = startX + (sNow / R) * (endX - startX);
+        setBikeX(x);
+        const tNow = elapsed/1000;
+        liveOut.textContent = `${fmt(sNow)} m / ${fmt(tNow)} s`;
+        lastElapsedSec = tNow;
+
+        updateCharts(tNow);
+
+        if(elapsed>=duration){
+          running=false; playBtn.textContent='Ponovi'; pausedAt=duration; return;
+        }
+        req=requestAnimationFrame(loop);
+      };
+      req=requestAnimationFrame(loop);
+    }
+    function pause(){ if(!running) return; running=false; playBtn.textContent='Nadaljuj'; pausedAt = clamp(lastElapsedSec,0,T)*1000; cancelAnim(); }
+    function reset(){
+      cancelAnim(); running=false; pausedAt=0; playBtn.textContent='Predvajaj';
+      setBikeX(startX); liveOut.textContent='0,0 m / 0,0 s';
+      makeCharts(); updateCharts(0);
+      feedback.textContent=''; feedback.className='feedback';
+      hintBox.textContent=''; hintBox.classList.add('hidden');
+      solutionBox.textContent=''; solutionBox.classList.add('hidden');
+      answer.value='';
+      applyVisibilityByMode(); // ob resetu ohranimo pravilo 2/3
+    }
+
+    // ============ Namig + Rešitev ============
+    function buildHint(){
+      if(mode==='t') return 'Namig: uporabi zvezo t = s / v (m in s).';
+      if(mode==='v') return 'Namig: uporabi zvezo v = s / t (pazi na enote).';
+      return 'Namig: uporabi zvezo s = v · t (m/s · s = m).';
+    }
+    function buildSolutionSteps(){
+      if(mode==='t'){
+        const calc = D / V;
+        return [
+          'Formula: <b>t = s / v</b>',
+          `Vstavljanje: <b>t = ${D} \\;\\text{m} / ${toComma(V,2)} \\;\\text{m/s}</b>`,
+          `Račun: <b>t = ${toComma(calc,2)} \\;\\text{s}</b>`
+        ];
+      } else if(mode==='v'){
+        const calc = D / T;
+        return [
+          'Formula: <b>v = s / t</b>',
+          `Vstavljanje: <b>v = ${D} \\;\\text{m} / ${T} \\;\\text{s}</b>`,
+          `Račun: <b>v = ${toComma(calc,2)} \\;\\text{m/s}</b>`
+        ];
+      } else {
+        const calc = V * T;
+        return [
+          'Formula: <b>s = v · t</b>',
+          `Vstavljanje: <b>s = ${toComma(V,2)} \\;\\text{m/s} · ${T} \\;\\text{s}</b>`,
+          `Račun: <b>s = ${toComma(calc,2)} \\;\\text{m}</b>`
+        ];
+      }
+    }
+    function showHint(){ hintBox.textContent = buildHint(); hintBox.classList.remove('hidden'); }
+    function showSolution(){
+      const lines = buildSolutionSteps();
+      solutionBox.innerHTML = lines.map(l=>`<div style="margin:2px 0">${l}</div>`).join('');
+      solutionBox.classList.remove('hidden');
+    }
+
+    // ============ Preverjanje ============
+    function expectedValue(){
+      if(mode==='t') return D / V;
+      if(mode==='v') return V;     // V je že D/T
+      return D;
+    }
+    function unitSuffix(){
+      if(mode==='t') return 's';
+      if(mode==='v') return 'm/s';
+      return 'm';
+    }
+    function checkAnswer(){
+      const val = parseNum(answer.value);
+      if(!isFinite(val)){ feedback.textContent='Prosim vnesi število (vejica ali pika je ok).'; feedback.className='feedback bad'; return; }
+      const exp = expectedValue();
+      const tol = 0.1;
+      if(Math.abs(val - exp) <= tol){
+        feedback.textContent = `✅ Pravilno! (${toComma(exp,2)} ${unitSuffix()})`;
+        feedback.className='feedback ok';
+        showSolution(); // ob pravilnem vnosu prikažemo korake
+      }else{
+        feedback.textContent = `❌ Ni prav. Poskusi znova. (Namig ti lahko pomaga.)`;
+        feedback.className='feedback bad';
+      }
+    }
+
+    // ============ Menjava načina + žičenje ============
+    chips.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        chips.forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        mode = btn.dataset.target;
+        newTask(); // ob menjavi načina generiramo novo nalogo
+      });
+    });
+    newTaskBtn.addEventListener('click', newTask);
+    playBtn.addEventListener('click', ()=>{ if(pausedAt>=T*1000){ reset(); play(); } else { play(); } });
+    pauseBtn.addEventListener('click', pause);
+    resetBtn.addEventListener('click', reset);
+
+    checkBtn.addEventListener('click', checkAnswer);
+    hintBtn.addEventListener('click', showHint);
+    showBtn.addEventListener('click', showSolution);
+    answer.addEventListener('keydown', (e)=>{ if(e.key==='Enter') checkAnswer(); });
+
+    // ============ Prvi zagon ============
+    drawAxis();
+    newTask();
+  </script>
+</body>
+</html>
