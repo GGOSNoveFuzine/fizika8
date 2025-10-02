@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ninja predpone – SI mera</title>
+  <!-- iOS PWA meta: allow chrome-less standalone when added to Home Screen -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ninja predpone">
+  <!-- Fallback icons (optional); supply your own files when hosting -->
+  <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAQAAACq6DbKAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAFUlEQVR42mNgoBvgP4b///8/GQYiAG2mAQAMJw8GkqG4SgAAAABJRU5ErkJggg==">
+  <!-- Manifest (best on HTTPS). If you don’t host a separate file, we attach one dynamically below. -->
+  <style>
+    :root { --bg:#0b1020; --ink:#e6f0ff; --accent:#65d1ff; --good:#72ffa9; --bad:#ff6b6b; }
+    html,body{height:100%;margin:0;background:radial-gradient(1200px 1200px at 50% 10%,#12234f 0%, #0b1020 60%);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",sans-serif}
+    #wrap{position:relative;inline-size:100%;block-size:100%;overflow:hidden}
+    canvas{display:block;inline-size:100%;block-size:100%;touch-action:none}
+    .hud{position:absolute;inset:0;pointer-events:none;}
+    .row{position:absolute;inset-inline:0;display:flex;justify-content:space-between;gap:12px;padding:10px 14px;align-items:center}
+    .row.top{inset-block-start:0}
+    .row.bottom{inset-block-end:0}
+    .chip{pointer-events:auto;background:rgba(255,255,255,0.08);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);border-radius:14px;padding:8px 12px;display:flex;align-items:center;gap:8px;font-weight:600}
+    .chip b{font-weight:700}
+    .target{font-size: clamp(18px, 3.5vw, 28px);}
+    .big-center{position:absolute;inset-inline:0;inset-block-start:12%;text-align:center;font-weight:900;font-size:clamp(36px,7.2vw,88px);letter-spacing:.04em;color:#fff;opacity:1}
+    .big-center .pill{display:inline-block;padding:.12em .5em;border-radius:16px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.25);box-shadow:0 0 25px rgba(114,255,169,.0), 0 0 6px rgba(0,0,0,.35)}
+    .btn{pointer-events:auto;cursor:pointer;border:none;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:var(--ink);padding:8px 12px;border-radius:12px;font-weight:700}
+    .btn:hover{background:rgba(255,255,255,0.2)}
+    .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+    /* Game-over overlay */
+    .overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.4);backdrop-filter:blur(2px)}
+    .card{background:rgba(12,16,28,.9);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:18px 20px;min-width:260px;display:flex;flex-direction:column;gap:12px;align-items:center}
+    .title{font-weight:800;font-size:clamp(20px,3vw,28px)}
+    .rowBtns{display:flex;gap:10px}
+  </style>
+  </head>
+<body>
+  <div id="wrap">
+    <canvas id="cv" aria-label="Igra: Ninja predpone – sekaj pravilne vrednosti"></canvas>
+    <div class="hud">
+      <div id="tip" style="position:absolute;left:50%;top:12px;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;border:1px solid rgba(255,255,255,.2);padding:6px 10px;border-radius:10px;font-size:14px;display:none;z-index:5">&nbsp;</div>
+      <div class="row top">
+        <div class="chip target">Cilj: <b id="targetName">—</b></div>
+        <div class="chip">Točke: <b id="score">0</b></div>
+        <div class="chip">Življenja: <b id="lives">3</b></div>
+        <div class="chip">Niz: <b id="combo">0</b></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="btnPause">Pavza</button>
+          <button class="btn" id="btnMute">Zvok: vklopljen</button>
+          <button class="btn" id="btnFS">Celozaslon ⛶</button>
+        </div>
+      </div>
+      <div class="row bottom">
+        <div class="chip">Namig: tap deluje kot rez. Bombe se izogni!</div>
+      </div>
+      <div class="big-center" id="roundLabel"><span class="pill">&nbsp;</span></div>
+      <div class="flash" id="flash"></div>
+    </div>
+    <!-- End-of-game overlay -->
+    <div class="overlay" id="gameOver">
+      <div class="card">
+        <div class="title">KONEC IGRE</div>
+        <div style="opacity:.8">Točke: <span id="finalScore">0</span></div>
+        <div class="rowBtns">
+          <button class="btn" id="btnReplay">Igraj ponovno</button>
+          <button class="btn" id="btnQuit">Končaj</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ---------- SI predpone ----------
+  const PREFIXES = [
+    {name:'kilo', sym:'k', value:1e3, label:'1000'},
+    {name:'hekto', sym:'h', value:1e2, label:'100'},
+    {name:'deka', sym:'da', value:1e1, label:'10'},
+    {name:'deci', sym:'d', value:1e-1, label:'0.1'},
+    {name:'centi', sym:'c', value:1e-2, label:'0.01'},
+    {name:'mili', sym:'m', value:1e-3, label:'0.001'},
+    {name:'mikro', sym:'µ', value:1e-6, label:'0.000001'},
+    {name:'nano', sym:'n', value:1e-9, label:'0.000000001'},
+    {name:'mega', sym:'M', value:1e6, label:'1000000'},
+    {name:'giga', sym:'G', value:1e9, label:'1000000000'}
+  ];
+
+  // ---------- Platno ----------
+  const CAN = document.getElementById('cv');
+  const CTX = CAN.getContext('2d');
+  const DPR = Math.min(2, (window.devicePixelRatio||1));
+
+  function resize(){
+    const {clientWidth:w, clientHeight:h} = CAN;
+    CAN.width = Math.floor(w * DPR);
+    CAN.height = Math.floor(h * DPR);
+    computeScale(); // recompute scaling on any resize/orientation change
+  }
+  const wrap = document.getElementById('wrap');
+  const ro = new ResizeObserver(()=>{CAN.style.width='100%';CAN.style.height='100%';resize()});
+  ro.observe(wrap);
+
+  // ---------- HUD + overlay ----------
+  const ui = {
+    targetName: document.getElementById('targetName'),
+    score: document.getElementById('score'),
+    lives: document.getElementById('lives'),
+    combo: document.getElementById('combo'),
+    roundLabel: document.getElementById('roundLabel'),
+    flash: document.getElementById('flash'),
+    btnPause: document.getElementById('btnPause'),
+    btnMute: document.getElementById('btnMute'),
+    btnFS: document.getElementById('btnFS'),
+    overlay: document.getElementById('gameOver'),
+    finalScore: document.getElementById('finalScore'),
+    btnReplay: document.getElementById('btnReplay'),
+    btnQuit: document.getElementById('btnQuit'),
+  };
+
+  // ---------- Zvok ----------
+  let AC; let masterGain; let muted = false; let unlocked = false;
+  function initAudio(){ if(AC) return; AC = new (window.AudioContext||window.webkitAudioContext)(); masterGain = AC.createGain(); masterGain.gain.value = 0.5; masterGain.connect(AC.destination); }
+  function unlockAudio(){ try{ initAudio(); AC.resume(); unlocked=true; }catch(e){} }
+  function bleep(freq=440, dur=0.08, type='sine', vol=0.3){ if(!AC || muted) return; const o=AC.createOscillator(), g=AC.createGain(); o.type=type; o.frequency.value=freq; g.gain.value=vol; o.connect(g); g.connect(masterGain); const t=AC.currentTime; o.start(t); o.stop(t+dur); g.gain.setTargetAtTime(0, t+dur*0.5, 0.03); }
+  ui.btnMute.addEventListener('click',()=>{ muted=!muted; ui.btnMute.textContent = 'Zvok: ' + (muted?'izklopljen':'vklopljen'); if(!unlocked) unlockAudio(); });
+
+  // ---------- Fullscreen toggle ----------
+  function inFS(){ return document.fullscreenElement != null; }
+  function updateFSLabel(){ ui.btnFS.textContent = inFS() ? 'Izhod ⎔' : 'Celozaslon ⛶'; }
+  function showTip(msg){ const el=document.getElementById('tip'); if(!el) return; el.textContent=msg; el.style.display='block'; clearTimeout(showTip._t); showTip._t=setTimeout(()=>{el.style.display='none';}, 2600); }
+  async function toggleFullscreen(){
+    // Must be called in direct user gesture
+    try{
+      if(!inFS()){
+        if(document.fullscreenEnabled && wrap.requestFullscreen){
+          await wrap.requestFullscreen({ navigationUI: 'hide' }).catch(()=> wrap.requestFullscreen());
+        } else {
+          throw new Error('Fullscreen not available');
+        }
+      } else {
+        await document.exitFullscreen?.();
+      }
+    }catch(err){
+      // iOS <16 or blocked → suggest Add to Home Screen
+      showTip('Celozaslon ni na voljo. Na iPhone/iPad uporabite “Dodaj na začetni zaslon”.');
+    } finally {
+      updateFSLabel();
+    }
+  }
+  ui.btnFS.addEventListener('click', ()=>{ unlockAudio(); toggleFullscreen(); });
+  document.addEventListener('fullscreenchange', updateFSLabel);
+
+  // ---------- Stanje igre ----------
+  const S = {
+    running:true,
+    score:0, lives:3, combo:0,
+    entities:[],
+    target:null,
+    lockedGoal:null,
+    input:{ tapMode:true, tapRadiusFactor:1.15 },
+    // Nastavitve letenja (osnovne vrednosti na tvojem 1920x1080 prenosniku = baseline). 
+    // Razlage: bubbles odrine navzgor z bubbleVy (bolj negativno = višji skok), gravity jih vleče dol. 
+    // Bombe imajo še močnejši odriv (bombVy), zato letijo višje. vx je vodoravni razpon levo/desno. 
+    // radius določa velikost krogel; hitboxFactor poveča "zaznavni" polmer pri rezu/tapu.
+    difficulty: {
+      gravity: 950,
+      bubbleVy: [-1400, -1100],
+      bombVy:   [-1250, -1200],
+      vx: [-210, 210],
+      bombChance: 0.25,
+      radius: [60, 80],
+      hitboxFactor: 1.30,
+      minStrokeSq: 0
+    },
+    // Dinamično skaliranje (izračunano iz velikosti platna):
+    scale: 1,
+    // Efekti
+    fx: { rings:[], confetti:[], pulses:[] },
+    screenTint: { a:0, color:'#ff0000' },
+    shake: { t:0, mag:10 },
+    timeScale: 1, timeScaleTimer: 0
+  };
+
+  // Izračun skale k glede na krajšo stran; plavajoča vrednost, z varnim obsegom.
+  function computeScale(){
+    const shortSide = Math.min(CAN.width, CAN.height);
+    const k = shortSide / 1080; // tvoja 1080p višina je baseline
+    S.scale = Math.max(0.85, Math.min(2.2, k)); // clamp, da ne pobegne preveč
+  }
+
+  // ---------- Entitete ----------
+  let nextId = 1;
+  function makeBubble(x,y,vx,vy,r, label, value){ return {id:nextId++, kind:'bubble', x,y,vx,vy,r,label,value,alive:true,sliced:false,entered:false}; }
+  function makeBomb(x,y,vx,vy,r){ return {id:nextId++, kind:'bomb', x,y,vx,vy,r,alive:true,sliced:false,t:0,entered:false}; }
+
+  // ---------- Izbira cilja + runda ----------
+  function chooseTarget(){ const base = PREFIXES.slice(0,6); return base[Math.floor(Math.random()*base.length)]; }
+
+  function spawnRound(){
+    S.entities.length = 0;
+    S.target = chooseTarget();
+    ui.targetName.textContent = `${S.target.name} (${S.target.sym})`;
+    ui.roundLabel.querySelector('.pill').textContent = `${S.target.name}`; // velik, jasen cilj
+
+    const N = 4; // 1 pravilna + 2–3 napačne + opcijska bomba
+    const usedValues = new Set([S.target.value]);
+
+    // helper za anti-overlap
+    function nonOverlappingPos(r){
+      let tries=0; while(tries++<80){
+        const x = rand(r*1.5, CAN.width - r*1.5);
+        const y = CAN.height + r + rand(10, 60);
+        let ok=true; for(const e of S.entities){ const dx=e.x-x, dy=e.y-y; if(Math.hypot(dx,dy) < (e.r + r) * 1.9){ ok=false; break; } }
+        if(ok) return {x,y};
+      }
+      return {x: rand(r*1.5, CAN.width - r*1.5), y: CAN.height + r + rand(10, 60)};
+    }
+
+    for(let i=0;i<N;i++){
+      // skaliranje velikosti in hitrosti
+      const baseR = rndRange(S.difficulty.radius);
+      const r = baseR * S.scale;
+      const {x,y} = nonOverlappingPos(r);
+      const baseVx = rndRange(S.difficulty.vx);
+      const baseVy = rndRange(S.difficulty.bubbleVy);
+      let vx = baseVx * S.scale;
+      let vy = baseVy * S.scale;
+
+      // izračun: zagotovimo, da bo vrh poleta vsaj na ~45% višine platna (da ni prenizko na 4K/ipad landscape)
+      // y-osi navzdol, zato je manjša y "višje".
+      const g = S.difficulty.gravity * S.scale;
+      const desiredApexY = CAN.height * 0.45; // ciljna višina vrha (45% od vrha)
+      const currentApexY = y - (vy*vy) / (2*g);
+      if (currentApexY > desiredApexY) {
+        // vrh je prenizek (preveč pri dnu) → povečaj odriv tako, da doseže desiredApexY
+        const neededVy = -Math.sqrt(Math.max(0, 2*g*(y - desiredApexY)));
+        vy = neededVy;
+      }
+
+      let label, value;
+      if(i===0){ label = S.target.label; value = S.target.value; }
+      else{
+        let cand; do{ const opt = PREFIXES[Math.floor(Math.random()*6)]; cand = opt.value; label = opt.label; } while(usedValues.has(cand));
+        value = cand; usedValues.add(cand);
+      }
+      S.entities.push(makeBubble(x,y,vx,vy,r,label,value));
+    }
+
+    if(Math.random() < S.difficulty.bombChance){
+      const baseR = rndRange(S.difficulty.radius) * 0.95;
+      const r = baseR * S.scale;
+      const {x,y} = nonOverlappingPos(r);
+      const baseVx = rndRange(S.difficulty.vx);
+      const baseVy = rndRange(S.difficulty.bombVy);
+      const vx = baseVx * S.scale;
+      let vy = baseVy * S.scale;
+      // bombe naj dosežejo vsaj 40% višine
+      const g = S.difficulty.gravity * S.scale;
+      const desiredApexY = CAN.height * 0.4;
+      const currentApexY = y - (vy*vy) / (2*g);
+      if (currentApexY > desiredApexY) { vy = -Math.sqrt(Math.max(0, 2*g*(y - desiredApexY))); }
+      S.entities.push(makeBomb(x,y,vx,vy,r));
+    }
+  }
+
+  // ---------- Vhod (tap+rez) ----------
+  const pointer = {down:false, x:0, y:0, lastX:0, lastY:0};
+  function getCanvasXY(ev){ const r = CAN.getBoundingClientRect(); return { x:(ev.clientX - r.left) * CAN.width / r.width, y:(ev.clientY - r.top) * CAN.height / r.height }; }
+
+  CAN.addEventListener('pointerdown', ev=>{
+    unlockAudio(); CAN.setPointerCapture(ev.pointerId); const p=getCanvasXY(ev);
+
+    if (S.input.tapMode) {
+      // Tap: iščemo zadetek pod prstom/miško
+      let best=null, bestD2=Infinity;
+      for(const e of S.entities){ if(!e.alive||e.sliced) continue; const dx=e.x-p.x, dy=e.y-p.y; const d2=dx*dx+dy*dy; const hitR = e.r * Math.max(S.difficulty.hitboxFactor*0.9, S.input.tapRadiusFactor); if(d2 <= hitR*hitR && d2 < bestD2){ best=e; bestD2=d2; } }
+      if(best){ best.sliced=true; onSlice(best); return; }
+    }
+
+    pointer.down=true; pointer.x=p.x; pointer.y=p.y; pointer.lastX=pointer.x; pointer.lastY=pointer.y; S.lockedGoal=S.target;
+  });
+  CAN.addEventListener('pointermove', ev=>{ if(!pointer.down) return; const p=getCanvasXY(ev); pointer.x=p.x; pointer.y=p.y; });
+  CAN.addEventListener('pointerup',   ev=>{ pointer.down=false; S.lockedGoal=null; });
+
+  // ---------- Geometrija ----------
+  function segCircle(x1,y1,x2,y2,cx,cy,r){ const dx=x2-x1, dy=y2-y1; const l2=dx*dx+dy*dy; let t=0; if(l2>0) t=((cx-x1)*dx + (cy-y1)*dy)/l2; t=Math.max(0,Math.min(1,t)); const px=x1+t*dx, py=y1+t*dy; const ddx=cx-px, ddy=cy-py; return (ddx*ddx + ddy*ddy) <= r*r; }
+
+  // ---------- Efekti ----------
+  function addRing(x,y,r,color){ S.fx.rings.push({x,y,r,dr:900,color,a:0.9}); }
+  function addPulse(x,y,r,color){ S.fx.pulses.push({x,y,r,a:0.5,color}); }
+  function addConfetti(x,y,n,color){ for(let i=0;i<n;i++){ S.fx.confetti.push({x,y, vx:rand(-300,300), vy:rand(-200,-50), g:120, life:0.6, a:1, size:rand(2,5), color}); } }
+
+  // ---------- Zadetek / kazen ----------
+  let lastHitAt = 0;
+  function onSlice(ent){
+    const now=performance.now(); if(now-lastHitAt<120) return; lastHitAt=now; // debounce
+
+    if(ent.kind==='bomb'){
+      // močan vizual: eksplozija + rdeč rob + rahla upočasnitev
+      addRing(ent.x, ent.y, ent.r*1.2, '#ffcf66'); addConfetti(ent.x, ent.y, 22, '#ffcf66');
+      S.screenTint = { a:0.35, color:'#b60000' }; S.shake = { t:0.14, mag:14 }; S.timeScale=0.5; S.timeScaleTimer=0.16;
+
+      S.combo=0; S.lives--; flash('#ff6464'); bleep(120,0.2,'sawtooth',0.25);
+      ent.alive=false; ent.r=0;
+      for(const e of S.entities){ if(e!==ent) e.alive=false; }
+      updateHUD(); if(S.lives<=0){ gameOver(); return; }
+      return;
+    }
+
+    const goal=S.lockedGoal||S.target; const ok=Math.abs(ent.value-goal.value)<1e-12; ent.alive=false; ent.r=0;
+
+    if(ok){
+      const gain=10+Math.min(30,S.combo*2); S.score+=gain; S.combo++;
+      // vizual: zelen radial + confetti + +score 
+      addPulse(ent.x, ent.y, ent.r*2.2, 'rgba(114,255,169,0.45)');
+      addRing(ent.x, ent.y, ent.r, '#72ffa9');
+      addConfetti(ent.x, ent.y, 14, '#72ffa9');
+      // center label kratek zeleni sij
+      ui.roundLabel.querySelector('.pill').style.boxShadow = '0 0 28px rgba(114,255,169,.95), 0 0 10px rgba(114,255,169,.45)';
+      setTimeout(()=>{ui.roundLabel.querySelector('.pill').style.boxShadow = '0 0 25px rgba(114,255,169,.0), 0 0 6px rgba(0,0,0,.35)';}, 220);
+      flash('#72ffa9'); bleep(660,0.07,'triangle',0.22);
+      for(const e of S.entities){ if(e!==ent&&e.kind==='bubble') e.alive=false; }
+    }else{
+      // vizual: rdeč zaslon + potres + rdeč obroč
+      addRing(ent.x, ent.y, ent.r*1.1, '#ff6b6b'); S.screenTint={a:0.28,color:'#8d001c'}; S.shake={t:0.12, mag:10};
+      S.combo=0; S.lives--; flash('#ff9a64'); bleep(200,0.12,'square',0.2); updateHUD(); if(S.lives<=0){ gameOver(); return; }
+    }
+    updateHUD();
+  }
+
+  function flash(color){ ui.flash.style.background=color; ui.flash.style.transition='none'; ui.flash.style.opacity='0.35'; requestAnimationFrame(()=>{ ui.flash.style.transition='opacity 260ms ease'; ui.flash.style.opacity='0'; }); }
+  function updateHUD(){ ui.score.textContent=S.score; ui.lives.textContent=S.lives; ui.combo.textContent=S.combo; }
+  function gameOver(){
+    S.running=false; ui.finalScore.textContent = S.score;
+    ui.overlay.style.display='flex';
+  }
+
+  // ---------- Glavna zanka ----------
+  let last = performance.now();
+  function step(ts){
+    if(!S.running){ requestAnimationFrame(step); return; }
+    let dt = Math.min(0.032, (ts - last)/1000); last = ts;
+
+    // slow-mo timer
+    if(S.timeScaleTimer>0){ S.timeScaleTimer -= dt; if(S.timeScaleTimer<=0) S.timeScale = 1; }
+    dt *= S.timeScale;
+
+    // fizika
+    for(const e of S.entities){
+      if(!e.alive) continue;
+      const g = S.difficulty.gravity * S.scale;
+      e.vy += g * dt;
+      e.x  += e.vx * dt;
+      e.y  += e.vy * dt;
+      if(e.x < e.r){ e.x = e.r; e.vx *= -0.6; }
+      if(e.x > CAN.width - e.r){ e.x = CAN.width - e.r; e.vx *= -0.6; }
+      if(!e.entered && (e.y - e.r) <= CAN.height) e.entered = true;
+      if(e.entered && e.vy > 0 && (e.y - e.r) > CAN.height + 10) e.alive = false;
+      if(e.kind==='bomb') e.t += dt;
+    }
+
+    // efekti
+    for(const r of S.fx.rings){ r.r += r.dr * dt; r.a -= 2.1 * dt; }
+    S.fx.rings = S.fx.rings.filter(r=> r.a>0);
+    for(const p of S.fx.pulses){ p.a -= 1.8*dt; }
+    S.fx.pulses = S.fx.pulses.filter(p=> p.a>0);
+    for(const c of S.fx.confetti){ c.vy += c.g*dt; c.x += c.vx*dt; c.y += c.vy*dt; c.a -= (1/c.life)*dt; }
+    S.fx.confetti = S.fx.confetti.filter(c=> c.a>0);
+
+    if(S.screenTint.a>0){ S.screenTint.a = Math.max(0, S.screenTint.a - 1.8*dt); }
+    if(S.shake.t>0){ S.shake.t = Math.max(0, S.shake.t - dt); }
+
+    // rez – poteza
+    if(pointer.down){
+      const dx=pointer.x-pointer.lastX, dy=pointer.y-pointer.lastY; const segLenSq = dx*dx + dy*dy;
+      if(segLenSq >= S.difficulty.minStrokeSq){
+        for(const e of S.entities){ if(!e.alive||e.sliced) continue; const hitR = e.r * S.difficulty.hitboxFactor; if(segCircle(pointer.lastX, pointer.lastY, pointer.x, pointer.y, e.x, e.y, hitR)){ e.sliced = true; onSlice(e); } }
+      }
+      pointer.lastX = pointer.x; pointer.lastY = pointer.y;
+    }
+
+    // runda konča, ko ni več entitet
+    const before=S.entities.length; S.entities=S.entities.filter(e=>e.alive); const after=S.entities.length; if(before>0 && after===0){ spawnRound(); updateHUD(); }
+
+    render(); requestAnimationFrame(step);
+  }
+
+  // ---------- Risanje ----------
+  function render(){
+    const g = CTX; g.save();
+    // kamera shake
+    const sx = (S.shake.t>0 ? (Math.random()*2-1) * S.shake.mag : 0) * DPR;
+    const sy = (S.shake.t>0 ? (Math.random()*2-1) * S.shake.mag : 0) * DPR;
+    g.setTransform(1,0,0,1,sx,sy);
+
+    g.clearRect(-sx,-sy,CAN.width,CAN.height);
+
+    // mrežica
+    g.globalAlpha = 0.15; g.lineWidth = 1*DPR; g.strokeStyle = '#9ad0ff';
+    const s = 80*DPR; for(let x=0;x<CAN.width;x+=s){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,CAN.height); g.stroke(); }
+    for(let y=0;y<CAN.height;y+=s){ g.beginPath(); g.moveTo(0,y); g.lineTo(CAN.width,y); g.stroke(); }
+    g.globalAlpha = 1;
+
+    // entitete
+    for(const e of S.entities){ if(!e.alive) continue; if(e.kind==='bubble') drawBubble(e); else drawBomb(e); }
+
+    // efekti
+    for(const p of S.fx.pulses){ g.save(); const grd=g.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r); grd.addColorStop(0,p.color); grd.addColorStop(1,'rgba(0,0,0,0)'); g.globalAlpha=p.a; g.fillStyle=grd; g.beginPath(); g.arc(p.x,p.y,p.r,0,Math.PI*2); g.fill(); g.restore(); }
+    for(const r of S.fx.rings){ g.save(); g.globalAlpha=r.a; g.lineWidth=4*DPR; g.strokeStyle=r.color; g.beginPath(); g.arc(r.x,r.y,r.r,0,Math.PI*2); g.stroke(); g.restore(); }
+    for(const c of S.fx.confetti){ g.save(); g.globalAlpha=c.a; g.fillStyle=c.color; g.fillRect(c.x, c.y, c.size, c.size); g.restore(); }
+
+    // screen tint
+    if(S.screenTint.a>0){ g.save(); g.globalAlpha = S.screenTint.a; g.fillStyle = S.screenTint.color; g.fillRect(0,0,CAN.width,CAN.height); g.restore(); }
+
+    g.restore();
+  }
+
+  function drawBubble(e){
+    const g = CTX; g.save();
+    const grd = g.createRadialGradient(e.x-e.r*0.4, e.y-e.r*0.4, e.r*0.1, e.x, e.y, e.r);
+    grd.addColorStop(0,'#a0e6ff'); grd.addColorStop(1,'#2a6db0');
+    g.fillStyle = grd; g.beginPath(); g.arc(e.x,e.y,e.r,0,Math.PI*2); g.fill();
+    g.lineWidth = 2*DPR; g.strokeStyle = 'rgba(255,255,255,0.45)'; g.stroke();
+    // label
+    g.fillStyle = '#fff'; g.font = `${Math.floor(e.r*0.72)}px system-ui, sans-serif`;
+    g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(e.label, e.x, e.y+1);
+    g.restore();
+  }
+
+  function drawBomb(e){
+    const g = CTX; g.save();
+    g.fillStyle = '#333'; g.beginPath(); g.arc(e.x,e.y,e.r,0,Math.PI*2); g.fill();
+    g.lineWidth = 3*DPR; g.strokeStyle = '#ff7070'; g.stroke();
+    // iskra
+    g.fillStyle = '#ffb400'; const sparkR=Math.max(2*DPR,e.r*0.12); const ang=e.t*6.0; const sx=e.x+Math.cos(ang)*(e.r+sparkR*1.2); const sy=e.y+Math.sin(ang)*(e.r+sparkR*1.2); g.beginPath(); g.arc(sx,sy,sparkR,0,Math.PI*2); g.fill();
+    g.restore();
+  }
+
+  // ---------- Orodja ----------
+  function rand(a,b){ return a + Math.random()*(b-a); }
+  function rndRange([a,b]){ return rand(Math.min(a,b), Math.max(a,b)); }
+
+  // ---------- Gumbi ----------
+  ui.btnPause.addEventListener('click',()=>{ S.running = !S.running; ui.btnPause.textContent = S.running ? 'Pavza' : 'Nadaljuj'; if(S.running) last = performance.now(); });
+  ui.btnReplay.addEventListener('click', ()=>{ ui.overlay.style.display='none'; reset(); spawnRound(); last = performance.now(); S.running=true; });
+  ui.btnQuit.addEventListener('click', ()=>{ ui.overlay.style.display='none'; if(document.fullscreenElement){ document.exitFullscreen?.(); } reset(); });
+
+  // ---------- Start ----------
+  function reset(){ S.running=true; S.score=0; S.lives=3; S.combo=0; S.entities.length=0; updateHUD(); }
+  function boot(){ resize(); reset(); spawnRound(); last = performance.now(); requestAnimationFrame(step); updateFSLabel(); }
+  window.addEventListener('resize', resize);
+  window.addEventListener('load', boot);
+    // ---------- Attach a basic web app manifest at runtime (for Android PWAs) ----------
+  (function attachManifest(){
+    try{
+      if(document.querySelector('link[rel="manifest"]')) return;
+      const manifest = {
+        name: "Ninja predpone",
+        short_name: "Predpone",
+        start_url: ".",
+        display: "standalone",
+        background_color: "#0b1020",
+        theme_color: "#0b1020",
+        icons: []
+      };
+      const blob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('link');
+      link.rel = 'manifest'; link.href = url; document.head.appendChild(link);
+    }catch(e){}
+  })();
+  </script>
+</body>
+</html>
