@@ -5,19 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <title>Fizika 8. razred – Igralne vaje</title>
-  <meta name="description" content="Interaktivne vaje za utrjevanje fizike: memo igre, pretvarjanje enot in akcijske igre s predponami (8. razred)." />
+  <meta name="description" content="Interaktivne vaje za utrjevanje fizike: memo igre, pretvarjanje enot, akcijske igre s predponami in enakomerno gibanje (8. razred)." />
   <meta name="robots" content="index,follow" />
   <meta name="theme-color" content="#0f172a" />
 
   <!-- Open Graph / Twitter -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Fizika – interaktivne vaje (8. razred)" />
-  <meta property="og:description" content="Izberi med 5 vajami: pretvarjanje enot, memo, flappy bird in ninja igre s predponami." />
+  <meta property="og:description" content="Izberi med vajami: pretvarjanje enot, memo, flappy bird, ninja ter enakomerno gibanje (simulacija in računanje)." />
   <meta property="og:image" content="cover.png" />
   <meta property="og:locale" content="sl_SI" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Fizika – interaktivne vaje (8. razred)" />
-  <meta name="twitter:description" content="Interaktivne igre: utrdi predpone in enote na zabaven način!" />
+  <meta name="twitter:description" content="Interaktivne igre in simulacije: utrdi predpone, enote in enakomerno gibanje." />
   <meta name="twitter:image" content="cover.png" />
 
   <style>
@@ -63,6 +63,7 @@
     .pill{display:inline-block; font-weight:700; color:#041a10;
       background:linear-gradient(180deg, var(--acc), #1ea0d7); border-radius:999px; padding:6px 10px; font-size:12px;}
     footer{color:var(--muted); font-size:14px; text-align:center; margin-top:14px;}
+    .section-title{margin:18px 4px 10px; font-size:20px}
     @media (prefers-reduced-motion: reduce){.card{transition:none}.card:hover{transform:none}}
   </style>
 </head>
@@ -78,7 +79,8 @@
     </header>
 
     <main class="panel" id="glavne-povezave" role="navigation" aria-label="Glavne povezave">
-      <div class="grid">
+      <!-- ====== OBSTOJEČIH 5 KART (NERAZTOČENO, TOČNO KOT PREJ) ====== -->
+      <div class="grid" aria-label="Osnovne vaje in igre">
         <!-- Pretvarjanje enot -->
         <a class="card" href="pretvarjanje_enot.html">
           <span class="badge">NOVO</span>
@@ -120,6 +122,27 @@
           <span class="pill">Igraj →</span>
         </a>
       </div>
+
+      <!-- ====== NOVA SEKCIJA: ENAKOMERNO GIBANJE (2 NOVE KARTI) ====== -->
+      <h2 class="section-title" id="sek-eg">Enakomerno gibanje</h2>
+      <div class="grid" aria-labelledby="sek-eg">
+        <!-- Enakomerno gibanje – simulacija -->
+        <a class="card" href="enakomerno_simulacija.html">
+          <div class="icon" aria-hidden="true">🚴‍♀️</div>
+          <h3>Enakomerno gibanje – simulacija</h3>
+          <p>Opazuj gibanje in grafa <strong>s(t)</strong> ter <strong>v(t)</strong>. Predvajaj/Pavza, ponastavi in uporabi celozaslonski prikaz.</p>
+          <span class="pill">Odpri →</span>
+        </a>
+
+        <!-- Enakomerno gibanje – računaj -->
+        <a class="card" href="enakomerno_racun.html">
+          <div class="icon" aria-hidden="true">🧮</div>
+          <h3>Enakomerno gibanje – računaj</h3>
+          <p>Reši naloge za <strong>s</strong>, <strong>v</strong> ali <strong>t</strong> z <em>Preveri</em>, <em>Namig</em> in prikazom grafov po izbiri.</p>
+          <span class="pill">Reši →</span>
+        </a>
+      </div>
+      <!-- ====== /NOVA SEKCIJA ====== -->
     </main>
 
     <footer>

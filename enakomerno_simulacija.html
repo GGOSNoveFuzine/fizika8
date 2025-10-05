@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1920, initial-scale=1" />
+<title>Enakomerno gibanje – demo (SMARTBOARD)</title>
+<style>
+  :root{
+    /* barve in velikosti – nastavljeno, da je lepo berljivo na šolski tabli (1080p/4K) */
+    --bg:#0b1020; --panel:#0f1730; --ink:#f8fafc; --muted:#cbd5e1;
+    --accent:#22d3ee; --accent2:#60a5fa; --bad:#ef4444;
+
+    /* velikosti fontov in višin – “na prvo žogo” deluje na večini zaslonov */
+    --fs-label:clamp(18px,1.4vw,22px);
+    --fs-value:clamp(28px,1.9vw,36px);
+    --fs-btn:clamp(18px,1.25vw,22px);
+    --h-track:46vh;    /* višina animacije (proga) */
+    --h-graph:23vh;    /* višina posameznega grafa */
+    --h-table:26vh;    /* višina tabele, da ne zraste čez ekran */
+    --radius:18px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; color:var(--ink);
+    background:radial-gradient(1600px 900px at 10% -10%,#101a36 0%,var(--bg) 45%);
+    font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+  }
+  .wrap{
+    /* glavni “kartonček” – malo senc, malo gradienta, da ni pusto */
+    width:96vw; max-width:1900px; margin:10px auto;
+    padding:10px;
+    border-radius:24px;
+    border:1px solid rgba(255,255,255,.08);
+    background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));
+    box-shadow:0 24px 60px rgba(0,0,0,.5);
+  }
+
+  /* zgornja vrstica: števci + gumbi (brez velikega naslova, da ne krade prostora) */
+  .top{
+    display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center;
+  }
+  .stats{
+    display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px;
+  }
+  .card{
+    background:var(--panel); border:1px solid rgba(255,255,255,.08);
+    border-radius:var(--radius); padding:10px 12px; text-align:center;
+  }
+  .label{ color:var(--muted); font-size:var(--fs-label); }
+  .value{ font-size:var(--fs-value); font-weight:900; }
+
+  .controls{ display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; }
+  button{
+    appearance:none; border:0; border-radius:14px; padding:8px 14px;
+    font-weight:800; font-size:var(--fs-btn); cursor:pointer;
+    color:#06101e; background:linear-gradient(180deg,var(--accent),var(--accent2));
+  }
+  .secondary{ background:#142244; color:var(--ink); border:1px solid rgba(255,255,255,.12); }
+
+  /* glavni layout: levo animacija + tabela, desno grafi */
+  .main{
+    margin-top:10px;
+    display:grid;
+    grid-template-columns:1fr 1.08fr; /* grafom damo malo več širine, ker so lačni prostora */
+    gap:12px;
+    align-items:start;
+  }
+  .panel{
+    background:var(--panel); border:1px solid rgba(255,255,255,.08);
+    border-radius:var(--radius); padding:10px;
+  }
+
+  /* SVG animacija (“proga”) */
+  svg{ width:100%; height:var(--h-track); display:block; }
+
+  /* tabela s(t) */
+  .tableWrap{
+    margin-top:10px;
+    max-height:var(--h-table);
+    overflow:auto;
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,.08);
+    background:#0b1220;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:clamp(18px,1.2vw,20px); }
+  th, td{ padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.06); }
+  th{ position:sticky; top:0; background:#0f1934; z-index:1; text-align:left; }
+  td:last-child, th:last-child{ text-align:right; }
+
+  /* grafi */
+  .gTitle{ font-size:var(--fs-label); margin:2px 0 8px; color:var(--muted); }
+  .gWrap{ display:grid; gap:10px; }
+  .plot{
+    background:#0b1220; border-radius:14px; height:var(--h-graph);
+    border:1px solid rgba(255,255,255,.08); padding:8px;
+  }
+  canvas{ width:100%; height:100%; }
+  .note{ color:var(--muted); font-size:clamp(14px,1vw,18px); margin-top:6px; }
+
+  .warn{ color:var(--bad); font-weight:800; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="stats">
+        <!-- etikete: s, t, v – da se ujema s fiziko -->
+        <div class="card"><div class="label">Pot s</div><div class="value" id="Dout">—</div></div>
+        <div class="card"><div class="label">Čas t</div><div class="value" id="Tout">—</div></div>
+        <div class="card"><div class="label">Hitrost v</div><div class="value" id="Vout">—</div></div>
+        <div class="card"><div class="label">t, s (trenutno)</div><div class="value" id="NowOut">0,0 m / 0,0 s</div></div>
+      </div>
+      <div class="controls">
+        <!-- gumbi – self-explanatory -->
+        <button id="newBtn">Nova naloga</button>
+        <button id="playBtn">Predvajaj</button>
+        <button id="pauseBtn" class="secondary">Pavza</button>
+        <button id="repeatBtn" class="secondary">Ponovi</button>
+        <button id="resetBtn" class="secondary">Ponastavi</button>
+        <button id="fsBtn" class="secondary" title="Celozaslonski način (F)">⤢ Celozaslonsko</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <!-- LEVO: proga + tabela -->
+      <div class="panel">
+        <svg id="svg" viewBox="0 0 1000 500">
+          <g id="axis"></g>
+          <g id="bike" transform="translate(80,280) scale(1.25)">
+            <!-- “kolo” – zelo minimalistično, da ne krade fokusa podatkom -->
+            <circle cx="0" cy="0" r="20" fill="#0b1220" stroke="#e2e8f0" stroke-width="3"></circle>
+            <circle cx="60" cy="0" r="20" fill="#0b1220" stroke="#e2e8f0" stroke-width="3"></circle>
+            <polyline points="0,-2 20,-28 50,-2 10,-2 30,-10 34,-2" fill="none" stroke="#60a5fa" stroke-width="3"></polyline>
+          </g>
+        </svg>
+
+        <div class="tableWrap">
+          <table>
+            <thead><tr><th>t [s]</th><th>s [m]</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+        <div class="note">Opomba: pri enakomernem gibanju je <b>s(t)</b> premica, <b>v(t)</b> pa vodoravna na <b>v = s / t</b>.</div>
+      </div>
+
+      <!-- DESNO: grafi s(t) in v(t) -->
+      <div class="panel">
+        <div class="gTitle">Grafi</div>
+        <div class="gWrap">
+          <div class="plot"><canvas id="sChart"></canvas></div>
+          <div class="plot"><canvas id="vChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart.js – če ste offline, lahko zamenjaš s lokalnim chart.min.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    // ===== “mini orodjarna”
+    const rndInt=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;              // vrne celo število med a in b (vključno)
+    const fmt=(n,d=1)=>Number(n).toFixed(d).replace('.',',');             // 12.3 -> "12,3" (slovenska pika/vejica)
+    const niceUp=v=>{                                                      // naredi “lepe” meje osi (1, 2, 5, 10, 20, 50 …)
+      const p=Math.pow(10,Math.floor(Math.log10(Math.max(1,v))));
+      const r=v/p; return (r<=1?1:r<=2?2:r<=5?5:10)*p;
+    }
+
+    // ===== pobrskamo po DOM-u (id-ji za hiter dostop)
+    const axis = document.getElementById('axis');
+    const bike = document.getElementById('bike');
+    const tbody = document.getElementById('tbody');
+    const Dout = document.getElementById('Dout');
+    const Tout = document.getElementById('Tout');
+    const Vout = document.getElementById('Vout');
+    const NowOut = document.getElementById('NowOut');
+
+    const newBtn = document.getElementById('newBtn');
+    const playBtn = document.getElementById('playBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const repeatBtn = document.getElementById('repeatBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const fsBtn = document.getElementById('fsBtn');
+
+    // ===== stanje “igre”
+    let D=30, T=12, v=2.5;                 // D=s (pot), T (čas), v (hitrost) – inicialne vrednosti, takoj jih prepiše generate()
+    let R=50;                              // zgornja meja osi na “progi” – malo več kot D, da diha
+    const x0=60, x1=940;                   // levi/desni rob osi znotraj SVG-ja
+    let running=false, req=null, pausedMs=0; // flag, requestAnimationFrame id, in koliko je že “odteklo” ob pavzi
+
+    // objekta za grafa (pot + hitrost)
+    let sChart, vChart;
+
+    // ===== narišemo os z merami in rdečo označbo cilja
+    function drawAxis(){
+      axis.innerHTML='';
+      const ns='http://www.w3.org/2000/svg';
+      const L=(x1,y1,x2,y2,st='#cbd5e1',w=3)=>{ // bližnjica za črto
+        const l=document.createElementNS(ns,'line');
+        l.setAttribute('x1',x1); l.setAttribute('y1',y1);
+        l.setAttribute('x2',x2); l.setAttribute('y2',y2);
+        l.setAttribute('stroke',st); l.setAttribute('stroke-width',w);
+        axis.appendChild(l);
+      }
+      const Ttxt=(x,y,txt)=>{ // bližnjica za napis
+        const t=document.createElementNS(ns,'text');
+        t.setAttribute('x',x); t.setAttribute('y',y);
+        t.setAttribute('fill','#e5e7eb'); t.setAttribute('font-size','18');
+        t.setAttribute('text-anchor','middle'); t.textContent=txt;
+        axis.appendChild(t);
+      }
+
+      // osnovna linija (tla)
+      L(x0,280,x1,280,'#cbd5e1',3.5);
+
+      // kljukice in številke – korak 1, 5 ali 10, odvisno kako velik je R
+      const step = R<=20?1:R<=50?5:10;
+      for(let m=0;m<=R;m+=step){
+        const x = x0 + (m/R)*(x1-x0);
+        L(x,276,x,284,'#94a3b8',2);
+        Ttxt(x,304,String(m));
+      }
+
+      // rdeča črta na cilju (končna pot D)
+      const xD = x0 + (D/R)*(x1-x0);
+      L(xD,270,xD,290,'#ff4d6d',3);
+      Ttxt(xD,260,`${D} m`);
+
+      // enota na skrajni desni
+      const u=document.createElementNS(ns,'text');
+      u.setAttribute('x',x1+24); u.setAttribute('y',304);
+      u.setAttribute('fill','#e5e7eb'); u.setAttribute('font-size','18');
+      u.textContent='(m)'; axis.appendChild(u);
+    }
+
+    // helper za prestavljanje “kolesa” po x
+    const setBikeX=(x)=>bike.setAttribute('transform',`translate(${x},280) scale(1.25)`);
+
+    // ===== grafa (s-t in v-t)
+    function buildCharts(){
+      // če slučajno že obstajajo, jih najprej pospravimo – drugače Chart.js teži
+      if(sChart) sChart.destroy();
+      if(vChart) vChart.destroy();
+
+      // malo “rezerve” na oseh, da se ne zatika na robu
+      const xMax = niceUp(T*1.08);
+      const sMax = niceUp(D*1.10);
+      const vMax = niceUp(v*1.35);
+
+      // skupne nastavitve za oba grafa
+      const base=(xM,yM,xL,yL)=>({
+        animation:false, responsive:true, maintainAspectRatio:false,
+        layout:{padding:10},
+        scales:{
+          x:{type:'linear',min:0,suggestedMax:xM,grid:{color:'rgba(148,163,184,.35)'},
+             ticks:{color:'#e5e7eb',font:{size:16},maxTicksLimit:10},
+             title:{display:true,text:xL,color:'#e5e7eb',font:{size:18}}},
+          y:{min:0,suggestedMax:yM,grid:{color:'rgba(148,163,184,.35)'},
+             ticks:{color:'#e5e7eb',font:{size:16}},
+             title:{display:true,text:yL,color:'#e5e7eb',font:{size:18}}}
+        },
+        plugins:{legend:{display:false}}
+      });
+
+      // s(t)
+      sChart = new Chart(document.getElementById('sChart').getContext('2d'),{
+        type:'line',
+        data:{datasets:[{data:[{x:0,y:0}], borderWidth:3}]},
+        options:base(xMax,sMax,'t [s]','s [m]')
+      });
+
+      // v(t)
+      vChart = new Chart(document.getElementById('vChart').getContext('2d'),{
+        type:'line',
+        data:{datasets:[{data:[{x:0,y:v}], borderWidth:3}]},
+        options:base(xMax,vMax,'t [s]','v [m/s]')
+      });
+    }
+
+    // pri animaciji sproti vrisujemo trenutne točke v grafa (brez “fade” animacij)
+    function updateCharts(tNow){
+      const sNow = Math.min(v*tNow, D);
+      sChart.data.datasets[0].data = [{x:0,y:0},{x:tNow,y:sNow}];
+      vChart.data.datasets[0].data = [{x:0,y:v},{x:tNow,y:v}];
+      sChart.update('none'); vChart.update('none');
+    }
+
+    // ===== tabela s(t) – najprej pripravimo prazne vrstice, potem jih polnimo sproti
+    function buildTable(){
+      tbody.innerHTML='';
+      for(let i=0;i<=T;i++){
+        const tr=document.createElement('tr');
+        const td1=document.createElement('td'); td1.textContent=String(i);   // čas i
+        const td2=document.createElement('td'); td2.textContent='—';         // pot pri času i (zaenkrat prazno)
+        tr.appendChild(td1); tr.appendChild(td2);
+        tbody.appendChild(tr);
+      }
+    }
+    function fillTable(tNow){
+      // izpolnimo vrstice do “celega” trenutka – da lepo kaplja 0, 1, 2, …
+      const k = Math.min(Math.floor(tNow), T);
+      for(let i=0;i<=k;i++){
+        const row = tbody.children[i];
+        const sNow = Math.min(v*i, D);
+        row.children[1].textContent = fmt(sNow,1);
+      }
+      // zadnja vrstica naj bo točno D, ko je konec (da ni 47,9 namesto 48,0 ipd.)
+      if(tNow>=T && tbody.children[T]) tbody.children[T].children[1].textContent = fmt(D,1);
+    }
+
+    // ===== NOVA NALOGA – tu določimo s, t in iz tega v; plus nastavimo os, grafe, tabelo
+    function generate(){
+      D = rndInt(5, 100);      // pot: naključno med 5 in 100 m – kolk daleč bo “kolesar” šel
+      T = rndInt(3, 15);       // čas: naključno med 3 in 15 s – to ti v bistvu določi dolžino animacije
+      v = D / T;               // hitrost: v = s / t (klasika)
+      R = niceUp(D*1.30);      // zgornja meja osi – ~30 % lufta, da se graf ne zareže na robu
+
+      // posodobimo prikaze
+      Dout.textContent = `${D} m`;
+      Tout.textContent = `${T} s`;
+      Vout.textContent = `${fmt(v,2)} m/s`;
+      NowOut.textContent = `0,0 m / 0,0 s`;
+
+      // grafika/tabela/ozadje priprava
+      drawAxis();
+      setBikeX(x0);
+      buildTable();
+      buildCharts();
+      updateCharts(0);
+
+      // reset stanja animacije
+      pausedMs=0; running=false;
+    }
+
+    // ===== PREDVAJANJE – srce animacije (requestAnimationFrame z malo matematike)
+    function play(){
+      if(running) return;                 // če že teče, ne štartaj še enkrat
+      running=true;
+
+      const duration = T*1000;            // skupno trajanje v ms (ker T je v sekundah)
+      const start = performance.now() - pausedMs; // če smo bili na pavzi, nadaljujemo z iste točke
+
+      // gl zanka – vsako sličico preračunamo položaj in grafe
+      const loop = (now)=>{
+        if(!running) return;                                  // če nas vmes kdo ustavi (pavza/reset), takoj ven
+        const elapsed = Math.min(now - start, duration);      // koliko je že “odteklo” (ne čez mejo)
+        const tNow = elapsed / 1000;                          // trenutni čas v sekundah
+        const sNow = Math.min(v*tNow, D);                     // trenutna pot = v * t, a ne več kot končni D
+        const x = x0 + (sNow / R) * (x1 - x0);                // pretvorba s -> x koord. v SVG-ju
+
+        setBikeX(x);                                          // prestavi “kolo”
+        NowOut.textContent = `${fmt(sNow,1)} m / ${fmt(tNow,1)} s`; // sproti pišemo trenutno s in t
+
+        updateCharts(tNow);                                   // osveži grafa
+        fillTable(tNow);                                      // in tabelo
+
+        // če smo na koncu, zrihtamo zaključek in se ustavimo
+        if(elapsed >= duration){
+          running = false;
+          pausedMs = duration;                                // zabeležimo, da smo “pri koncu”
+          NowOut.innerHTML = `<span>${fmt(D,1)} m / ${fmt(T,1)} s</span>`;
+          return;
+        }
+        req = requestAnimationFrame(loop);                    // sicer – gremo v naslednji frame
+      };
+      req = requestAnimationFrame(loop);                      // zagon prvega frame-a
+    }
+
+    // pavza – samo ustavi, ne resetira
+    function pause(){ if(!running) return; running=false; if(req) cancelAnimationFrame(req); }
+
+    // ponovi – skoči na začetek in takoj play
+    function repeat(){ pausedMs=0; setBikeX(x0); updateCharts(0); fillTable(0); NowOut.textContent=`0,0 m / 0,0 s`; play(); }
+
+    // ponastavi – ustavi in pripravi teren, da si spet na startu
+    function reset(){ pause(); pausedMs=0; setBikeX(x0); updateCharts(0); buildTable(); NowOut.textContent=`0,0 m / 0,0 s`; }
+
+    // ===== gumbi in bližnjice na tipkovnici
+    newBtn.addEventListener('click', generate);
+    playBtn.addEventListener('click', play);
+    pauseBtn.addEventListener('click', pause);
+    repeatBtn.addEventListener('click', repeat);
+    resetBtn.addEventListener('click', reset);
+
+    // celozaslonski način – ker v razredu vsi hočejo “fullscreen” :)
+    fsBtn.addEventListener('click', async ()=>{
+      try{
+        if(!document.fullscreenElement){ await document.documentElement.requestFullscreen(); }
+        else{ await document.exitFullscreen(); }
+      }catch(e){ console.log(e); }
+    });
+
+    // bližnjice: F (fullscreen), SPACE (play/pause), R (repeat), N (nova naloga)
+    document.addEventListener('keydown', e=>{
+      if(e.key.toLowerCase()==='f') fsBtn.click();
+      if(e.key===' '){ e.preventDefault(); running ? pause() : play(); }
+      if(e.key.toLowerCase()==='r') repeat();
+      if(e.key.toLowerCase()==='n') generate();
+    });
+
+    // ===== štart: takoj naredimo prvo nalogo
+    generate();
+  </script>
+</body>
+</html>
