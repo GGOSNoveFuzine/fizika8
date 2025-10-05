@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, initial-scale=1" />
+  <title>Enakomerno gibanje – SMARTBOARD (kompaktno)</title>
+  <style>
+    :root{
+      --bg:#0b1020;--panel:#0f1730;--fg:#f8fafc;--muted:#cbd5e1;
+      --accent:#22d3ee;--accent2:#60a5fa;--good:#22c55e;--bad:#ef4444;--stop:#ff4d6d;
+      --h1:clamp(36px,2.5vw,48px);
+      --btn-font:clamp(18px,1.2vw,22px);
+      --btn-h:clamp(44px,5vh,54px);
+      --label:clamp(16px,1vw,20px);
+      --value:clamp(24px,1.6vw,30px);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:radial-gradient(1600px 900px at 10% -10%,#101a36 0%,var(--bg) 45%);
+      color:var(--fg);
+      font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+    }
+    .app{
+      width:96vw;max-width:1900px;margin:10px auto;
+      background:linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.08);border-radius:24px;
+      box-shadow:0 20px 60px rgba(0,0,0,0.5);padding:clamp(8px,1vw,20px);
+    }
+    h1{margin:0 0 6px;font-size:var(--h1);text-shadow:0 2px 6px #0007}
+    .toolbar{
+      display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+      background:#0f1730;border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);
+      padding:6px 10px;
+    }
+    label,select{font-size:var(--btn-font);font-weight:700}
+    select{
+      appearance:none;background:#15224a;color:var(--fg);
+      border:2px solid rgba(255,255,255,0.18);
+      border-radius:var(--radius);
+      padding:8px 12px;min-width:160px;cursor:pointer;
+    }
+    .controls{display:flex;flex-wrap:wrap;gap:8px}
+    button{
+      appearance:none;border:0;border-radius:var(--radius);
+      padding:6px 12px;font-weight:800;
+      color:#06101e;background:linear-gradient(180deg,var(--accent),var(--accent2));
+      font-size:var(--btn-font);min-height:var(--btn-h);cursor:pointer;
+    }
+    button.secondary{background:#142244;color:var(--fg);border:1px solid rgba(255,255,255,0.12)}
+
+    .stats{
+      display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:10px 0;
+    }
+    .stat{
+      background:#0f1730;border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);
+      padding:8px 10px;text-align:center;
+    }
+    .label{color:var(--muted);font-size:var(--label)}
+    .value{font-size:var(--value);font-weight:900}
+    .hidden{display:none!important}
+
+    .layout{
+      display:grid;grid-template-columns:1.4fr 1fr;gap:10px;align-items:start;
+      transition:grid-template-columns .2s ease;
+    }
+    .layout.hide-graphs{grid-template-columns:1fr}
+    .layout.hide-graphs .drawer{display:none}
+
+    @media (max-aspect-ratio:16/10){.layout{grid-template-columns:1fr}}
+
+    /* SVG + IO */
+    svg{width:100%;height:clamp(340px,45vh,500px);display:block}
+    .io{display:grid;gap:6px;margin-top:6px}
+    .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+    input{
+      background:#0f1a38;border:2px solid rgba(255,255,255,0.16);border-radius:14px;color:var(--fg);
+      padding:10px 14px;min-width:180px;font-size:var(--value);font-weight:800
+    }
+    .feedback{font-weight:800;font-size:var(--label)}
+    .ok{color:var(--good)}.bad{color:var(--bad)}
+    .hint,.solution{background:#0f1a38;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:8px 10px;font-size:var(--label)}
+
+    /* Graphs panel */
+    .drawer{background:#0f1730;border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);padding:8px}
+    .drawerHeader{display:flex;justify-content:space-between;align-items:center}
+    .tabs{display:flex;gap:6px}
+    .tab{
+      background:#15224a;border:1px solid rgba(255,255,255,0.14);color:var(--fg);
+      padding:6px 12px;border-radius:999px;font-weight:700;cursor:pointer;font-size:var(--btn-font)
+    }
+    .tab.active{background:linear-gradient(180deg,var(--accent),var(--accent2));color:#07111f;border:0}
+    .modeToggle{display:flex;align-items:center;gap:8px;font-size:var(--label);color:var(--muted)}
+
+    #graphsArea{margin-top:6px;display:grid;gap:8px}
+    #graphsArea.dual{grid-template-columns:1fr 1fr}
+    canvas{width:100%;height:clamp(260px,40vh,420px);background:#0b1220;border-radius:14px;display:block}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Enakomerno gibanje – SMARTBOARD</h1>
+
+    <!-- compact header -->
+    <div class="toolbar">
+      <div>
+        <label for="modeSelect">Rešujem za:</label>
+        <select id="modeSelect">
+          <option value="t">čas t</option>
+          <option value="v">hitrost v</option>
+          <option value="s">pot s</option>
+        </select>
+      </div>
+      <div class="controls">
+        <button id="toggleGraphsBtn" class="secondary">Pokaži grafe</button>
+        <button id="newTaskBtn">Nova naloga</button>
+        <button id="playBtn">Predvajaj</button>
+        <button id="pauseBtn" class="secondary">Pavza</button>
+        <button id="resetBtn" class="secondary">Ponastavi</button>
+      </div>
+    </div>
+
+    <!-- stats -->
+    <div class="stats">
+      <div class="stat" id="sBox"><div class="label">Pot s</div><div class="value" id="sOut">—</div></div>
+      <div class="stat" id="tBox"><div class="label">Čas t</div><div class="value" id="tOut">—</div></div>
+      <div class="stat" id="vBox"><div class="label">Hitrost v</div><div class="value" id="vOut">—</div></div>
+      <div class="stat"><div class="label">Trenutno</div><div class="value" id="liveOut">0,0 m / —</div></div>
+    </div>
+
+    <!-- main layout: graphs hidden by default -->
+    <div class="layout hide-graphs" id="layout">
+      <!-- left: animation + I/O -->
+      <div>
+        <svg id="svg" viewBox="0 0 1000 500">
+          <g id="axis"></g>
+          <g id="bike" transform="translate(80,280) scale(1.3)">
+            <circle cx="0" cy="0" r="20" fill="#0b1220" stroke="#e2e8f0" stroke-width="3"></circle>
+            <circle cx="60" cy="0" r="20" fill="#0b1220" stroke="#e2e8f0" stroke-width="3"></circle>
+            <polyline points="0,-2 20,-30 50,-2 10,-2 30,-12 34,-2" fill="none" stroke="#60a5fa" stroke-width="3"></polyline>
+          </g>
+        </svg>
+
+        <div class="io">
+          <div class="row">
+            <label for="answer"><b>Tvoj rezultat</b> (<span id="unitLabel">s</span>):</label>
+            <input type="text" id="answer" placeholder="npr. 12,5" />
+            <button id="checkBtn">Preveri</button>
+            <button id="hintBtn" class="secondary">Namig</button>
+            <button id="showBtn" class="secondary">Pokaži rešitev</button>
+          </div>
+          <div class="feedback" id="feedback"></div>
+          <div class="hint hidden" id="hintBox"></div>
+          <div class="solution hidden" id="solutionBox"></div>
+        </div>
+      </div>
+
+      <!-- right: graphs -->
+      <div class="drawer">
+        <div class="drawerHeader">
+          <div class="tabs">
+            <button class="tab active" data-graph="s" id="tabS">s(t)</button>
+            <button class="tab" data-graph="v" id="tabV">v(t)</button>
+          </div>
+          <div class="modeToggle">
+            <label for="dualGraphs">2 grafa:</label>
+            <input type="checkbox" id="dualGraphs">
+          </div>
+        </div>
+        <div id="graphsArea">
+          <canvas id="sChart"></canvas>
+          <canvas id="vChart" class="hidden"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    // ====== utils ======
+    const rndInt=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+    const fmt=n=>Number(n).toFixed(1).replace('.',',');
+    const toComma=(n,dec=2)=>Number(n).toFixed(dec).replace('.',',');
+    const parseNum=s=>Number(String(s).replace(',','.'));
+    const niceUp=v=>{const p=Math.pow(10,Math.floor(Math.log10(Math.max(1,v))));const r=v/p;return (r<=1?1:r<=2?2:r<=5?5:10)*p;}
+
+    // ====== DOM refs ======
+    const axis = document.getElementById('axis');
+    const bike = document.getElementById('bike');
+    const modeSelect = document.getElementById('modeSelect');
+
+    const sBox=document.getElementById('sBox'), tBox=document.getElementById('tBox'), vBox=document.getElementById('vBox');
+    const sOut=document.getElementById('sOut'), tOut=document.getElementById('tOut'), vOut=document.getElementById('vOut'), liveOut=document.getElementById('liveOut');
+    const unitLabel=document.getElementById('unitLabel');
+
+    const newTaskBtn=document.getElementById('newTaskBtn'), playBtn=document.getElementById('playBtn'), pauseBtn=document.getElementById('pauseBtn'), resetBtn=document.getElementById('resetBtn');
+    const toggleGraphsBtn=document.getElementById('toggleGraphsBtn');
+    const layout=document.getElementById('layout');
+
+    const answer=document.getElementById('answer'), feedback=document.getElementById('feedback'), hintBox=document.getElementById('hintBox'), solutionBox=document.getElementById('solutionBox');
+    const checkBtn=document.getElementById('checkBtn'), hintBtn=document.getElementById('hintBtn'), showBtn=document.getElementById('showBtn');
+
+    const tabS=document.getElementById('tabS'), tabV=document.getElementById('tabV');
+    const graphsArea=document.getElementById('graphsArea'), dualGraphs=document.getElementById('dualGraphs');
+    const sChartEl=document.getElementById('sChart'), vChartEl=document.getElementById('vChart');
+
+    // ====== state ======
+    let mode='t'; // 't' | 'v' | 's'
+    let s=60, t=12, v=5, R=70;
+    const startX=60, endX=940;
+    let running=false, req=null, pausedMillis=0;
+    let sChart, vChart;
+
+    // ====== axis drawing ======
+    function drawAxis(){
+      axis.innerHTML='';
+      const ns='http://www.w3.org/2000/svg';
+      const L=(x1,y1,x2,y2,st='#cbd5e1',w=3)=>{const l=document.createElementNS(ns,'line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('stroke',st);l.setAttribute('stroke-width',w);axis.appendChild(l);}
+      const T=(x,y,txt)=>{const t=document.createElementNS(ns,'text');t.setAttribute('x',x);t.setAttribute('y',y);t.setAttribute('fill','#e5e7eb');t.setAttribute('font-size','18');t.setAttribute('text-anchor','middle');t.textContent=txt;axis.appendChild(t);}
+      L(startX,280,endX,280, '#cbd5e1', 3.5);
+      if(mode==='s') return; // bare line only
+      const step = R<=20?1:R<=50?5:10;
+      for(let m=0;m<=R;m+=step){const x = startX + (m/R)*(endX-startX);L(x,276,x,284,'#94a3b8',2);T(x,304,String(m));}
+      const xs = startX + (s/R)*(endX-startX);L(xs,270,xs,290,'#ff4d6d',3);T(xs,260,`${s} m`);
+      const u=document.createElementNS(ns,'text');u.setAttribute('x',endX+24);u.setAttribute('y',304);u.setAttribute('fill','#e5e7eb');u.setAttribute('font-size','18');u.textContent='(m)';axis.appendChild(u);
+    }
+    const setBikeX = (x)=>bike.setAttribute('transform',`translate(${x},280) scale(1.3)`);
+
+    // ====== charts ======
+    function resetCharts(){
+      if(sChart) sChart.destroy(); if(vChart) vChart.destroy();
+      const xMax = niceUp(t*1.10), sMax = niceUp(s*1.10), vMax = niceUp(v*1.30);
+      const base = (xM,yM,xL,yL)=>({
+        animation:false,responsive:true,
+        scales:{
+          x:{type:'linear',min:0,suggestedMax:xM,grid:{color:'rgba(148,163,184,0.35)'},
+             ticks:{color:'#e5e7eb',font:{size:16}},title:{display:true,text:xL,color:'#e5e7eb',font:{size:18}}},
+          y:{min:0,suggestedMax:yM,grid:{color:'rgba(148,163,184,0.35)'},
+             ticks:{color:'#e5e7eb',font:{size:16}},title:{display:true,text:yL,color:'#e5e7eb',font:{size:18}}}
+        },
+        plugins:{legend:{display:false}}
+      });
+      sChart=new Chart(sChartEl.getContext('2d'),{type:'line',data:{datasets:[{data:[{x:0,y:0}],borderWidth:3}]},options:base(xMax,sMax,'t [s]','s [m]')});
+      vChart=new Chart(vChartEl.getContext('2d'),{type:'line',data:{datasets:[{data:[{x:0,y:v}],borderWidth:3}]},options:base(xMax,vMax,'t [s]','v [m/s]')});
+    }
+    function updateCharts(tNow){
+      const sNow = v*tNow;
+      sChart.data.datasets[0].data = [{x:0,y:0},{x:tNow,y:sNow}];
+      vChart.data.datasets[0].data = [{x:0,y:v},{x:tNow,y:v}];
+      sChart.update('none'); vChart.update('none');
+    }
+
+    // ====== graphs UI: tabs & dual mode ======
+    function applyGraphsUI(){
+      if(dualGraphs.checked){
+        graphsArea.classList.add('dual');
+        sChartEl.classList.remove('hidden');
+        vChartEl.classList.remove('hidden');
+        tabS.classList.add('active'); tabV.classList.add('active');
+      }else{
+        graphsArea.classList.remove('dual');
+        const showS = tabS.classList.contains('active') && !tabV.classList.contains('active');
+        sChartEl.classList.toggle('hidden', !showS);
+        vChartEl.classList.toggle('hidden', showS);
+        // ensure exactly one tab is active in single mode
+        if(showS){ tabS.classList.add('active'); tabV.classList.remove('active'); }
+        else { tabV.classList.add('active'); tabS.classList.remove('active'); }
+      }
+    }
+    tabS.addEventListener('click', ()=>{ if(!dualGraphs.checked){ tabS.classList.add('active'); tabV.classList.remove('active'); applyGraphsUI(); }});
+    tabV.addEventListener('click', ()=>{ if(!dualGraphs.checked){ tabV.classList.add('active'); tabS.classList.remove('active'); applyGraphsUI(); }});
+    dualGraphs.addEventListener('change', applyGraphsUI);
+
+    // ====== visibility rules (2/3 visible) ======
+    function applyVisibility(){
+      sBox.classList.remove('hidden');tBox.classList.remove('hidden');vBox.classList.remove('hidden');
+      if(mode==='t'){ tBox.classList.add('hidden'); unitLabel.textContent='s'; }
+      else if(mode==='v'){ vBox.classList.add('hidden'); unitLabel.textContent='m/s'; }
+      else { sBox.classList.add('hidden'); unitLabel.textContent='m'; }
+    }
+
+    // ====== task generation ======
+    function generateTask(){
+      s = rndInt(20,100); t = rndInt(5,20); v = s/t; R = niceUp(s*1.20);
+      sOut.textContent = `${s} m`; tOut.textContent = `${t} s`; vOut.textContent = `${v.toFixed(2).replace('.',',')} m/s`;
+      drawAxis(); setBikeX(startX);
+      resetCharts(); updateCharts(0);
+      feedback.textContent=''; feedback.className='feedback';
+      hintBox.textContent=''; hintBox.classList.add('hidden');
+      solutionBox.textContent=''; solutionBox.classList.add('hidden');
+      answer.value='';
+      applyVisibility();
+      if(mode==='s')      liveOut.textContent = '— / 0,0 s';
+      else if(mode==='t') liveOut.textContent = '0,0 m / —';
+      else                liveOut.textContent = '0,0 m / 0,0 s';
+      // default graph tab depending on mode
+      if(mode==='s'){ tabS.classList.remove('active'); tabV.classList.add('active'); }
+      else { tabS.classList.add('active'); tabV.classList.remove('active'); }
+      dualGraphs.checked=false; applyGraphsUI();
+      pause(); pausedMillis=0;
+    }
+
+    // ====== animation ======
+    function play(){
+      if(running) return; running=true;
+      const duration = t*1000; const startStamp = performance.now() - pausedMillis;
+      const loop = (now)=>{
+        if(!running) return;
+        const elapsed = Math.min(now - startStamp, duration);
+        const p = elapsed / duration;
+        const sNow = p * s; const x = startX + (sNow / R) * (endX - startX); setBikeX(x);
+        const tNow = elapsed/1000;
+        if(mode==='s')      liveOut.textContent = `— / ${fmt(tNow)} s`;
+        else if(mode==='t') liveOut.textContent = `${fmt(sNow)} m / —`;
+        else                liveOut.textContent = `${fmt(sNow)} m / ${fmt(tNow)} s`;
+        updateCharts(tNow);
+        if(elapsed>=duration){ running=false; pausedMillis = duration; return; }
+        req = requestAnimationFrame(loop);
+      };
+      req = requestAnimationFrame(loop);
+    }
+    function pause(){ if(!running) return; running=false; if(req) cancelAnimationFrame(req); req=null; }
+    function reset(){
+      pause(); pausedMillis=0; setBikeX(startX); updateCharts(0);
+      if(mode==='s')      liveOut.textContent = '— / 0,0 s';
+      else if(mode==='t') liveOut.textContent = '0,0 m / —';
+      else                liveOut.textContent = '0,0 m / 0,0 s';
+      feedback.textContent=''; feedback.className='feedback';
+      hintBox.classList.add('hidden'); solutionBox.classList.add('hidden');
+    }
+
+    // ====== help & solution ======
+    function buildHint(){ if(mode==='t') return 'Namig: uporabi zvezo t = s / v (m in s).'; if(mode==='v') return 'Namig: uporabi zvezo v = s / t (pazi na enote).'; return 'Namig: uporabi zvezo s = v · t (m/s · s = m).'; }
+    function buildSolutionSteps(){
+      if(mode==='t'){const calc=s/v;return ['Formula: <b>t = s / v</b>',`Vstavljanje: <b>t = ${s} \\;\\text{m} / ${toComma(v,2)} \\;\\text{m/s}</b>`,`Račun: <b>t = ${toComma(calc,2)} \\;\\text{s}</b>`];}
+      if(mode==='v'){const calc=s/t;return ['Formula: <b>v = s / t</b>',`Vstavljanje: <b>v = ${s} \\;\\text{m} / ${t} \\;\\text{s}</b>`,`Račun: <b>v = ${toComma(calc,2)} \\;\\text{m/s}</b>`];}
+      const calc=v*t;return ['Formula: <b>s = v · t</b>',`Vstavljanje: <b>s = ${toComma(v,2)} \\;\\text{m/s} · ${t} \\;\\text{s}</b>`,`Račun: <b>s = ${toComma(calc,2)} \\;\\text{m}</b>`];
+    }
+    function showHint(){ hintBox.textContent=buildHint(); hintBox.classList.remove('hidden'); }
+    function showSolution(){ solutionBox.innerHTML=buildSolutionSteps().map(l=>`<div>${l}</div>`).join(''); solutionBox.classList.remove('hidden'); }
+
+    // ====== checking ======
+    function expectedValue(){ if(mode==='t') return s / v; if(mode==='v') return v; return s; }
+    function unitSuffix(){ if(mode==='t') return 's'; if(mode==='v') return 'm/s'; return 'm'; }
+    function check(){
+      const val = parseNum(answer.value);
+      if(!isFinite(val)){ feedback.textContent='Prosim vnesi število (vejica ali pika je ok).'; feedback.className='feedback bad'; return; }
+      const exp = expectedValue(); const tol = 0.1;
+      if(Math.abs(val-exp) <= tol){ feedback.textContent = `✅ Pravilno! (${toComma(exp,2)} ${unitSuffix()})`; feedback.className='feedback ok'; showSolution(); }
+      else{ feedback.textContent = '❌ Ni prav. Poskusi znova. (Namig ti lahko pomaga.)'; feedback.className='feedback bad'; }
+    }
+
+    // ====== toggle graphs visibility (no extra vertical space) ======
+    function updateGraphsToggleText(){
+      const hidden = layout.classList.contains('hide-graphs');
+      toggleGraphsBtn.textContent = hidden ? 'Pokaži grafe' : 'Skrij grafe';
+    }
+    function toggleGraphs(){
+      layout.classList.toggle('hide-graphs');
+      updateGraphsToggleText();
+    }
+
+    // ====== wiring ======
+    modeSelect.addEventListener('change', ()=>{ mode = modeSelect.value; generateTask(); });
+    newTaskBtn.addEventListener('click', generateTask);
+    playBtn.addEventListener('click', ()=>{ if(pausedMillis>=t*1000){ reset(); play(); } else { play(); } });
+    pauseBtn.addEventListener('click', ()=>{ if(running) pause(); });
+    resetBtn.addEventListener('click', reset);
+    toggleGraphsBtn.addEventListener('click', toggleGraphs);
+
+    checkBtn.addEventListener('click', check);
+    hintBtn.addEventListener('click', showHint);
+    showBtn.addEventListener('click', showSolution);
+    answer.addEventListener('keydown', e=>{ if(e.key==='Enter') check(); });
+
+    // keyboard helpers
+    document.addEventListener('keydown', e=>{
+      if(e.key===' '){ e.preventDefault(); running ? pause() : play(); }
+      if(e.key.toLowerCase()==='g'){ toggleGraphs(); }
+      if(e.key==='1'){ tabS.click(); }
+      if(e.key==='2'){ tabV.click(); }
+      if(e.key.toLowerCase()==='d'){ dualGraphs.checked = !dualGraphs.checked; const evt=new Event('change'); dualGraphs.dispatchEvent(evt); }
+    });
+
+    // ====== init ======
+    function init(){
+      mode='t'; modeSelect.value='t';
+      drawAxis(); generateTask();
+      layout.classList.add('hide-graphs'); // hidden by default
+      updateGraphsToggleText();
+      applyGraphsUI();
+    }
+    init();
+  </script>
+</body>
+</html>
