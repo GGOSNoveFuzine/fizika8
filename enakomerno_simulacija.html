@@ -221,10 +221,10 @@
       };
 
       sChart = new Chart(document.getElementById('sChart').getContext('2d'),{
-        type:'line', data:{datasets:[{data:[], borderWidth:3, pointRadius:0, pointHoverRadius:0}]}, options:base(xMax,sMax,'t [s]','s [m]')
+        type:'line', data:{datasets:[{data:[], borderWidth:7, pointRadius:0, pointHoverRadius:0}]}, options:base(xMax,sMax,'t [s]','s [m]')
       });
       vChart = new Chart(document.getElementById('vChart').getContext('2d'),{
-        type:'line', data:{datasets:[{data:[], borderWidth:3, pointRadius:0, pointHoverRadius:0}]}, options:base(xMax,vMax,'t [s]','v [m/s]')
+        type:'line', data:{datasets:[{data:[], borderWidth:7, pointRadius:0, pointHoverRadius:0}]}, options:base(xMax,vMax,'t [s]','v [m/s]')
       });
     }
 
