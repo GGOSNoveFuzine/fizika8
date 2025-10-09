@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enakomerno gibanje – prazni grafi za vajo</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#0f1730; --ink:#f8fafc; --muted:#cbd5e1;
+    --accent:#22d3ee; --accent2:#60a5fa;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:radial-gradient(1600px 900px at 10% -10%,#101a36 0%,var(--bg) 45%);
+    color:var(--ink); font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+  }
+  .wrap{ width:96vw; max-width:1900px; margin:14px auto; }
+  .top{
+    display:grid; grid-template-columns: 1fr auto; align-items:center; gap:12px;
+    margin-bottom:12px;
+  }
+  .title{ font-weight:900; letter-spacing:.3px; font-size:clamp(22px,2.2vw,36px); }
+  .btn{
+    appearance:none; border:0; border-radius:16px; padding:12px 18px; cursor:pointer;
+    font-weight:900; font-size:clamp(16px,1.2vw,22px); color:#07121f;
+    background:linear-gradient(180deg,var(--accent),var(--accent2));
+    box-shadow:0 14px 34px rgba(0,0,0,.35), inset 0 -2px 0 rgba(0,0,0,.2);
+  }
+  .panel{
+    background:var(--panel); border:1px solid rgba(255,255,255,.09);
+    border-radius:20px; padding:12px; 
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+  }
+  .grid{
+    display:grid; gap:12px;
+    grid-template-columns: 1fr 1fr;
+  }
+  .cardTitle{ font-weight:800; color:var(--muted); margin:0 0 6px 6px; font-size:clamp(16px,1.3vw,22px); }
+  canvas{ width:100%; height:66vh; display:block; border-radius:14px; background:#0c142a; }
+  .legend{ display:flex; gap:14px; align-items:center; margin:6px 0 0 6px; color:var(--muted); font-size:clamp(14px,1.1vw,18px);}
+  .unit{ font-weight:800; color:#a5b4fc;}
+  @media (max-width:1200px){
+    .grid{ grid-template-columns:1fr; }
+    canvas{ height:48vh; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="title">Prazni grafi enakomernega gibanja (za SMARTBOARD vaje)</div>
+      <button id="toggleUnits" class="btn" aria-label="Preklopi merske enote">Preklopi: <span id="uBtn">m &amp; s → km &amp; h</span></button>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h3 class="cardTitle">Pot s(t)</h3>
+        <canvas id="posCanvas" width="1600" height="900"></canvas>
+        <div class="legend"><span class="unit" id="posUnit">[m] proti [s]</span></div>
+      </div>
+      <div class="panel">
+        <h3 class="cardTitle">Hitrost v(t)</h3>
+        <canvas id="velCanvas" width="1600" height="900"></canvas>
+        <div class="legend"><span class="unit" id="velUnit">[m/s] proti [s]</span></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const styles = {
+    bg: "#0c142a",
+    axis: "#e5e7eb",
+    gridMajor: "rgba(148,163,184,.55)",
+    gridMinor: "rgba(148,163,184,.18)",
+    text: "#e5e7eb"
+  };
+  const dpi = window.devicePixelRatio || 1;
+  let mode = 0;
+  const units = [
+    { tLabel: "s", sLabel: "m", vLabel: "m/s" },
+    { tLabel: "h", sLabel: "km", vLabel: "km/h" }
+  ];
+
+  const posCanvas = document.getElementById("posCanvas");
+  const velCanvas = document.getElementById("velCanvas");
+  const posCtx = posCanvas.getContext("2d");
+  const velCtx = velCanvas.getContext("2d");
+
+  function scaleCanvas(c){
+    const rect = c.getBoundingClientRect();
+    const w = Math.floor(rect.width * dpi);
+    const h = Math.floor(rect.height * dpi);
+    if(c.width !== w || c.height !== h){
+      c.width = w; c.height = h;
+    }
+    return {w, h};
+  }
+
+  function drawAxesAndGrid(ctx, w, h, options){
+    const marginL = Math.round(90 * dpi), marginR = Math.round(30 * dpi);
+    const marginT = Math.round(40 * dpi), marginB = Math.round(70 * dpi);
+    const plotW = w - marginL - marginR;
+    const plotH = h - marginT - marginB;
+    ctx.fillStyle = styles.bg;
+    ctx.fillRect(0,0,w,h);
+
+    ctx.strokeStyle = styles.axis;
+    ctx.lineWidth = 3 * dpi;
+    ctx.beginPath();
+    ctx.moveTo(marginL, h - marginB);
+    ctx.lineTo(w - marginR, h - marginB);
+    ctx.moveTo(marginL, h - marginB);
+    ctx.lineTo(marginL, marginT);
+    ctx.stroke();
+
+    ctx.font = `${Math.round(18*dpi)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.fillStyle = styles.text;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+
+    for(let t=1; t<=10; t++){
+      const x = marginL + (t/10)*plotW;
+      ctx.strokeStyle = styles.gridMajor;
+      ctx.lineWidth = 2*dpi;
+      ctx.beginPath();
+      ctx.moveTo(x, marginT);
+      ctx.lineTo(x, h - marginB);
+      ctx.stroke();
+      ctx.fillText(String(t), x, h - marginB + 10*dpi);
+    }
+
+    if(options.kind === "position"){
+      for(let y=1; y<=50; y++){
+        const yy = h - marginB - (y/50)*plotH;
+        ctx.beginPath();
+        ctx.strokeStyle = (y % 5 === 0) ? styles.gridMajor : styles.gridMinor;
+        ctx.lineWidth = (y % 5 === 0) ? 2*dpi : 1*dpi;
+        ctx.moveTo(marginL, yy);
+        ctx.lineTo(w - marginR, yy);
+        ctx.stroke();
+        if(y % 5 === 0){
+          ctx.textAlign = "right";
+          ctx.textBaseline = "middle";
+          ctx.fillText(String(y), marginL - 10*dpi, yy);
+        }
+      }
+    } else {
+      for(let y=0; y<=10; y++){
+        const yy = h - marginB - (y/10)*plotH;
+        ctx.beginPath();
+        ctx.strokeStyle = styles.gridMajor;
+        ctx.lineWidth = 2*dpi;
+        ctx.moveTo(marginL, yy);
+        ctx.lineTo(w - marginR, yy);
+        ctx.stroke();
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(y), marginL - 10*dpi, yy);
+      }
+    }
+
+    return { marginL, marginT, plotW, plotH, marginB };
+  }
+
+  function drawPosition(){
+    const {w, h} = scaleCanvas(posCanvas);
+    const ctx = posCtx;
+    const info = drawAxesAndGrid(ctx, w, h, {kind:"position"});
+    ctx.fillStyle = styles.text;
+    ctx.font = `${Math.round(22*dpi)}px system-ui`;
+    ctx.textAlign = "center"; ctx.textBaseline="bottom";
+    ctx.fillText(`t [${units[mode].tLabel}]`, info.marginL + info.plotW/2, h - 16*dpi);
+    ctx.save();
+    ctx.translate(16*dpi, info.marginT + info.plotH/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText(`s [${units[mode].sLabel}]`, 0, 0);
+    ctx.restore();
+  }
+
+  function drawVelocity(){
+    const {w, h} = scaleCanvas(velCanvas);
+    const ctx = velCtx;
+    const info = drawAxesAndGrid(ctx, w, h, {kind:"velocity"});
+    ctx.fillStyle = styles.text;
+    ctx.font = `${Math.round(22*dpi)}px system-ui`;
+    ctx.textAlign = "center"; ctx.textBaseline="bottom";
+    ctx.fillText(`t [${units[mode].tLabel}]`, info.marginL + info.plotW/2, h - 16*dpi);
+    ctx.save();
+    ctx.translate(16*dpi, info.marginT + info.plotH/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText(`v [${units[mode].vLabel}]`, 0, 0);
+    ctx.restore();
+  }
+
+  function renderAll(){
+    drawPosition();
+    drawVelocity();
+    document.getElementById("posUnit").textContent = `[${units[mode].sLabel}] proti [${units[mode].tLabel}]`;
+    document.getElementById("velUnit").textContent = `[${units[mode].vLabel}] proti [${units[mode].tLabel}]`;
+    document.getElementById("uBtn").textContent = mode === 0 ? "m & s → km & h" : "km & h → m & s";
+  }
+
+  window.addEventListener("resize", renderAll);
+  document.getElementById("toggleUnits").addEventListener("click", () => {
+    mode = 1 - mode;
+    renderAll();
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
