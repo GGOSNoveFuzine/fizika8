@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1920, initial-scale=1" />
+<title>Enakomerno gibanje – demo (SMARTBOARD)</title>
+<style>
+  :root{
+    /* barve in velikosti – nastavljeno, da je lepo berljivo na šolski tabli (1080p/4K) */
+    --bg:#0b1020; --panel:#0f1730; --ink:#f8fafc; --muted:#cbd5e1;
+    --accent:#22d3ee; --accent2:#60a5fa; --bad:#ef4444;
+
+    /* velikosti fontov in višin – “na prvo žogo” deluje na večini zaslonov */
+    --fs-label:clamp(18px,1.4vw,22px);
+    --fs-value:clamp(28px,1.9vw,36px);
+    --fs-btn:clamp(18px,1.25vw,22px);
+    --h-track:25vh;    /* zmanjšana praznina okoli proge, brez spremembe same proge */
+    --h-graph:34vh;    /* višina posameznega grafa (nespremenjeno) */
+    --h-table:50vh;    /* več prostora za tabelo */
+    --radius:18px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; color:var(--ink);
+    background:radial-gradient(1600px 900px at 10% -10%,#101a36 0%,var(--bg) 45%);
+    font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+  }
+  .wrap{
+    width:96vw; max-width:1900px; margin:10px auto;
+    padding:10px;
+    border-radius:24px;
+    border:1px solid rgba(255,255,255,.08);
+    background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));
+    box-shadow:0 24px 60px rgba(0,0,0,.5);
+  }
+
+  .top{ display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center; }
+  .stats{ display:grid; grid-template-columns:0.9fr 0.9fr 0.9fr 1.3fr; gap:10px; }
+  .card{ background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:var(--radius); padding:10px 12px; text-align:center; }
+  .label{ color:var(--muted); font-size:var(--fs-label); }
+  .value{
+    font-size:var(--fs-value); font-weight:900;
+    white-space:nowrap; display:inline-block; min-width:160px; text-align:center; /* anti-jitter fix */
+  }
+
+  .controls{ display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; }
+  button{
+    appearance:none; border:0; border-radius:14px; padding:7px 12px; /* tiny bit smaller */
+    font-weight:800; font-size:var(--fs-btn); cursor:pointer;
+    color:#06101e; background:linear-gradient(180deg,var(--accent),var(--accent2));
+  }
+  .secondary{ background:#142244; color:var(--ink); border:1px solid rgba(255,255,255,.12); }
+
+  .main{
+    margin-top:10px;
+    display:grid;
+    grid-template-columns:1fr 1.08fr; /* grafom damo malo več širine */
+    gap:12px;
+    align-items:start;
+  }
+  .panel{ background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:var(--radius); padding:10px; }
+
+  /* SVG animacija (“proga”) */
+  svg{ width:100%; height:var(--h-track); display:block; }
+
+  /* tabela s(t) */
+  .tableWrap{
+    margin-top:10px;
+    max-height:var(--h-table);
+    overflow:auto;
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,.08);
+    background:#0b1220;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:clamp(18px,1.2vw,20px); }
+  th, td{ padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.06); }
+  th{ position:sticky; top:0; background:#0f1934; z-index:1; text-align:left; }
+  td:last-child, th:last-child{ text-align:right; }
+
+  .gTitle{ font-size:var(--fs-label); margin:2px 0 8px; color:var(--muted); }
+  .gWrap{ display:grid; gap:10px; }
+  .plot{ background:#0b1220; border-radius:14px; height:var(--h-graph); border:1px solid rgba(255,255,255,.08); padding:8px; }
+  canvas{ width:100%; height:100%; }
+  .note{ color:var(--muted); font-size:clamp(14px,1vw,18px); margin-top:6px; }
+  .warn{ color:var(--bad); font-weight:800; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="stats">
+        <div class="card"><div class="label">Pot s</div><div class="value" id="Dout">—</div></div>
+        <div class="card"><div class="label">Čas t</div><div class="value" id="Tout">—</div></div>
+        <div class="card"><div class="label">Hitrost v</div><div class="value" id="Vout">—</div></div>
+        <div class="card"><div class="label">s, t (trenutno)</div><div class="value" id="NowOut">0,0m/0,0s</div></div>
+      </div>
+      <div class="controls">
+        <button id="newBtn">Nova</button>
+        <button id="playBtn">Predvajaj</button>
+        <button id="pauseBtn" class="secondary">Pavza</button>
+        <button id="repeatBtn" class="secondary">Ponovi</button>
+        <button id="resetBtn" class="secondary">Ponastavi</button>
+        <button id="fsBtn" class="secondary" title="Celozaslonski način (F)">⤢ Cel zaslon</button>
+        <button id="intBtn" class="secondary" title="Preklop med celimi in decimalnimi vrednostmi">Cela/Dec</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <!-- LEVO: proga + tabela -->
+      <div class="panel">
+        <svg id="svg" viewBox="0 100 1000 320">
+          <g id="axis"></g>
+          <g id="bike" transform="translate(80,280) scale(1.25)">
+            <circle cx="0" cy="0" r="20" fill="#0b1220" stroke="#e2e8f0" stroke-width="3"></circle>
+            <circle cx="60" cy="0" r="20" fill="#0b1220" stroke="#e2e8f0" stroke-width="3"></circle>
+            <polyline points="0,-2 20,-28 50,-2 10,-2 30,-10 34,-2" fill="none" stroke="#60a5fa" stroke-width="3"></polyline>
+          </g>
+        </svg>
+
+        <div class="tableWrap">
+          <table>
+            <thead><tr><th>t [s]</th><th>s [m]</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+        <div class="note"></div>
+      </div>
+
+      <!-- DESNO: grafi s(t) in v(t) -->
+      <div class="panel">
+        <div class="gTitle">Grafi</div>
+        <div class="gWrap">
+          <div class="plot"><canvas id="sChart"></canvas></div>
+          <div class="plot"><canvas id="vChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    const rndInt=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+    const fmtDec=(n,d=1)=>Number(n).toFixed(d).replace('.',',');
+    const niceUp=v=>{ const p=Math.pow(10,Math.floor(Math.log10(Math.max(1,v)))); const r=v/p; return (r<=1?1:r<=2?2:r<=5?5:10)*p; }
+    const pickMajor=(yMax,target=6)=>{ const raw=yMax/Math.max(1,target); const base=Math.pow(10,Math.floor(Math.log10(raw))); const m=raw/base; return (m<=1?1:m<=2?2:m<=5?5:10)*base; };
+
+    const axis = document.getElementById('axis');
+    const bike = document.getElementById('bike');
+    const tbody = document.getElementById('tbody');
+    const Dout = document.getElementById('Dout');
+    const Tout = document.getElementById('Tout');
+    const Vout = document.getElementById('Vout');
+    const NowOut = document.getElementById('NowOut');
+
+    const newBtn = document.getElementById('newBtn');
+    const playBtn = document.getElementById('playBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const repeatBtn = document.getElementById('repeatBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const fsBtn = document.getElementById('fsBtn');
+    const intBtn = document.getElementById('intBtn');
+
+    let D=30, T=12, v=2.5;
+    let R=50;
+    const x0=60, x1=940;
+    let running=false, req=null, pausedMs=0;
+    let integerMode=false;
+
+    let sChart, vChart;
+
+    function drawAxis(){
+      axis.innerHTML='';
+      const ns='http://www.w3.org/2000/svg';
+      const L=(x1,y1,x2,y2,st='#cbd5e1',w=3)=>{ const l=document.createElementNS(ns,'line'); l.setAttribute('x1',x1); l.setAttribute('y1',y1); l.setAttribute('x2',x2); l.setAttribute('y2',y2); l.setAttribute('stroke',st); l.setAttribute('stroke-width',w); axis.appendChild(l); }
+      const Ttxt=(x,y,txt)=>{ const t=document.createElementNS(ns,'text'); t.setAttribute('x',x); t.setAttribute('y',y); t.setAttribute('fill','#e5e7eb'); t.setAttribute('font-size','18'); t.setAttribute('text-anchor','middle'); t.textContent=txt; axis.appendChild(t); }
+
+      L(x0,280,x1,280,'#cbd5e1',3.5);
+
+      const step = R<=20?1:R<=50?5:10;
+      for(let m=0;m<=R;m+=step){
+        const x = x0 + (m/R)*(x1-x0);
+        L(x,276,x,284,'#94a3b8',2);
+        Ttxt(x,304,String(m));
+      }
+
+      const xD = x0 + (D/R)*(x1-x0);
+      L(xD,270,xD,290,'#ff4d6d',3);
+      Ttxt(xD,260,`${D} m`);
+
+      const u=document.createElementNS(ns,'text');
+      u.setAttribute('x',x1+24); u.setAttribute('y',304);
+      u.setAttribute('fill','#e5e7eb'); u.setAttribute('font-size','18');
+      u.textContent='(m)'; axis.appendChild(u);
+    }
+
+    const setBikeX=(x)=>bike.setAttribute('transform',`translate(${x},280) scale(1.25)`);
+
+    function buildCharts(){
+      if(sChart) sChart.destroy(); if(vChart) vChart.destroy();
+      const xMax = niceUp(T*1.08);
+      const sMax = niceUp(D*1.10);
+      const vMax = niceUp(v*1.35);
+
+      const base=(xM,yM,xL,yL)=>{
+        const majorStep=pickMajor(yM), minorStep=majorStep/2;
+        return {
+          animation:false, responsive:true, maintainAspectRatio:false, layout:{padding:10},
+          scales:{
+            x:{ type:'linear', min:0, suggestedMax:xM, grid:{ color:'rgba(148,163,184,.35)', lineWidth:1.5 },
+                ticks:{ stepSize:1, autoSkip:false, color:'#e5e7eb', font:{size:16}, callback:v=>(v%2===0?v:'') },
+                title:{ display:true, text:xL, color:'#e5e7eb', font:{size:18} } },
+            y:{ min:0, suggestedMax:yM, grid:{ color:'rgba(148,163,184,.45)', lineWidth:2 },
+                ticks:{ stepSize:majorStep, color:'#e5e7eb', font:{size:16} },
+                title:{ display:true, text:yL, color:'#e5e7eb', font:{size:18} } },
+            yMinor:{ type:'linear', position:'left', min:0, suggestedMax:yM,
+                     grid:{ drawOnChartArea:true, drawTicks:false, drawBorder:false, color:'rgba(148,163,184,.65)', lineWidth:2 },
+                     ticks:{ display:false, stepSize:minorStep } }
+          },
+          plugins:{ legend:{ display:false } }
+        };
+      };
+
+      sChart = new Chart(document.getElementById('sChart').getContext('2d'),{
+        type:'line', data:{datasets:[{data:[], borderWidth:7, pointRadius:0, pointHoverRadius:0}]}, options:base(xMax,sMax,'t [s]','s [m]')
+      });
+      vChart = new Chart(document.getElementById('vChart').getContext('2d'),{
+        type:'line', data:{datasets:[{data:[], borderWidth:7, pointRadius:0, pointHoverRadius:0}]}, options:base(xMax,vMax,'t [s]','v [m/s]')
+      });
+    }
+
+    function updateCharts(tNow){
+      const sNow = Math.min(v*tNow, D);
+      sChart.data.datasets[0].data = [{x:0,y:0},{x:tNow,y:sNow}];
+      vChart.data.datasets[0].data = [{x:0,y:v},{x:tNow,y:v}];
+      sChart.update('none'); vChart.update('none');
+    }
+
+    function buildTable(){
+      tbody.innerHTML='';
+      for(let i=0;i<=T;i++){
+        const tr=document.createElement('tr');
+        const td1=document.createElement('td'); td1.textContent=String(i);
+        const td2=document.createElement('td'); td2.textContent='—';
+        tr.appendChild(td1); tr.appendChild(td2);
+        tbody.appendChild(tr);
+      }
+    }
+    function fillTable(tNow){
+      const k = Math.min(Math.floor(tNow), T);
+      for(let i=0;i<=k;i++){
+        const row = tbody.children[i];
+        const sNow = Math.min(v*i, D);
+        row.children[1].textContent = Number(sNow).toFixed(1).replace('.',',');
+      }
+      if(tNow>=T && tbody.children[T]) tbody.children[T].children[1].textContent = Number(D).toFixed(1).replace('.',',');
+    }
+
+    function renderCounters(tNow=0){
+      Dout.textContent = `${Number(D).toFixed(integerMode?0:1).replace('.',',')} m`;
+      Tout.textContent = `${Number(T).toFixed(integerMode?0:1).replace('.',',')} s`;
+      Vout.textContent = `${Number(v).toFixed(integerMode?0:2).replace('.',',')} m/s`;
+      const sNow = Math.min(v*tNow, D);
+      NowOut.textContent = `${Number(sNow).toFixed(integerMode?0:1).replace('.',',')} m / ${Number(tNow).toFixed(integerMode?0:1).replace('.',',')} s`;
+    }
+
+    function generate(){
+      let newD = rndInt(5, 100);
+      let newT = rndInt(3, 15);
+      let newV = newD / newT;
+
+      if(integerMode){
+        newD = Math.round(newD);
+        newT = Math.round(newT);
+        newV = Math.round(newD / newT);
+        newD = newV * newT;
+      }
+
+      D = newD; T = newT; v = newV;
+      R = niceUp(D*1.30);
+
+      drawAxis(); setBikeX(x0); buildTable(); buildCharts(); updateCharts(0); renderCounters(0);
+      pausedMs=0; running=false;
+    }
+
+    function play(){
+      if(running) return;
+      running=true;
+      const duration = T*1000;
+      const start = performance.now() - pausedMs;
+
+      const loop = (now)=>{
+        if(!running) return;
+        const elapsed = Math.min(now - start, duration);
+        const tNow = elapsed / 1000;
+        const sNow = Math.min(v*tNow, D);
+        const x = x0 + (sNow / R) * (x1 - x0);
+
+        setBikeX(x);
+        renderCounters(tNow);
+        updateCharts(tNow);
+        fillTable(tNow);
+
+        if(elapsed >= duration){
+          running = false;
+          pausedMs = duration;
+          renderCounters(T);
+          return;
+        }
+        req = requestAnimationFrame(loop);
+      };
+      req = requestAnimationFrame(loop);
+    }
+
+    function pause(){ if(!running) return; running=false; if(req) cancelAnimationFrame(req); }
+    function repeat(){ pausedMs=0; setBikeX(x0); updateCharts(0); buildTable(); renderCounters(0); play(); }
+    function reset(){ pause(); pausedMs=0; setBikeX(x0); updateCharts(0); buildTable(); renderCounters(0); }
+
+    function applyIntegerConstraints(){
+      D = Math.round(D); T = Math.round(T);
+      v = Math.round(D / T); D = v * T; R = niceUp(D*1.30);
+    }
+    intBtn.addEventListener('click', ()=>{
+      integerMode = !integerMode;
+      if(integerMode){ applyIntegerConstraints(); } else { v = D / T; }
+      drawAxis(); buildCharts(); updateCharts(0); buildTable(); renderCounters(0);
+    });
+
+    newBtn.addEventListener('click', generate);
+    playBtn.addEventListener('click', play);
+    pauseBtn.addEventListener('click', pause);
+    repeatBtn.addEventListener('click', repeat);
+    resetBtn.addEventListener('click', reset);
+    fsBtn.addEventListener('click', async ()=>{
+      try{ if(!document.fullscreenElement){ await document.documentElement.requestFullscreen(); } else { await document.exitFullscreen(); } }
+      catch(e){ console.log(e); }
+    });
+    document.addEventListener('keydown', e=>{
+      if(e.key.toLowerCase()==='f') fsBtn.click();
+      if(e.key===' '){ e.preventDefault(); document.activeElement.blur?.(); running ? pause() : play(); }
+      if(e.key.toLowerCase()==='r') repeat();
+      if(e.key.toLowerCase()==='n') generate();
+      if(e.key.toLowerCase()==='i') intBtn.click();
+    });
+
+    generate();
+  </script>
+</body>
+</html>
