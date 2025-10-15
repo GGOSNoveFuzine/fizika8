@@ -65,6 +65,17 @@
     footer{color:var(--muted); font-size:14px; text-align:center; margin-top:14px;}
     .section-title{margin:18px 4px 10px; font-size:20px}
     @media (prefers-reduced-motion: reduce){.card{transition:none}.card:hover{transform:none}}
+
+    /* Special styling for Ninja – Predpone card */
+    .ninja-card {
+      background: linear-gradient(180deg, #1e40af, #3b82f6); /* bright blue gradient */
+      border: 1px solid #2563eb;
+      box-shadow: 0 0 20px #3b82f688;
+    }
+    .ninja-card .badge {
+      background: linear-gradient(180deg, #facc15, #eab308); /* golden badge */
+      color: #1f2937;
+    }
   </style>
 </head>
 <body>
@@ -83,7 +94,7 @@
       <div class="grid" aria-label="Osnovne vaje in igre">
         <!-- Pretvarjanje enot -->
         <a class="card" href="pretvarjanje_enot.html">
-          <span class="badge">NOVO</span>
+         
           <div class="icon">⚖️</div>
           <h3>Pretvarjanje enot</h3>
           <p>Vadi pretvorbe med osnovnimi enotami.</p>
@@ -115,7 +126,8 @@
         </a>
 
         <!-- Ninja – Predpone -->
-        <a class="card" href="ninjapredpone.html">
+        <a class="card ninja-card" href="ninjapredpone.html">
+          <span class="badge">PRENOVLJENO</span>
           <div class="icon">🥷</div>
           <h3>Ninja – Predpone</h3>
           <p>Razsekaj napačne, ulovi pravilne predpone – treniraj reflekse in znanje!</p>
