@@ -33,7 +33,18 @@
     .card{background:rgba(12,16,28,.9);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:18px 20px;min-width:260px;display:flex;flex-direction:column;gap:12px;align-items:center}
     .title{font-weight:800;font-size:clamp(20px,3vw,28px)}
     .rowBtns{display:flex;gap:10px}
-  </style>
+  
+  /* Better contrast for Level dropdown */
+  #levelSelect{
+    background: rgba(0,0,0,0.45) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255,255,255,0.25) !important;
+    font-weight: 700;
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  }
+  #levelSelect:focus { outline: 2px solid rgba(101,209,255,0.7); outline-offset: 2px; }
+
+</style>
   </head>
 <body>
   <div id="wrap">
@@ -41,7 +52,25 @@
     <div class="hud">
       <div id="tip" style="position:absolute;left:50%;top:12px;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;border:1px solid rgba(255,255,255,.2);padding:6px 10px;border-radius:10px;font-size:14px;display:none;z-index:5">&nbsp;</div>
       <div class="row top">
-        <div class="chip target">Cilj: <b id="targetName">—</b></div>
+        <button class="btn" id="novaIgraBtn" title="Začni znova">Nova igra</button>
+
+        <div class="chip" id="levelChip">
+          <label for="levelSelect" style="font-weight:700">Level:</label>
+          <select id="levelSelect" class="btn" style="padding:6px 10px;border-radius:10px; background:rgba(0,0,0,0.45); color:#fff; border:1px solid rgba(255,255,255,0.25); font-weight:700; appearance:none; -webkit-appearance:none; -moz-appearance:none;">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+                      <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+          </select>
+        </div>
+
+
+        <div class="chip target" style="display:none" aria-hidden="true">Cilj: <b id="targetName">—</b></div>
         <div class="chip">Točke: <b id="score">0</b></div>
         <div class="chip">Življenja: <b id="lives">3</b></div>
         <div class="chip">Niz: <b id="combo">0</b></div>
@@ -52,9 +81,10 @@
         </div>
       </div>
       <div class="row bottom">
-        <div class="chip">Namig: tap deluje kot rez. Bombe se izogni!</div>
+        <div class="chip">Namig: tap deluje kot rez. Bombe se izogni!
+</div>
       </div>
-      <div class="big-center" id="roundLabel"><span class="pill">&nbsp;</span></div>
+      <div class="big-center" id="roundLabel" style="display:none;"><span class="pill">&nbsp;</span></div>
       <div class="flash" id="flash"></div>
     </div>
     <!-- End-of-game overlay -->
@@ -193,75 +223,141 @@
   function makeBubble(x,y,vx,vy,r, label, value){ return {id:nextId++, kind:'bubble', x,y,vx,vy,r,label,value,alive:true,sliced:false,entered:false}; }
   function makeBomb(x,y,vx,vy,r){ return {id:nextId++, kind:'bomb', x,y,vx,vy,r,alive:true,sliced:false,t:0,entered:false}; }
 
-  // ---------- Izbira cilja + runda ----------
-  function chooseTarget(){ const base = PREFIXES.slice(0,6); return base[Math.floor(Math.random()*base.length)]; }
 
-  function spawnRound(){
-    S.entities.length = 0;
-    S.target = chooseTarget();
-    ui.targetName.textContent = `${S.target.name} (${S.target.sym})`;
-    ui.roundLabel.querySelector('.pill').textContent = `${S.target.name}`; // velik, jasen cilj
 
-    const N = 4; // 1 pravilna + 2–3 napačne + opcijska bomba
-    const usedValues = new Set([S.target.value]);
+	// ---------- Potence št. 10 ----------
+	function toSup(n){
+	  const map = {'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
+	  return String(n).split('').map(ch => map[ch] ?? ch).join('');
+	}
+	function expFromValue(v){
+	  // PREFIXES values are exact powers of 10; rounding guards float noise
+	  return Math.round(Math.log10(v));
+	}
 
-    // helper za anti-overlap
-    function nonOverlappingPos(r){
-      let tries=0; while(tries++<80){
-        const x = rand(r*1.5, CAN.width - r*1.5);
-        const y = CAN.height + r + rand(10, 60);
-        let ok=true; for(const e of S.entities){ const dx=e.x-x, dy=e.y-y; if(Math.hypot(dx,dy) < (e.r + r) * 1.9){ ok=false; break; } }
-        if(ok) return {x,y};
+
+
+
+
+
+
+function spawnRound(){
+  S.entities.length = 0;
+
+  // --- Round mode (what labels to show this round) ---
+// L1/L4/L7: numbers only
+// L2/L5/L8: flip-flop numbers <-> symbols
+// L3/L6/L9: cycle numbers -> symbols -> power(10ⁿ)
+if (currentLevel === 2 || currentLevel === 5 || currentLevel === 8) {
+  S.roundMode = (S.roundMode === 'number') ? 'symbol' : 'number';
+} else if (currentLevel === 3 || currentLevel === 6 || currentLevel === 9) {
+  const modes = ['number','symbol','power'];
+  S.roundIdx3 = (S.roundIdx3 == null) ? 0 : (S.roundIdx3 + 1) % modes.length;
+  S.roundMode = modes[S.roundIdx3];
+} else {
+  S.roundMode = 'number';
+}
+
+  // --- Helpers for labels (local so you can paste just this function) ---
+  const toSup = (n)=>{
+    const map = {'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
+    return String(n).split('').map(ch => map[ch] ?? ch).join('');
+  };
+  const expFromValue = (v)=> Math.round(Math.log10(v)); // values are exact powers of 10
+  const labelFrom = (p)=>{
+    if (S.roundMode === 'symbol') return p.sym;                 // m, c, d, da, h, k
+    if (S.roundMode === 'power')  return '10' + toSup(expFromValue(p.value)); // 10³, 10⁻¹, ...
+    return p.label;                                              // "0.001", "1000", ...
+  };
+
+  // Pick a target for this round (also sets S.currentPool in your chooseTarget)
+  S.target = chooseTarget();
+
+  // Use the active pool (e.g., mili…kilo for L2/L3) for distractors
+  const pool = (S.currentPool && S.currentPool.length) ? S.currentPool : PREFIXES;
+
+  // HUD labels
+  ui.targetName.textContent = `${S.target.name} (${S.target.sym})`;
+  ui.roundLabel.querySelector('.pill').textContent = `${S.target.name}`;
+
+  const N = 4; // 1 correct + 3 distractors
+  const usedValues = new Set([S.target.value]);
+
+  // Position helper: avoid initial overlaps
+  function nonOverlappingPos(r){
+    let tries = 0;
+    while (tries++ < 80){
+      const x = rand(r*1.5, CAN.width - r*1.5);
+      const y = CAN.height + r + rand(10, 60);
+      let ok = true;
+      for (const e of S.entities){
+        const dx = e.x - x, dy = e.y - y;
+        if (Math.hypot(dx,dy) < (e.r + r) * 1.9){ ok = false; break; }
       }
-      return {x: rand(r*1.5, CAN.width - r*1.5), y: CAN.height + r + rand(10, 60)};
+      if (ok) return {x,y};
     }
-
-    for(let i=0;i<N;i++){
-      // skaliranje velikosti in hitrosti
-      const baseR = rndRange(S.difficulty.radius);
-      const r = baseR * S.scale;
-      const {x,y} = nonOverlappingPos(r);
-      const baseVx = rndRange(S.difficulty.vx);
-      const baseVy = rndRange(S.difficulty.bubbleVy);
-      let vx = baseVx * S.scale;
-      let vy = baseVy * S.scale;
-
-      // izračun: zagotovimo, da bo vrh poleta vsaj na ~45% višine platna (da ni prenizko na 4K/ipad landscape)
-      // y-osi navzdol, zato je manjša y "višje".
-      const g = S.difficulty.gravity * S.scale;
-      const desiredApexY = CAN.height * 0.45; // ciljna višina vrha (45% od vrha)
-      const currentApexY = y - (vy*vy) / (2*g);
-      if (currentApexY > desiredApexY) {
-        // vrh je prenizek (preveč pri dnu) → povečaj odriv tako, da doseže desiredApexY
-        const neededVy = -Math.sqrt(Math.max(0, 2*g*(y - desiredApexY)));
-        vy = neededVy;
-      }
-
-      let label, value;
-      if(i===0){ label = S.target.label; value = S.target.value; }
-      else{
-        let cand; do{ const opt = PREFIXES[Math.floor(Math.random()*6)]; cand = opt.value; label = opt.label; } while(usedValues.has(cand));
-        value = cand; usedValues.add(cand);
-      }
-      S.entities.push(makeBubble(x,y,vx,vy,r,label,value));
-    }
-
-    if(Math.random() < S.difficulty.bombChance){
-      const baseR = rndRange(S.difficulty.radius) * 0.95;
-      const r = baseR * S.scale;
-      const {x,y} = nonOverlappingPos(r);
-      const baseVx = rndRange(S.difficulty.vx);
-      const baseVy = rndRange(S.difficulty.bombVy);
-      const vx = baseVx * S.scale;
-      let vy = baseVy * S.scale;
-      // bombe naj dosežejo vsaj 40% višine
-      const g = S.difficulty.gravity * S.scale;
-      const desiredApexY = CAN.height * 0.4;
-      const currentApexY = y - (vy*vy) / (2*g);
-      if (currentApexY > desiredApexY) { vy = -Math.sqrt(Math.max(0, 2*g*(y - desiredApexY))); }
-      S.entities.push(makeBomb(x,y,vx,vy,r));
-    }
+    return { x: rand(r*1.5, CAN.width - r*1.5), y: CAN.height + r + rand(10, 60) };
   }
+
+  // Build bubbles
+  for (let i=0; i<N; i++){
+    // size & initial velocities (scaled)
+    const baseR  = rndRange(S.difficulty.radius);
+    const r      = baseR * S.scale;
+    const {x,y}  = nonOverlappingPos(r);
+    const baseVx = rndRange(S.difficulty.vx);
+    const baseVy = rndRange(S.difficulty.bubbleVy);
+    let vx       = baseVx * S.scale;
+    let vy       = baseVy * S.scale;
+
+    // Ensure apex reaches at least ~45% of canvas height
+    const g = S.difficulty.gravity * S.scale;
+    const desiredApexY  = CAN.height * 0.30;
+    const currentApexY  = y - (vy*vy) / (2*g);
+    if (currentApexY > desiredApexY){
+      vy = -Math.sqrt(Math.max(0, 2*g*(y - desiredApexY)));
+    }
+
+    let label, value;
+    if (i === 0){
+      // Correct bubble uses current round's representation
+      label = labelFrom(S.target);
+      value = S.target.value;
+      usedValues.add(value);
+    } else {
+      // Distractors: sample from the active pool and avoid duplicate values
+      let opt, cand;
+      do {
+        opt  = pool[Math.floor(Math.random() * pool.length)];
+        cand = opt.value;
+      } while (usedValues.has(cand));
+      value = cand;
+      usedValues.add(cand);
+      label = labelFrom(opt);
+    }
+
+    S.entities.push(makeBubble(x, y, vx, vy, r, label, value));
+  }
+
+  // Optional bomb (same physics with guaranteed minimum apex)
+  if (Math.random() < S.difficulty.bombChance){
+    const baseR  = rndRange(S.difficulty.radius) * 0.95;
+    const r      = baseR * S.scale;
+    const {x,y}  = nonOverlappingPos(r);
+    const baseVx = rndRange(S.difficulty.vx);
+    const baseVy = rndRange(S.difficulty.bombVy);
+    const vx     = baseVx * S.scale;
+    let vy       = baseVy * S.scale;
+
+    const g = S.difficulty.gravity * S.scale;
+    const desiredApexY = CAN.height * 0.40;
+    const currentApexY = y - (vy*vy) / (2*g);
+    if (currentApexY > desiredApexY){
+      vy = -Math.sqrt(Math.max(0, 2*g*(y - desiredApexY)));
+    }
+    S.entities.push(makeBomb(x, y, vx, vy, r));
+  }
+}
 
   // ---------- Vhod (tap+rez) ----------
   const pointer = {down:false, x:0, y:0, lastX:0, lastY:0};
@@ -386,6 +482,47 @@
   }
 
   // ---------- Risanje ----------
+  // --- CANVAS "target" label (namesto DOM .big-center) ---
+  function drawTargetPill(){
+    if(!S.target) return;
+    const g = CTX; g.save();
+    // dimenzije
+    const paddingX = 28 * DPR * S.scale;
+    const paddingY = 12 * DPR * S.scale;
+    g.font = `${Math.floor(64 * DPR * S.scale)}px system-ui, sans-serif`;
+    const text = S.target.name;
+    const metrics = g.measureText(text);
+    const w = metrics.width + paddingX*2;
+    const h = (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent) + paddingY*2;
+    const x = (CAN.width - w) * 0.5;
+    const y = CAN.height * 0.12; // približno enako kot prej
+    const r = 16 * DPR * S.scale;
+
+    // ozadje (rounded rect)
+    g.beginPath();
+    const x2=x+w, y2=y+h;
+    g.moveTo(x+r,y);
+    g.arcTo(x2,y,x2,y+r,r);
+    g.arcTo(x2,y2,x2-r,y2,r);
+    g.arcTo(x,y2,x,y2-r,r);
+    g.arcTo(x,y,x+r,y,r);
+    g.closePath();
+    g.fillStyle = 'rgba(0,0,0,0.35)';
+    g.strokeStyle = 'rgba(255,255,255,0.25)';
+    g.lineWidth = 2 * DPR;
+    g.fill();
+    g.stroke();
+
+    // besedilo
+    g.fillStyle = '#ffffff';
+    g.font = `900 ${Math.floor(64 * DPR * S.scale)}px system-ui, sans-serif`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(text, x + w/2, y + h/2 + 1);
+    g.restore();
+  }
+
+
   function render(){
     const g = CTX; g.save();
     // kamera shake
@@ -394,6 +531,9 @@
     g.setTransform(1,0,0,1,sx,sy);
 
     g.clearRect(-sx,-sy,CAN.width,CAN.height);
+
+    // najprej narišemo tarčo na canvas (pod mehurčki)
+    drawTargetPill();
 
     // mrežica
     g.globalAlpha = 0.15; g.lineWidth = 1*DPR; g.strokeStyle = '#9ad0ff';
@@ -415,14 +555,60 @@
     g.restore();
   }
 
+  
   function drawBubble(e){
     const g = CTX; g.save();
-    const grd = g.createRadialGradient(e.x-e.r*0.4, e.y-e.r*0.4, e.r*0.1, e.x, e.y, e.r);
-    grd.addColorStop(0,'#a0e6ff'); grd.addColorStop(1,'#2a6db0');
-    g.fillStyle = grd; g.beginPath(); g.arc(e.x,e.y,e.r,0,Math.PI*2); g.fill();
-    g.lineWidth = 2*DPR; g.strokeStyle = 'rgba(255,255,255,0.45)'; g.stroke();
+    const fontSize = Math.floor(e.r*0.72);
+    g.font = `${fontSize}px system-ui, sans-serif`;
+    const metrics = g.measureText(e.label);
+    const textW = metrics.width;
+    const padX = Math.max(12*DPR, e.r*0.4);
+    const padY = Math.max(8*DPR, e.r*0.25);
+    const minDiameter = e.r*2;
+
+    const isCapsule = (textW + padX*2) > minDiameter * 1.02;
+
+    // gradient setup
+    let grd;
+    if (isCapsule){
+      // gentle left-to-right gradient for capsule
+      grd = g.createLinearGradient(e.x - (textW/2 + padX), e.y, e.x + (textW/2 + padX), e.y);
+      grd.addColorStop(0,'#a0e6ff');
+      grd.addColorStop(1,'#2a6db0');
+    } else {
+      grd = g.createRadialGradient(e.x-e.r*0.4, e.y-e.r*0.4, e.r*0.1, e.x, e.y, e.r);
+      grd.addColorStop(0,'#a0e6ff'); grd.addColorStop(1,'#2a6db0');
+    }
+
+    g.fillStyle = grd;
+    g.lineWidth = 2*DPR; 
+    g.strokeStyle = 'rgba(255,255,255,0.45)';
+
+    if (isCapsule){
+      // width/height for rounded rect (height equals original diameter)
+      const w = Math.max(minDiameter, textW + padX*2);
+      const h = minDiameter;
+      const r = h/2; // full rounded ends = capsule
+      const x = e.x - w/2;
+      const y = e.y - h/2;
+
+      // draw capsule
+      g.beginPath();
+      const x2 = x + w, y2 = y + h;
+      g.moveTo(x+r, y);
+      g.arcTo(x2, y, x2, y+r, r);
+      g.arcTo(x2, y2, x2-r, y2, r);
+      g.arcTo(x, y2, x, y2-r, r);
+      g.arcTo(x, y, x+r, y, r);
+      g.closePath();
+      g.fill(); g.stroke();
+    } else {
+      g.beginPath(); g.arc(e.x,e.y,e.r,0,Math.PI*2); g.fill(); g.stroke();
+    }
+
     // label
-    g.fillStyle = '#fff'; g.font = `${Math.floor(e.r*0.72)}px system-ui, sans-serif`;
+    g.fillStyle = '#fff'; 
+    g.font = `${fontSize}px system-ui, sans-serif`;
     g.textAlign='center'; g.textBaseline='middle';
     g.fillText(e.label, e.x, e.y+1);
     g.restore();
@@ -448,7 +634,16 @@
 
   // ---------- Start ----------
   function reset(){ S.running=true; S.score=0; S.lives=3; S.combo=0; S.entities.length=0; updateHUD(); }
-  function boot(){ resize(); reset(); spawnRound(); last = performance.now(); requestAnimationFrame(step); updateFSLabel(); }
+  function boot(){
+    resize(); 
+    reset(); 
+    // ensure UI reflects stored level before first round
+    setLevelUI();
+    spawnRound();
+    last = performance.now(); 
+    requestAnimationFrame(step); 
+    updateFSLabel();
+  }
   window.addEventListener('resize', resize);
   window.addEventListener('load', boot);
     // ---------- Attach a basic web app manifest at runtime (for Android PWAs) ----------
@@ -470,6 +665,83 @@
       link.rel = 'manifest'; link.href = url; document.head.appendChild(link);
     }catch(e){}
   })();
-  </script>
+  
+  // ---------- Level selector (prefix set control) ----------
+  let currentLevel = 1;
+  try {
+    const saved = localStorage.getItem('predpone.level');
+    if (saved) currentLevel = parseInt(saved, 10) || 1;
+  } catch(e) {}
+
+  function setLevelUI() {
+    const sel = document.getElementById('levelSelect');
+    if (sel) sel.value = String(currentLevel);
+  }
+
+  function applyLevel(level){
+    currentLevel = Math.max(1, Math.min(9, level|0));
+    setLevelUI();
+    try { localStorage.setItem('predpone.level', String(currentLevel)); } catch(e){}
+    // Show short tip
+    const msg = currentLevel===1 ? 'Level 1: kilo–mili' :
+                currentLevel===2 ? 'Level 2: micro–mega' :
+                                   'Level 3: nano–giga';
+    showTip(msg);
+    // Restart round with new target set
+    reset();
+    spawnRound();
+    last = performance.now();
+    S.running = true;
+  }
+
+  // Replace chooseTarget to depend on currentLevel (prefix set only; physics unchanged)
+function chooseTarget(){
+  let set;
+  if (currentLevel === 1){
+    // kilo..mili (first 6 entries)
+    set = PREFIXES.slice(0, 6);
+  } else if (currentLevel === 2 || currentLevel === 3){
+    // mili .. kilo
+    set = PREFIXES.filter(p => p.value >= 1e-3 && p.value <= 1e3);
+  } else if (currentLevel === 4 || currentLevel === 5 || currentLevel === 6){
+    // mikro .. mega
+    set = PREFIXES.filter(p => p.value >= 1e-6 && p.value <= 1e6);
+  } else if (currentLevel === 7 || currentLevel === 8 || currentLevel === 9){
+    // nano .. giga
+    set = PREFIXES.filter(p => p.value >= 1e-9 && p.value <= 1e9);
+  } else {
+    // fallback
+    set = PREFIXES.slice(0, 6);
+  }
+  S.currentPool = set;
+  return set[Math.floor(Math.random()*set.length)];
+}
+
+  // Hook up select
+  window.addEventListener('load', () => {
+    setLevelUI();
+    const sel = document.getElementById('levelSelect');
+    if (sel) {
+      sel.addEventListener('change', () => {
+        const lv = parseInt(sel.value, 10) || 1;
+        applyLevel(lv);
+      });
+    }
+  });
+
+</script>
+
+<script>
+  (function() {
+    const b = document.getElementById('novaIgraBtn');
+    if (b) {
+      b.addEventListener('click', function() {
+        // Povsem svež začetek igre
+        location.reload();
+      });
+    }
+  })();
+</script>
+
 </body>
 </html>
