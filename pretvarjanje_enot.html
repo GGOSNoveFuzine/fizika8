@@ -1,985 +1,478 @@
 <!DOCTYPE html>
 <html lang="sl">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Pretvarjanje fizikalnih količin — 5 stopenj (paket 5 nalog)</title>
-<style>
-  :root{
-    --bg:#0f172a;        /* slate-900 */
-    --panel:#111827;     /* gray-900 */
-    --card:#1f2937;      /* gray-800 */
-    --ink:#e5e7eb;       /* gray-200 */
-    --muted:#9ca3af;     /* gray-400 */
-    --good:#10b981;      /* emerald */
-    --bad:#ef4444;       /* red */
-    --btn:#334155;       /* slate-700 */
-  }
-  *{box-sizing:border-box}
-  body{
-    margin:0; background:var(--bg); color:var(--ink);
-    font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial;
-    padding:24px;
-  }
-  h1{font-size:20px; margin:0 0 12px 0}
-  .wrap{max-width:1100px; margin:0 auto}
-  .panel{
-    background:var(--panel); border-radius:14px; padding:16px 16px 10px; box-shadow:0 6px 18px #0008;
-  }
-  label{font-size:13px; color:var(--muted); display:block; margin-bottom:6px}
-  select{
-    background:var(--card); color:var(--ink); border:1px solid #000; border-radius:10px; padding:10px 12px; min-width:220px;
-  }
-  .btn{
-    background:var(--btn); color:var(--ink); border:0; border-radius:12px;
-    padding:10px 14px; cursor:pointer; font-weight:600; transition:transform .04s ease, background .2s;
-  }
-  .btn:hover{transform:translateY(-1px)}
-  .btn.primary{ background:linear-gradient(180deg,#2563eb,#1d4ed8)}
-  .card{
-    background:var(--card); border-radius:14px; padding:16px; border:1px solid #000;
-  }
-  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px}
-  .sep{height:1px; background:#000; margin:12px 0}
-  .tasks .task{ margin-top:14px; border:1px dashed #223; border-radius:12px; padding:12px }
-  .task-header{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
-  .task-title{font-size:18px; flex:1}
-  .units{color:var(--muted)}
-  .hint, .solution{
-    font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    background:#0b1220; padding:10px 12px; border-radius:10px; border:1px dashed #223; color:#c7d2fe; margin-top:8px;
-  }
-  .controls{display:flex; gap:8px; flex-wrap:wrap}
-  .kpi{display:flex; gap:12px; margin-top:10px; flex-wrap:wrap}
-  .kpi > div{background:#0b1220; padding:8px 12px; border-radius:10px; border:1px solid #000; color:#cbd5e1}
-  .status{font-weight:700}
-  .status.good{color:var(--good)}
-  .status.bad{color:var(--bad)}
-  .footer-note{color:var(--muted); font-size:13px; margin-top:8px}
-  input.answer{
-    background:var(--card); color:var(--ink); border:1px solid #000; border-radius:10px; padding:8px 10px; min-width:180px;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pretvarjanje enot</title>
+  <style>
+    /* theme vars – barve za dark vibe;  */
+    :root{
+      --bg:#0f172a; --panel:#111827; --muted:#1f2937; --text:#e5e7eb;
+      --accent:#38bdf8; --ok:#22c55e; --bad:#ef4444; --btn:#374151; --btn-hover:#4b5563;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      /* sys fonts = hitr & clean; noben ne rabi fancy serifov tle */
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans","Helvetica Neue",Arial;
+      background:linear-gradient(180deg,#0b1220,var(--bg));
+      color:var(--text); line-height:1.5
+    }
+    header{padding:24px 16px; border-bottom:1px solid #1f2937}
+    h1{margin:0 0 6px 0; font-weight:800}
+    .sub{opacity:.85; font-size:14px}
+    .container{max-width:1000px; margin:0 auto; padding:16px; display:grid; gap:16px}
+    .panel{
+      /* blur + shadow = malo “glass” feeling, ker zakaj pa ne */
+      background:rgba(17,24,39,.7); border:1px solid #1f2937; border-radius:16px; padding:16px;
+      backdrop-filter:blur(6px); box-shadow:0 10px 25px rgba(0,0,0,.25)
+    }
+    .row{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    select,input[type="text"]{
+      background:var(--muted); color:var(--text); border:1px solid #334155; border-radius:12px; padding:10px 12px; outline:none; font-size:16px
+    }
+    select:focus,input:focus{border-color:var(--accent)}
+    .btn{
+      /* gumbi brez filozofije – basic, solid */
+      background:var(--btn); color:var(--text); border:1px solid #475569; border-radius:12px; padding:10px 14px; font-weight:600; cursor:pointer
+    }
+    .btn:hover{background:var(--btn-hover)}
+    .grid{display:grid; grid-template-columns:1fr; gap:14px}
+    .task{border:1px solid #1f2937; background:#0b1328; border-radius:14px; padding:14px}
+    .task h3{margin:0 0 10px 0; font-size:16px}
+    .task .result{margin-top:10px; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+    .ok{color:var(--ok); font-weight:700} .bad{color:var(--bad); font-weight:700} .muted{opacity:.8}
+    .kpi{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    .chip{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; background:rgba(148,163,184,.15); border:1px solid rgba(148,163,184,.35)}
+    .hint,.solution{margin-top:8px; padding:10px; border-radius:10px; background:#0b1020; border:1px dashed #334155; white-space:pre-wrap}
+    .note{opacity:.85; font-size:13px; margin-top:6px}
+    .sr-only{position:absolute; left:-9999px}
+    @media print{
+      /* print mode – pobriši vse knofe in šminko; šparamo toner */
+      header,.controls,.kpi,.task .btn,.task .hint,.task .solution{display:none!important}
+      .task{page-break-inside:avoid; border:none; background:transparent; padding:8px 0}
+      body{background:#fff; color:#000}
+    }
+    :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Pretvarjanje fizikalnih količin — stopnje A1…C1</h1>
-
-  <div class="panel">
-    <div class="grid">
-      <div>
-        <label for="kolicina">Količina</label>
-        <select id="kolicina">
+  <header>
+    <div class="container">
+      <h1>Pretvarjanje enot</h1>
+      <div class="sub"><!-- če rabiš podnaslov, ga napiši sem; zaenkrat chill --></div>
+    </div>
+  </header>
+  <main class="container">
+    <section class="panel controls" aria-label="Nastavitve nalog">
+      <div class="row">
+        <label for="cat">Količina</label>
+        <select id="cat">
+          <!-- ja, klasika: SI kvantitete; nobenih eksotičnih -->
           <option value="masa">Masa</option>
           <option value="dolzina">Dolžina</option>
           <option value="povrsina">Površina</option>
           <option value="prostornina">Prostornina</option>
-          <option value="cas">Čas</option>
+          <option value="cas" selected>Čas</option>
         </select>
-      </div>
-      <div>
-        <label for="tezavnost">Težavnost</label>
-        <select id="tezavnost">
-          <option value="A1">A1 — zelo lahko</option>
-          <option value="A2">A2 — lahko</option>
-          <option value="B1">B1 — srednje</option>
-          <option value="B2">B2 — težko</option>
-          <option value="C1">C1 — vesoljec</option>
+        <label for="level">Stopnja</label>
+        <select id="level">
+          <!-- labels = vibe check; value ostane “A1..C1” za logiko -->
+          <option value="A1">Lahka 🎮</option>
+          <option value="A2">Srednja 🛡️</option>
+          <option value="B1">Težka ⚔️</option>
+          <option value="B2">I kick ass 🔥</option>
+          <option value="C1">Alien 👽</option>
         </select>
-      </div>
-      <div>
         <label for="smer">Smer</label>
         <select id="smer">
-          <option value="down">Večja → manjša</option>
-          <option value="up">Manjša → večja</option>
-          <option value="both">Obe</option>
+          <!-- smer samo za SI predpone, čas ma svojo foro -->
+          <option value="vec-v-manj">Večja → manjša predpona</option>
+          <option value="manj-v-vec">Manjša → večja predpona</option>
+          <option value="oboje" selected>Oboje</option>
         </select>
+        <button class="btn" id="make5">Ustvari 5 nalog</button>
+        <button class="btn" id="printBtn">Tiskaj</button>
       </div>
-      <div style="align-self:end">
-        <button id="btnMake5" class="btn primary">Ustvari 5 nalog</button>
+      <div class="row kpi" aria-live="polite">
+        <!-- quick stats – kolk si zadel vs. skupno; čisti HUD -->
+        <span class="chip" id="kpiCount">0/0</span>
+        <span class="chip" id="kpiPct">0%</span>
       </div>
-    </div>
+    </section>
 
-    <div id="tasks" class="tasks"></div>
+    <section class="panel">
+      <!-- sem grejo taski; auto fill -->
+      <div class="grid" id="tasks"></div>
+    </section>
 
-    <div class="sep"></div>
-    <div class="controls" style="justify-content:space-between">
-      <div class="kpi">
-        <div>Pravilno: <span id="ok">0</span></div>
-        <div>Skupaj: <span id="all">0</span></div>
-        <div>Natančnost: <span id="pct">0%</span></div>
-      </div>
-      <div class="controls">
-        <button id="btnCheckAll" class="btn">Preveri</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:16px;">
-    <strong>Navodilo:</strong>
-    <ul>
-      <li>Vnesi samo <em>številko</em> rezultata (enote so že podane).</li>
-      <li>Uporabi lahko <strong>vejico</strong> ali <strong>piko</strong> (npr. 0,25 ali 0.25).</li>
-    </ul>
-  </div>
-</div>
+    <section class="note"><!-- tip & tricks po želji --></section>
+  </main>
 
 <script>
-/* ============================================================
-   POPOLNOMA TRDI (hard-coded) PARI — po kategorijah, stopnjah in SMERI.
-   Vsak par: { from, to, factor, value:{fixed:[], ranges:[{min,max,weight,decimals}]} }
-   Opcija "both" se dinamično zgradi iz (down + up) v buildPool().
-   ============================================================ */
+(() => {
+  // prefix exponenti – stara dobra SI lestvica; nič filozofije
+  const PREFIX_EXP = {'G':9,'M':6,'k':3,'h':2,'da':1,'':0,'d':-1,'c':-2,'m':-3,'µ':-6,'n':-9};
 
-const CONFIG = {
-
-/* ────────────────────────── MASA ────────────────────────── */
-masa: {
-  A1: {
-    down: [
-      {from:'kg', to:'g',  factor:1000, value:{fixed:[], ranges:[
-        {min:1, max:99, weight:2, decimals:1},
-        {min:0.1, max:0.9, weight:1, decimals:1}
-      ]}},
-      {from:'g',  to:'mg', factor:1000, value:{fixed:[], ranges:[
-        {min:10, max:900, weight:3, decimals:1},
-        {min:0.1,  max:9.9, weight:1, decimals:1}
-      ]}},
-    ],
-    up: [
-      {from:'mg', to:'g',  factor:1/1000, value:{fixed:[], ranges:[
-        {min:100, max:999, weight:2, decimals:0},
-        {min:1,   max:99,  weight:1, decimals:0}
-      ]}},
-      {from:'g',  to:'kg', factor:1/1000, value:{fixed:[], ranges:[
-        {min:100, max:900, weight:2, decimals:0},
-        {min:10,  max:90,  weight:1, decimals:0}
-      ]}},
-    ]
-  },
-
-  A2: {
-    down: [
-		{from:'kg', to:'g',  factor:1000, value:{fixed:[], ranges:[
-        {min:1, max:99, weight:2, decimals:2},
-        {min:0.1, max:0.99, weight:1, decimals:2}
-      ]}},
-      {from:'g',  to:'mg', factor:1000, value:{fixed:[], ranges:[
-        {min:1, max:999, weight:3, decimals:2},
-        {min:0.01,  max:9.99, weight:1, decimals:2}
-      ]}},
-      {from:'kg', to:'dag', factor:100, value:{fixed:[], ranges:[
-        {min:1, max:99, weight:2, decimals:2},
-        {min:0.01, max:0.99, weight:1, decimals:2}
-      ]}},
-      {from:'dag', to:'g', factor:10, value:{fixed:[], ranges:[
-        {min:1, max:99, weight:3, decimals:2}
-      ]}},
-    ],
-    up: [
-		{from:'mg', to:'g',  factor:1/1000, value:{fixed:[], ranges:[
-        {min:100, max:999, weight:2, decimals:1},
-        {min:1,   max:99,  weight:1, decimals:1}
-      ]}},
-      {from:'g',  to:'kg', factor:1/1000, value:{fixed:[], ranges:[
-        {min:100, max:999, weight:3, decimals:1}
-      ]}},
-      {from:'g',  to:'dag', factor:1/10, value:{fixed:[], ranges:[
-        {min:10, max:999, weight:3, decimals:2}
-      ]}},
-    ]
-  },
-
-  B1: {
-  down: [
-    // ► iz A1 + A2 (povišani min/max/decimals)
-    {from:'kg', to:'g',  factor:1000, value:{fixed:[], ranges:[
-      {min:1,   max:999,  weight:2, decimals:2},
-      {min:0.10,max:0.99, weight:1, decimals:2}
-    ]}},
-    {from:'g',  to:'mg', factor:1000, value:{fixed:[], ranges:[
-      {min:1,   max:999,  weight:2, decimals:2},
-      {min:0.01,max:9.99, weight:1, decimals:2}
-    ]}},
-    {from:'kg', to:'dag', factor:100, value:{fixed:[], ranges:[
-      {min:1,   max:999,  weight:2, decimals:2},
-      {min:0.01,max:0.99, weight:1, decimals:2}
-    ]}},
-    {from:'dag',to:'g',   factor:10,  value:{fixed:[], ranges:[
-      {min:1,   max:999,  weight:3, decimals:2}
-    ]}},
-
-    // ► NOVO v B1
-    {from:'t',  to:'kg',  factor:1000, value:{fixed:[], ranges:[
-      {min:0.10,max:9.99, weight:3, decimals:2}
-    ]}},
-    {from:'g',  to:'μg',  factor:1e6,  value:{fixed:[], ranges:[
-      {min:0.10,max:9.99, weight:2, decimals:2}
-    ]}},
-    {from:'mg', to:'μg',  factor:1000, value:{fixed:[], ranges:[
-      {min:10,  max:999,  weight:3, decimals:2}
-    ]}}
-  ],
-  up: [
-    // ► povratne iz A1 + A2
-    {from:'mg', to:'g',   factor:1/1000, value:{fixed:[], ranges:[
-      {min:100, max:9999, weight:2, decimals:3},
-      {min:1,   max:99,   weight:1, decimals:3}
-    ]}},
-    {from:'g',  to:'kg',  factor:1/1000, value:{fixed:[], ranges:[
-      {min:100, max:9999, weight:2, decimals:3}
-    ]}},
-    {from:'g',  to:'dag', factor:1/10,   value:{fixed:[], ranges:[
-      {min:10,  max:9999, weight:3, decimals:2}
-    ]}},
-    {from:'dag',to:'kg',  factor:1/100,  value:{fixed:[], ranges:[
-      {min:10,  max:9999, weight:2, decimals:2}
-    ]}},
-
-    // ► povratne iz NOVO
-    {from:'kg', to:'t',   factor:1/1000, value:{fixed:[], ranges:[
-      {min:1, max:9900, weight:3, decimals:3}
-    ]}},
-    {from:'μg', to:'g',   factor:1/1e6,  value:{fixed:[], ranges:[
-      {min:1e5, max:7e6,  weight:3, decimals:3}
-    ]}},
-    {from:'μg', to:'mg',  factor:1/1000, value:{fixed:[], ranges:[
-      {min:2e3, max:9e3,  weight:3, decimals:3}
-    ]}}
-  ]
-},
-
-// ===== MASA — B2 =====
-// Dodamo še več parov z "skoki" (t↔dag, t↔mg, kg↔mg), vključimo *vse* iz A1+A2+B1.
-// Še večje vrednosti, do 3 decimale.
-B2: {
-  down: [
-    // ► Vsi iz A1 + A2 + B1 (brez ponavljanja tukaj; naštejemo glavne za jasnost)
-    {from:'t',  to:'kg',  factor:1000, value:{fixed:[], ranges:[
-      {min:0.20,max:19.99,weight:3, decimals:3}
-    ]}},
-    {from:'kg', to:'g',   factor:1000, value:{fixed:[], ranges:[
-      {min:1,   max:9999, weight:2, decimals:3}
-    ]}},
-    {from:'g',  to:'mg',  factor:1000, value:{fixed:[], ranges:[
-      {min:1,   max:9999, weight:2, decimals:3}
-    ]}},
-    {from:'mg', to:'μg',  factor:1000, value:{fixed:[], ranges:[
-      {min:10,  max:9999, weight:2, decimals:3}
-    ]}},
-    {from:'kg', to:'dag', factor:100,  value:{fixed:[], ranges:[
-      {min:1,   max:9999, weight:2, decimals:3}
-    ]}},
-    {from:'dag',to:'g',   factor:10,   value:{fixed:[], ranges:[
-      {min:1,   max:9999, weight:2, decimals:3}
-    ]}},
-
-    // ► NOVO v B2
-    {from:'t',  to:'dag', factor:1e5,  value:{fixed:[], ranges:[
-      {min:0.01,max:9.99, weight:2, decimals:2}
-    ]}},
-    {from:'t',  to:'mg',  factor:1e9,  value:{fixed:[], ranges:[
-      {min:0.01,max:2.00, weight:1, decimals:3}
-    ]}},
-    {from:'kg', to:'mg',  factor:1e6,  value:{fixed:[], ranges:[
-      {min:0.01,max:9.99, weight:2, decimals:3}
-    ]}},
-    {from:'g',  to:'μg',  factor:1e6,  value:{fixed:[], ranges:[
-      {min:0.01,max:99.99,weight:2, decimals:3}
-    ]}}
-  ],
-  up: [
-    // ► povratne iz vseh prejšnjih stopenj
-    {from:'kg', to:'t',   factor:1/1000, value:{fixed:[], ranges:[
-      {min:1, max:99000,weight:3, decimals:2}
-    ]}},
-    {from:'g',  to:'kg',  factor:1/1000, value:{fixed:[], ranges:[
-      {min:1, max:99000,weight:3, decimals:2}
-    ]}},
-    {from:'mg', to:'g',   factor:1/1000, value:{fixed:[], ranges:[
-      {min:1, max:99000,weight:3, decimals:2}
-    ]}},
-    {from:'μg', to:'mg',  factor:1/1000, value:{fixed:[], ranges:[
-      {min:1, max:99000,weight:3, decimals:2}
-    ]}},
-    {from:'dag',to:'kg',  factor:1/100,  value:{fixed:[], ranges:[
-      {min:1, max:99000,weight:3, decimals:2}
-    ]}},
-    {from:'g',  to:'dag', factor:1/10,   value:{fixed:[], ranges:[
-      {min:1, max:99000,weight:3, decimals:2}
-    ]}},
-
-    // ► povratne iz NOVO
-    {from:'dag',to:'t',   factor:1/1e5,  value:{fixed:[], ranges:[
-      {min:1e4, max:9e4,  weight:3, decimals:2}
-    ]}},
-    {from:'mg', to:'t',   factor:1/1e9,  value:{fixed:[], ranges:[
-      {min:1e8, max:9e6,  weight:3, decimals:3}
-    ]}},
-    {from:'mg', to:'kg',  factor:1/1e6,  value:{fixed:[], ranges:[
-      {min:2e5, max:9e6,  weight:3, decimals:3}
-    ]}},
-    {from:'μg', to:'g',   factor:1/1e6,  value:{fixed:[], ranges:[
-      {min:2e5, max:9e7,  weight:3, decimals:3}
-    ]}}
-  ]
-},
-
-// ===== MASA — C1 =====
-// Ekstremne pretvorbe, dodamo ng in “velike skoke”, vključimo *vse* iz A1+A2+B1+B2.
-// Še večje številke, 3–4 decimale kjer smiselno.
-C1: {
-  down: [
-    // ► vse iz nižjih stopenj (ključne ohranimo tu, +)
-    {from:'t',  to:'kg',  factor:1000,  value:{fixed:[], ranges:[
-      {min:0.01,max:49.99,weight:3, decimals:4}
-    ]}},
-    {from:'kg', to:'g',   factor:1000,  value:{fixed:[], ranges:[
-      {min:1,    max:99999,weight:2, decimals:4}
-    ]}},
-    {from:'g',  to:'mg',  factor:1000,  value:{fixed:[], ranges:[
-      {min:1,    max:99999,weight:2, decimals:4}
-    ]}},
-    {from:'mg', to:'μg',  factor:1000,  value:{fixed:[], ranges:[
-      {min:10,   max:99999,weight:2, decimals:4}
-    ]}},
-    {from:'kg', to:'dag', factor:100,   value:{fixed:[], ranges:[
-      {min:1,    max:99999,weight:2, decimals:4}
-    ]}},
-    {from:'dag',to:'g',   factor:10,    value:{fixed:[], ranges:[
-      {min:1,    max:99999,weight:2, decimals:4}
-    ]}},
-
-    // ► NOVO v C1
-    {from:'kg', to:'μg',  factor:1e9,   value:{fixed:[], ranges:[
-      {min:0.20,max:9.999, weight:2, decimals:3}
-    ]}},
-    {from:'g',  to:'ng',  factor:1e9,   value:{fixed:[], ranges:[
-      {min:0.20,max:9.999, weight:2, decimals:3}
-    ]}},
-    {from:'t',  to:'g',   factor:1e6,   value:{fixed:[], ranges:[
-      {min:0.20,max:9.999, weight:2, decimals:3}
-    ]}},
-    {from:'t',  to:'mg',  factor:1e9,   value:{fixed:[], ranges:[
-      {min:0.20,max:3.000, weight:1, decimals:3}
-    ]}},
-    {from:'μg', to:'ng',  factor:1000,  value:{fixed:[], ranges:[
-      {min:10,  max:99999, weight:2, decimals:3}
-    ]}}
-  ],
-  up: [
-    // ► povratne iz vseh nižjih stopenj
-    {from:'kg', to:'t',   factor:1/1000, value:{fixed:[], ranges:[
-      {min:500, max:99900,weight:3, decimals:4}
-    ]}},
-    {from:'g',  to:'kg',  factor:1/1000, value:{fixed:[], ranges:[
-      {min:500, max:99900,weight:3, decimals:4}
-    ]}},
-    {from:'mg', to:'g',   factor:1/1000, value:{fixed:[], ranges:[
-      {min:500, max:99900,weight:3, decimals:4}
-    ]}},
-    {from:'μg', to:'mg',  factor:1/1000, value:{fixed:[], ranges:[
-      {min:500, max:99900,weight:3, decimals:4}
-    ]}},
-    {from:'dag',to:'kg',  factor:1/100,  value:{fixed:[], ranges:[
-      {min:500, max:99900,weight:3, decimals:4}
-    ]}},
-    {from:'g',  to:'dag', factor:1/10,   value:{fixed:[], ranges:[
-      {min:500, max:99900,weight:3, decimals:4}
-    ]}},
-
-    // ► povratne iz NOVO
-    {from:'μg', to:'kg',  factor:1/1e9,  value:{fixed:[], ranges:[
-      {min:2e8, max:9e7, weight:3, decimals:5}
-    ]}},
-    {from:'ng', to:'g',   factor:1/1e9,  value:{fixed:[], ranges:[
-      {min:2e8, max:9e7, weight:3, decimals:5}
-    ]}},
-    {from:'g',  to:'t',   factor:1/1e6,  value:{fixed:[], ranges:[
-      {min:2e5, max:9e6,  weight:3, decimals:5}
-    ]}},
-    {from:'mg', to:'t',   factor:1/1e9,  value:{fixed:[], ranges:[
-      {min:2e8, max:9e7, weight:3, decimals:5}
-    ]}},
-    {from:'ng', to:'μg',  factor:1/1000, value:{fixed:[], ranges:[
-      {min:2e5, max:9e7, weight:3, decimals:5}
-    ]}}
-  ]
-}
-},
-
-/* ────────────────────────── DOLŽINA ────────────────────────── */
-dolzina: {
-  // A1 — slightly harder: decimals in DOWN, integers in UP
-  A1: {
-    down: [
-      {from:'m',  to:'cm', factor:100,  value:{fixed:[], ranges:[
-        {min:1,   max:99,  weight:2, decimals:1},
-        {min:0.1, max:0.9, weight:1, decimals:1}
-      ]}},
-      {from:'cm', to:'mm', factor:10,   value:{fixed:[], ranges:[
-        {min:5,   max:990, weight:3, decimals:1},
-        {min:0.1, max:9.9, weight:1, decimals:1}
-      ]}},
-    ],
-    up: [
-      {from:'mm', to:'cm', factor:1/10,   value:{fixed:[], ranges:[
-        {min:100, max:999, weight:2, decimals:0},
-        {min:10,  max:99,  weight:1, decimals:0}
-      ]}},
-      {from:'cm', to:'m',  factor:1/100,  value:{fixed:[], ranges:[
-        {min:100, max:900, weight:2, decimals:0},
-        {min:10,  max:90,  weight:1, decimals:0}
-      ]}},
-    ]
-  },
-
-  // A2 — include A1 pairs; add dm and km; increase decimals/size
-  A2: {
-    down: [
-      // A1 carried over, tougher
-      {from:'m',  to:'cm', factor:100,  value:{fixed:[], ranges:[
-        {min:1,    max:999,  weight:2, decimals:2},
-        {min:0.10, max:0.99, weight:1, decimals:2}
-      ]}},
-      {from:'cm', to:'mm', factor:10,   value:{fixed:[], ranges:[
-        {min:1,    max:999,  weight:3, decimals:2},
-        {min:0.01, max:9.99, weight:1, decimals:2}
-      ]}},
-
-      // NEW units: dm, km
-      {from:'m',  to:'dm', factor:10,   value:{fixed:[], ranges:[
-        {min:1,    max:999,  weight:2, decimals:2},
-        {min:0.10, max:0.99, weight:1, decimals:2}
-      ]}},
-      {from:'dm', to:'cm', factor:10,   value:{fixed:[], ranges:[
-        {min:1,    max:999,  weight:3, decimals:2}
-      ]}},
-      {from:'km', to:'m',  factor:1000, value:{fixed:[], ranges:[
-        {min:0.10, max:9.99, weight:3, decimals:2}
-      ]}},
-    ],
-    up: [
-      {from:'mm', to:'cm', factor:1/10,   value:{fixed:[], ranges:[
-        {min:1, max:9999, weight:2, decimals:2}
-      ]}},
-      {from:'cm', to:'m',  factor:1/100,  value:{fixed:[], ranges:[
-        {min:1, max:9999, weight:3, decimals:2}
-      ]}},
-      {from:'dm', to:'m',  factor:1/10,   value:{fixed:[], ranges:[
-        {min:1,  max:9999, weight:3, decimals:2}
-      ]}},
-      {from:'cm', to:'dm', factor:1/10,   value:{fixed:[], ranges:[
-        {min:1,  max:9999, weight:3, decimals:2}
-      ]}},
-	  
-      {from:'m',  to:'km', factor:1/1000, value:{fixed:[], ranges:[
-        {min:1, max:9999, weight:3, decimals:2}
-      ]}},
-    ]
-  },
-
-  // B1 — add μm; include all previous; bump sizes/decimals (mostly 2)
-  B1: {
-    down: [
-      // previous
-      {from:'km', to:'m',  factor:1000, value:{fixed:[], ranges:[{min:0.10,max:19.99,weight:3,decimals:2}]}},
-      {from:'m',  to:'dm', factor:10,   value:{fixed:[], ranges:[{min:0.1,   max:9999, weight:2,decimals:2}]}},
-      {from:'dm', to:'cm', factor:10,   value:{fixed:[], ranges:[{min:1,   max:9999, weight:3,decimals:2}]}},
-      {from:'m',  to:'cm', factor:100,  value:{fixed:[], ranges:[{min:1,   max:9999, weight:2,decimals:2}]}},
-      {from:'cm', to:'mm', factor:10,   value:{fixed:[], ranges:[{min:1,   max:9999, weight:3,decimals:2}]}},
-
-      // NEW: μm
-      {from:'m',  to:'μm', factor:1e6,  value:{fixed:[], ranges:[{min:0.20,max:9.99, weight:2,decimals:2}]}},
-      {from:'cm', to:'μm', factor:1e4,  value:{fixed:[], ranges:[{min:1,   max:999,  weight:2,decimals:2}]}},
-      {from:'mm', to:'μm', factor:1000, value:{fixed:[], ranges:[{min:10,  max:9999, weight:2,decimals:2}]}}
-    ],
-    up: [
-      {from:'mm', to:'cm', factor:1/10,   value:{fixed:[], ranges:[{min:1, max:99000, weight:3,decimals:2}]}},
-      {from:'cm', to:'dm', factor:1/10,   value:{fixed:[], ranges:[{min:1, max:99000, weight:3,decimals:2}]}},
-      {from:'dm', to:'m',  factor:1/10,   value:{fixed:[], ranges:[{min:1, max:99000, weight:3,decimals:2}]}},
-      {from:'m',  to:'km', factor:1/1000, value:{fixed:[], ranges:[{min:1, max:99000, weight:3,decimals:2}]}},
-
-      {from:'μm', to:'m',  factor:1/1e6,  value:{fixed:[], ranges:[{min:1e5, max:9e6,  weight:3,decimals:2}]}},
-      {from:'μm', to:'cm', factor:1/1e4,  value:{fixed:[], ranges:[{min:1e4, max:9e6,  weight:3,decimals:2}]}},
-      {from:'μm', to:'mm', factor:1/1000, value:{fixed:[], ranges:[{min:1e3, max:9e6,  weight:3,decimals:2}]}}
-    ]
-  },
-
-  // B2 — add nm; include all previous; push to 3 decimals in down where useful
-  B2: {
-    down: [
-      // strong conversions
-      {from:'km', to:'cm', factor:100000, value:{fixed:[], ranges:[{min:0.01,max:9.99, weight:2,decimals:3}]}},
-      {from:'km', to:'mm', factor:1e6,    value:{fixed:[], ranges:[{min:0.01,max:9.99, weight:2,decimals:3}]}},
-      {from:'m',  to:'mm', factor:1000,   value:{fixed:[], ranges:[{min:0.01,max:99.99,weight:2,decimals:3}]}},
-
-      // with μm (from B1)
-      {from:'cm', to:'μm', factor:1e4,    value:{fixed:[], ranges:[{min:1,  max:9999, weight:2,decimals:3}]}},
-      {from:'m',  to:'μm', factor:1e6,    value:{fixed:[], ranges:[{min:0.20,max:19.99,weight:2,decimals:3}]}},
-
-      // NEW: nm
-      {from:'m',  to:'nm', factor:1e9,    value:{fixed:[], ranges:[{min:0.20,max:9.99, weight:2,decimals:3}]}},
-      {from:'μm', to:'nm', factor:1000,   value:{fixed:[], ranges:[{min:10,  max:9999, weight:2,decimals:3}]}}
-    ],
-    up: [
-      {from:'mm', to:'m',  factor:1/1000,  value:{fixed:[], ranges:[{min:200, max:990000, weight:3,decimals:2}]}},
-      {from:'cm', to:'km', factor:1/100000,value:{fixed:[], ranges:[{min:1e4, max:9e6,   weight:3,decimals:2}]}},
-      {from:'μm', to:'m',  factor:1/1e6,   value:{fixed:[], ranges:[{min:1e5, max:9e8,   weight:3,decimals:2}]}},
-      {from:'nm', to:'m',  factor:1/1e9,   value:{fixed:[], ranges:[{min:1e7, max:9e9,   weight:3,decimals:2}]}},
-      {from:'nm', to:'μm', factor:1/1000,  value:{fixed:[], ranges:[{min:1e5, max:9e9,   weight:3,decimals:2}]}}
-    ]
-  },
-
-  // C1 — extreme spans; keep decimals in down
-  C1: {
-    down: [
-      {from:'km', to:'μm', factor:1e9,  value:{fixed:[], ranges:[{min:0.50,max:49.999,weight:3,decimals:3}]}},
-      {from:'m',  to:'nm', factor:1e9,  value:{fixed:[], ranges:[{min:0.50,max:99.999,weight:3,decimals:3}]}},
-      {from:'cm', to:'nm', factor:1e7,  value:{fixed:[], ranges:[{min:10,  max:99999, weight:2,decimals:3}]}}
-    ],
-    up: [
-      {from:'nm', to:'m',  factor:1/1e9, value:{fixed:[], ranges:[{min:5e8, max:9e10, weight:3,decimals:3}]}},
-      {from:'μm', to:'km', factor:1/1e9, value:{fixed:[], ranges:[{min:5e8, max:9e10, weight:3,decimals:3}]}}
-    ]
-  }
-},
-
-/* ────────────────────────── POVRŠINA ────────────────────────── */
-povrsina: {
-  // A1 — decimals in DOWN
-  A1: {
-    down: [
-      {from:'m²',  to:'cm²', factor:1e4, value:{fixed:[], ranges:[
-        {min:1,    max:99,  weight:2, decimals:1},
-        {min:0.1,  max:0.9, weight:1, decimals:1}
-      ]}},
-      {from:'cm²', to:'mm²', factor:100,  value:{fixed:[], ranges:[
-        {min:10,   max:990, weight:3, decimals:1},
-        {min:0.1,  max:9.9, weight:1, decimals:1}
-      ]}},
-    ],
-    up: [
-      {from:'mm²', to:'cm²', factor:1/100, value:{fixed:[], ranges:[
-        {min:100,  max:999, weight:2, decimals:1},
-        {min:10,   max:99,  weight:1, decimals:1}
-      ]}},
-      {from:'cm²', to:'m²',  factor:1/1e4, value:{fixed:[], ranges:[
-        {min:100,  max:900, weight:2, decimals:1},
-        {min:10,   max:90,  weight:1, decimals:1}
-      ]}},
-	  
-    ]
-  },
-
-  // A2 — include A1; add dm² and km²
-  A2: {
-    down: [
-      // A1 carried
-      {from:'m²',  to:'cm²', factor:1e4,  value:{fixed:[], ranges:[
-        {min:1,     max:999, weight:2, decimals:2},
-        {min:0.10,  max:0.99,weight:1, decimals:2}
-      ]}},
-      {from:'cm²', to:'mm²', factor:100,   value:{fixed:[], ranges:[
-        {min:1,     max:999, weight:3, decimals:2},
-        {min:0.01,  max:9.99,weight:1, decimals:2}
-      ]}},
-
-      // NEW dm², km²
-      {from:'m²',  to:'dm²', factor:100,   value:{fixed:[], ranges:[
-        {min:1,     max:999, weight:2, decimals:2}
-      ]}},
-      {from:'dm²', to:'cm²', factor:100,   value:{fixed:[], ranges:[
-        {min:1,     max:999, weight:3, decimals:2}
-      ]}},
-      {from:'km²', to:'m²',  factor:1e6,   value:{fixed:[], ranges:[
-        {min:0.10,  max:9.99,weight:3, decimals:2}
-      ]}},
-    ],
-    up: [
-      {from:'mm²', to:'cm²', factor:1/100,  value:{fixed:[], ranges:[{min:100, max:9999, weight:2,decimals:1}]}},
-      {from:'cm²', to:'dm²', factor:1/100,  value:{fixed:[], ranges:[{min:100, max:9999, weight:3,decimals:2}]}},
-      {from:'dm²', to:'m²',  factor:1/100,  value:{fixed:[], ranges:[{min:100, max:9999, weight:3,decimals:2}]}},
-      {from:'m²',  to:'km²', factor:1/1e6,  value:{fixed:[], ranges:[{min:100, max:9999, weight:3,decimals:1}]}}
-    ]
-  },
-
-  // B1 — include all; push decimals to 2; add m²↔mm² hard cases
-  B1: {
-    down: [
-      {from:'km²', to:'m²',  factor:1e6,  value:{fixed:[], ranges:[{min:0.20,max:19.99,weight:3,decimals:2}]}},
-      {from:'m²',  to:'dm²', factor:100,  value:{fixed:[], ranges:[{min:1,   max:9999, weight:2,decimals:2}]}},
-      {from:'dm²', to:'cm²', factor:100,  value:{fixed:[], ranges:[{min:1,   max:9999, weight:3,decimals:2}]}},
-      {from:'m²',  to:'cm²', factor:1e4,  value:{fixed:[], ranges:[{min:1,   max:9999, weight:2,decimals:2}]}},
-      {from:'cm²', to:'mm²', factor:100,  value:{fixed:[], ranges:[{min:1,   max:9999, weight:3,decimals:2}]}},
-      {from:'m²',  to:'mm²', factor:1e6,  value:{fixed:[], ranges:[{min:0.20,max:9.99, weight:2,decimals:2}]}}
-    ],
-    up: [
-      {from:'mm²', to:'cm²', factor:1/100, value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:1}]}},
-      {from:'cm²', to:'dm²', factor:1/100, value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:2}]}},
-      {from:'dm²', to:'m²',  factor:1/100, value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:2}]}},
-      {from:'m²',  to:'km²', factor:1/1e6, value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:1}]}}
-    ]
-  },
-
-  // B2 — tougher spans; add km²↔cm²
-  B2: {
-    down: [
-      {from:'km²', to:'cm²', factor:1e10, value:{fixed:[], ranges:[{min:0.20,max:9.99, weight:2,decimals:3}]}},
-      {from:'m²',  to:'mm²', factor:1e6,  value:{fixed:[], ranges:[{min:0.20,max:99.99,weight:2,decimals:3}]}}
-    ],
-    up: [
-      {from:'cm²', to:'km²', factor:1/1e10, value:{fixed:[], ranges:[{min:2e8, max:9e8, weight:3,decimals:2}]}},
-      {from:'mm²', to:'m²',  factor:1/1e6,  value:{fixed:[], ranges:[{min:2e5, max:9e7,  weight:3,decimals:2}]}}
-    ]
-  },
-
-  // C1 — extremes
-  C1: {
-    down: [
-      {from:'km²', to:'mm²', factor:1e12, value:{fixed:[], ranges:[{min:0.50,max:49.999,weight:3,decimals:3}]}}
-    ],
-    up: [
-      {from:'mm²', to:'km²', factor:1/1e12, value:{fixed:[], ranges:[{min:5e10, max:9e12, weight:3,decimals:3}]}}
-    ]
-  }
-},
-
-/* ────────────────────────── PROSTORNINA ────────────────────────── */
-prostornina: {
-  // A1 — decimals in DOWN; include l, ml and dm³, cm³
-  A1: {
-    down: [
-      {from:'l',   to:'ml',  factor:1000, value:{fixed:[], ranges:[
-        {min:0.2,  max:9.9,  weight:2, decimals:1},
-        {min:0.10, max:0.99, weight:1, decimals:1}
-      ]}},
-      {from:'dm³', to:'cm³', factor:1000, value:{fixed:[], ranges:[
-        {min:0.2,  max:9.9,  weight:2, decimals:1}
-      ]}},
-    ],
-    up: [
-      {from:'ml',  to:'l',   factor:1/1000, value:{fixed:[], ranges:[
-        {min:10,  max:999, weight:2, decimals:0},
-        {min:10,   max:99,  weight:1, decimals:0}
-      ]}},
-      {from:'cm³', to:'dm³', factor:1/1000, value:{fixed:[], ranges:[
-        {min:10,  max:900, weight:2, decimals:0},
-        {min:10,   max:90,  weight:1, decimals:0}
-      ]}},
-    ]
-  },
-
-  // A2 — include A1; add m³ and l↔cm³
-  A2: {
-    down: [
-      {from:'l',   to:'ml',  factor:1000,  value:{fixed:[], ranges:[{min:0.20,max:19.99,weight:2,decimals:2}]}},
-      {from:'dm³', to:'cm³', factor:1000,  value:{fixed:[], ranges:[{min:0.20,max:19.99,weight:2,decimals:2}]}},
-
-      {from:'m³',  to:'l',   factor:1000,  value:{fixed:[], ranges:[
-        {min:0.10, max:9.99, weight:3, decimals:2}
-      ]}},
-      {from:'l',   to:'cm³', factor:1000,  value:{fixed:[], ranges:[
-        {min:0.20, max:9.99, weight:3, decimals:2}
-      ]}},
-    ],
-    up: [
-      {from:'ml',  to:'l',   factor:1/1000, value:{fixed:[], ranges:[{min:10,  max:9999, weight:3,decimals:1}]}},
-      {from:'cm³', to:'dm³', factor:1/1000, value:{fixed:[], ranges:[{min:10,  max:9999, weight:3,decimals:1}]}},
-      {from:'l',   to:'m³',  factor:1/1000, value:{fixed:[], ranges:[{min:20,  max:9900, weight:3,decimals:1}]}},
-      {from:'cm³', to:'l',   factor:1/1000, value:{fixed:[], ranges:[{min:20,  max:9900, weight:3,decimals:1}]}}
-    ]
-  },
-
-  // B1 — include all; add m³↔cm³ and cm³↔mm³
-  B1: {
-    down: [
-      {from:'m³',  to:'l',   factor:1000,  value:{fixed:[], ranges:[{min:0.20,max:29.99,weight:3,decimals:2}]}},
-      {from:'l',   to:'cm³', factor:1000,  value:{fixed:[], ranges:[{min:0.20,max:29.99,weight:3,decimals:2}]}},
-      {from:'m³',  to:'cm³', factor:1e6,   value:{fixed:[], ranges:[{min:0.20,max:9.99, weight:2,decimals:2}]}},
-      {from:'cm³', to:'mm³', factor:1000,  value:{fixed:[], ranges:[{min:10,  max:9999, weight:2,decimals:2}]}}
-    ],
-    up: [
-      {from:'cm³', to:'l',   factor:1/1000, value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:1}]}},
-      {from:'l',   to:'m³',  factor:1/1000, value:{fixed:[], ranges:[{min:200, max:99000, weight:3,decimals:1}]}},
-      {from:'cm³', to:'m³',  factor:1/1e6,  value:{fixed:[], ranges:[{min:2e5, max:9e7,  weight:3,decimals:1}]}},
-      {from:'mm³', to:'cm³', factor:1/1000, value:{fixed:[], ranges:[{min:2e3, max:9e6,  weight:3,decimals:1}]}}
-    ]
-  },
-
-  // B2 — push to 3 decimals; add m³↔mm³
-  B2: {
-    down: [
-      {from:'m³',  to:'mm³', factor:1e9,   value:{fixed:[], ranges:[{min:0.20,max:9.999, weight:2,decimals:3}]}},
-      {from:'l',   to:'mm³', factor:1e6,   value:{fixed:[], ranges:[{min:0.20,max:9.999, weight:2,decimals:3}]}}
-    ],
-    up: [
-      {from:'mm³', to:'m³',  factor:1/1e9,  value:{fixed:[], ranges:[{min:2e8, max:9e9, weight:3,decimals:3}]}},
-      {from:'mm³', to:'l',   factor:1/1e6,  value:{fixed:[], ranges:[{min:2e5, max:9e8,  weight:3,decimals:3}]}}
-    ]
-  },
-
-  // C1 — extremes
-  C1: {
-    down: [
-      {from:'m³',  to:'mm³', factor:1e9,  value:{fixed:[], ranges:[{min:0.50,max:49.999,weight:3,decimals:3}]}}
-    ],
-    up: [
-      {from:'mm³', to:'m³',  factor:1/1e9, value:{fixed:[], ranges:[{min:1e7, max:9e9, weight:3,decimals:3}]}}
-    ]
-  }
-},
-
-/* ────────────────────────── ČAS ────────────────────────── */
-cas: {
-  // A1 — decimals in DOWN allowed (≤3 will be enforced by your filter)
-  A1: {
-    down: [
-      {from:'h',   to:'min', factor:60,  value:{fixed:[], ranges:[
-        {min:0.5,  max:9.9,  weight:2, decimals:1},
-        {min:0.10, max:0.99, weight:1, decimals:2}
-      ]}},
-      {from:'min', to:'s',   factor:60,  value:{fixed:[], ranges:[
-        {min:5,    max:990,  weight:3, decimals:1},
-        {min:0.5,  max:9.9,  weight:1, decimals:1}
-      ]}},
-    ],
-    up: [
-      {from:'s',   to:'min', factor:1/60, value:{fixed:[], ranges:[
-        {min:20,   max:300,  weight:3, decimals:0}
-      ]}},
-      {from:'min', to:'h',   factor:1/60, value:{fixed:[], ranges:[
-        {min:20,   max:300,  weight:3, decimals:0}
-      ]}},
-    ]
-  },
-
-  // A2 — include A1; add d↔h
-  A2: {
-    down: [
-      {from:'h',   to:'min', factor:60,  value:{fixed:[], ranges:[{min:0.50,max:19.99,weight:2,decimals:2}]}},
-      {from:'min', to:'s',   factor:60,  value:{fixed:[], ranges:[{min:5,   max:999,  weight:3,decimals:2}]}},
-
-      {from:'d',   to:'h',   factor:24,  value:{fixed:[], ranges:[{min:0.5, max:9.9,  weight:3,decimals:2}]}}
-    ],
-    up: [
-      {from:'s',   to:'min', factor:1/60, value:{fixed:[], ranges:[{min:100, max:5000, weight:3,decimals:0}]}},
-      {from:'min', to:'h',   factor:1/60, value:{fixed:[], ranges:[{min:100, max:5000, weight:3,decimals:0}]}},
-      {from:'h',   to:'d',   factor:1/24, value:{fixed:[], ranges:[{min:12,  max:240,  weight:3,decimals:0}]}}
-    ]
-  },
-
-  // B1 — include all; add h↔s heavy spans
-  B1: {
-    down: [
-      {from:'h',   to:'s',   factor:3600, value:{fixed:[], ranges:[{min:0.50,max:9.99, weight:3,decimals:2}]}}
-    ],
-    up: [
-      {from:'s',   to:'h',   factor:1/3600, value:{fixed:[], ranges:[{min:600, max:7200, weight:3,decimals:0}]}}
-    ]
-  },
-
-  // B2 — include all; add d↔min big spans
-  B2: {
-    down: [
-      {from:'d',   to:'min', factor:1440, value:{fixed:[], ranges:[{min:0.50,max:9.99, weight:3,decimals:2}]}}
-    ],
-    up: [
-      {from:'min', to:'d',   factor:1/1440, value:{fixed:[], ranges:[{min:500, max:20000, weight:3,decimals:0}]}}
-    ]
-  },
-
-  // C1 — include all; add teden↔h
-  C1: {
-    down: [
-      {from:'teden', to:'h', factor:168, value:{fixed:[], ranges:[{min:0.50,max:1.50, weight:3,decimals:2}]}}
-    ],
-    up: [
-      {from:'h',     to:'teden', factor:1/168, value:{fixed:[], ranges:[{min:50, max:300, weight:3,decimals:0}]}}
-    ]
-  }
-},
-
-}; // END CONFIG
-
-/* ============================ Generator & UI ============================ */
-
-const $ = sel => document.querySelector(sel);
-
-// 15-decimalno ujemanje (kot prej)
-const roundTo = (n, d = 8) => { const p = 10 ** d; return Math.round((+n + Number.EPSILON) * p) / p; };
-const equal15  = (a, b)   => roundTo(a, 15) === roundTo(b, 15);
-
-// format izpisa z vejico
-function fmt(x,dec=12){
-  const s = (Math.round(x*10**dec)/10**dec).toString();
-  if (s.includes('e') || s.includes('E')) return s.replace('.',',');
-  if (!s.includes('.')) return s.replace('.',',');
-  let out = s.replace(/0+$/,'').replace(/\.$/,'');
-  return out.replace('.',',');
-}
-function toNumber(text){
-  if (typeof text === 'number') return text;
-  const s = (text||'').toString().trim().replace(/\s+/g,'').replace(',','.');
-  const n = Number(s);
-  return isFinite(n) ? n : NaN;
-}
-function pick(arr){ return arr[Math.floor(Math.random()*arr.length)] }
-function pickWeighted(ranges){
-  const total = ranges.reduce((s,r)=>s+(r.weight||1),0);
-  let t = Math.random()*total;
-  for (const r of ranges){
-    t -= (r.weight||1);
-    if (t<=0) return r;
-  }
-  return ranges[ranges.length-1];
-}
-function chooseValue(spec){
-  if (!spec) return 1;
-  const fixed = spec.fixed||[];
-  if (fixed.length>0) return pick(fixed);
-  const ranges = spec.ranges||[{min:1,max:9,weight:1,decimals:0}];
-  const r = pickWeighted(ranges);
-  const raw = r.min + Math.random()*(r.max - r.min);
-  const d = r.decimals||0;
-  return Math.round(raw * 10**d)/10**d;
-}
-
-// štetje decimalk (za filtriranje Čas ≤ 3 decimalk)
-function decimalsCount(n){
-  const s = n.toString();
-  if (s.includes('e') || s.includes('E')) return 10; // znanstvena notacija → veliko decimalk
-  const p = s.split('.');
-  return p[1] ? p[1].length : 0;
-}
-
-function buildPool(cat, level, smer){
-  const L = (CONFIG[cat]||{})[level] || {};
-  if (smer === 'both') return [...(L.down||[]), ...(L.up||[])];
-  return L[smer] || [];
-}
-
-function makeOneTask(cat, level, smer){
-  const pool = buildPool(cat, level, smer);
-  let tries = 0;
-  while (tries < 20){
-    tries++;
-    const pair = pick(pool);
-    const given = chooseValue(pair.value);
-    const result = given * pair.factor;
-
-    // filter za ČAS: rezultat mora imeti ≤ 3 decimalke
-    if (cat === 'cas' && decimalsCount(result) > 3) continue;
-
-    return {
-      pair, given, result,
-      text:`${fmt(given)} ${pair.from} = ? ${pair.to}`,
-      hint:`Namig: 1 ${pair.from} = ${fmt(pair.factor)} ${pair.to}`,
-      solution:`${fmt(given)} ${pair.from} = <strong>${fmt(result)}</strong> ${pair.to}`
-    };
-  }
-  // če po 20 poskusih nič ne ustreza, vrni zadnjega
-  const pair = pick(pool);
-  const given = chooseValue(pair.value);
-  const result = given * pair.factor;
-  return {
-    pair, given, result,
-    text:`${fmt(given)} ${pair.from} = ? ${pair.to}`,
-    hint:`Namig: 1 ${pair.from} = ${fmt(pair.factor)} ${pair.to}`,
-    solution:`${fmt(given)} ${pair.from} = <strong>${fmt(result)}</strong> ${pair.to}`
+  // baze za količine – “unit + dim” (dim=potenca za m²/m³ game)
+  const BASE_UNITS = {
+    masa:{unit:'g',dim:1,prefixes:['G','M','k','h','da','','d','c','m','µ','n']},
+    dolzina:{unit:'m',dim:1,prefixes:['G','M','k','h','da','','d','c','m','µ','n']},
+    povrsina:{unit:'m',dim:2,prefixes:['G','M','k','h','da','','d','c','m','µ','n']},
+    prostornina:{unit:'m',dim:3,prefixes:['G','M','k','h','da','','d','c','m','µ','n']},
+    cas:{unit:'s',dim:1,prefixes:[]} // čas je svoj film – brez predpon, ker real life
   };
-}
 
-function taskCard(t, idx){
-  const id = `task_${idx}`;
-  return `
-  <div class="task" data-idx="${idx}">
-    <div class="task-header">
-      <div class="task-title">#${idx+1}: Pretvori <strong>${fmt(t.given)} <span class="units">${t.pair.from}</span></strong> v <strong><span class="units">${t.pair.to}</span></strong>.</div>
-      <input class="answer" id="${id}_input" type="text" placeholder="vnesi odgovor (npr. 12)" />
-      <button class="btn" id="${id}_check">Preveri to</button>
-      <button class="btn" id="${id}_hint">Pokaži namig</button>
-      <button class="btn" id="${id}_solve">Pokaži rešitev</button>
-    </div>
-    <div class="hint" id="${id}_hintbox" style="display:none;"></div>
-    <div class="solution" id="${id}_solbox" style="display:none;"></div>
-  </div>`;
-}
+  // TIME gang – vrstni red + faktorji → vedno do sekund, čist simple
+  const TIME_ORDER = ['teden','dan','h','min','s','cs','ms'];
+  const TIME_TO_SECONDS = { teden:604800, dan:86400, h:3600, min:60, s:1, cs:0.01, ms:0.001 };
+  const ADJ_FACT = { 'teden->dan':7, 'dan->h':24, 'h->min':60, 'min->s':60, 's->cs':100, 'cs->ms':10 };
 
-let state = {
-  cat:'masa', level:'A1', smer:'down',
-  tasks:[],
-  correct:0, total:0
-};
+  // level parametri – A1..C1 ostane backend; user vidi gamer labels
+  const LEVELS = {
+    A1:{min:1,max:50,maxDelta:2},
+    A2:{min:1,max:200,maxDelta:3},
+    B1:{min:0.1,max:500,maxDelta:6},
+    B2:{min:0.1,max:5000,maxDelta:8},
+    C1:{min:0.01,max:10000,maxDelta:10}
+  };
 
-function renderTasks(){
-  const container = $("#tasks");
-  container.innerHTML = state.tasks.map((t,i)=>taskCard(t,i)).join("");
-  state.tasks.forEach((t,i)=>{
-    const id = `task_${i}`;
-    $(`#${id}_hint`).addEventListener("click", ()=>{
-      const box = $(`#${id}_hintbox`);
-      box.textContent = t.hint;
-      box.style.display = "block";
-    });
-    $(`#${id}_solve`).addEventListener("click", ()=>{
-      const box = $(`#${id}_solbox`);
-      box.innerHTML = t.solution;
-      box.style.display = "block";
-    });
-    $(`#${id}_check`).addEventListener("click", ()=>checkOne(i));
-  });
-}
+  // scoreboard state – nič posebnega
+  const state={correct:0,total:0};
 
-function makeFive(){
-  state.tasks = Array.from({length:5}, ()=>makeOneTask(state.cat, state.level, state.smer));
-  renderTasks();
-}
+  // mini $ helper – ja, chill
+  const $=sel=>document.querySelector(sel);
+  const tasksEl=$('#tasks'), kpiCount=$('#kpiCount'), kpiPct=$('#kpiPct');
 
-function checkOne(i){
-  const t = state.tasks[i];
-  const id = `task_${i}`;
-  const user = toNumber($(`#${id}_input`).value);
-  const sol = t.result;
-
-  const ok = isFinite(user) && equal15(user, sol);
-
-  state.total++;
-  if (ok) state.correct++;
-  updateKPI();
-
-  const solBox = $(`#${id}_solbox`);
-  if (!ok) {
-    const hintBox = $(`#${id}_hintbox`);
-    hintBox.textContent = t.hint;
-    hintBox.style.display = "block";
-  } else {
-    $(`#${id}_hintbox`).style.display = "none";
+  function updateKPI(){
+    // live HUD – kolk je aim assist zadel
+    kpiCount.textContent=`${state.correct}/${state.total}`;
+    const p=state.total?Math.round(100*state.correct/state.total):0;
+    kpiPct.textContent=`${p}%`;
   }
-  solBox.innerHTML = t.solution + ` <span class="${ok?'status good':'status bad'}" style="margin-left:8px;">${ok?'Pravilno!':'Ni pravilno.'}</span>`;
-  solBox.style.display = "block";
-}
 
-function checkAll(){
-  state.tasks.forEach((_,i)=>checkOne(i));
-}
+  // RNG – basic stuff
+  function randInt(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+  function randFloat(a,b){return Math.random()*(b-a)+a;}
 
-function updateKPI(){
-  $("#ok").textContent = state.correct;
-  $("#all").textContent = state.total;
-  const pct = state.total ? Math.round(100*state.correct/state.total) : 0;
-  $("#pct").textContent = pct + "%";
-}
+  // generiraj število za mrežo – včasih celo, včasih decimalkice (1–3)
+  function gridNumber(level){
+    const c=LEVELS[level];
+    if(Math.random()<.5){return {value:randInt(Math.ceil(c.min),Math.floor(c.max))};}
+    let v=randFloat(c.min,c.max);
+    v=+v.toFixed(randInt(1,3));
+    return {value:v};
+  }
 
-$("#btnMake5").addEventListener("click", makeFive);
-$("#btnCheckAll").addEventListener("click", checkAll);
+  // parsing user vnosa – vejice, pike, praznine → normalize or go home
+  function parseNum(s){
+    if(typeof s!=='string') return NaN;
+    s=s.trim().replace(',','.').replace(/\s+/g,'');
+    return Number(s);
+  }
 
-$("#kolicina").addEventListener("change", e => { state.cat = e.target.value; makeFive(); });
-$("#tezavnost").addEventListener("change", e => { state.level = e.target.value; makeFive(); });
-$("#smer").addEventListener("change", e => { state.smer = e.target.value; makeFive(); });
+  // kolk decimalk v raw stringu – za 0–2 policy check
+  function decimalsCountRaw(str){
+    const m=(str.trim().replace(',', '.').match(/\.(\d+)/));
+    return m ? m[1].length : 0;
+  }
 
-// inicialno polni
-makeFive();
+  // equals with tol – floating point gre včasih malo “po svoje”
+  function eqTol(a,b){
+    const ae=Math.abs(a-b), re=ae/(Math.abs(b)||1);
+    return ae<=1e-10 || re<=1e-8;
+  }
+
+  // format ≤2 dec – brez nepotrebnih trailing nul
+  function fmtUpTo2(x){
+    const v = Math.round(x*100)/100;
+    return v.toLocaleString('sl-SI', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
+  const NF = new Intl.NumberFormat('sl-SI'); // če kdaj rabiš clean format
+
+  // slovenski labeli za “dan” & “teden” – da zveni legit
+  function labelTimeUnit(value, unit, context) {
+    // context: 'title' = unit name (singular), 'result' = po številu
+    if (unit === 'dan') {
+      if (context === 'title') return 'dan';
+      const n = Math.abs(Number(value));
+      if (Number.isInteger(n) && n === 1) return 'dan';
+      if (Number.isInteger(n) && n === 2) return 'dneva';
+      return 'dni'; // 0, 3+, decimale, negativne → dni
+    }
+    if (unit === 'teden') {
+      if (context === 'title') return 'teden';
+      const n = Math.abs(Number(value));
+      const isInt = Number.isInteger(n);
+      if (!isInt) return 'tedna';    // decimale se sliši najbolj “tedna”
+      if (n === 1) return 'teden';
+      if (n === 2) return 'tedna';
+      if (n >= 3 && n <= 4) return 'tedni';
+      return 'tednov';               // 0 in 5+
+    }
+    // ostale enote naj ostanejo kratice (h, min, s, cs, ms)
+    return unit;
+  }
+
+  // SI display helper – doda ²/³ če je dim 2/3; oldschool ^n fallback
+  function displayUnit(prefix, unit, dim){
+    const base = `${prefix}${unit}`;
+    if(dim===1) return base;
+    if(dim===2) return base + '²';
+    if(dim===3) return base + '³';
+    return base + '^' + dim;
+  }
+
+  // razstavi enoto: prefix vs base – quick&dirty regex, dela
+  function extractPrefix(u){ const base = u.replace(/^[GMkhda dcmµn]*/,'' ); return u.replace(base,''); }
+  function extractBase(u){ return u.replace(/^[GMkhda dcmµn]*/,''); }
+
+  // pick SI prefix par – kontroliran kaos (maxDelta zategne težavnost)
+  function pickPrefixPair(prefixes, level, smer){
+    const arr = prefixes.slice();
+    let from,to,tries=0, maxDelta=LEVELS[level].maxDelta;
+    while(tries++<200){
+      from=arr[randInt(0,arr.length-1)];
+      to=arr[randInt(0,arr.length-1)];
+      if(from===to) continue;
+      const delta = Math.abs(PREFIX_EXP[from]-PREFIX_EXP[to]);
+      if(delta>0 && delta<=maxDelta){
+        if(smer==='vec-v-manj' && PREFIX_EXP[from]>=PREFIX_EXP[to]) return {from,to};
+        if(smer==='manj-v-vec' && PREFIX_EXP[from]<=PREFIX_EXP[to]) return {from,to};
+        if(smer==='oboje') return {from,to};
+      }
+    }
+    // če RNG preveč trmast – vzemi prvi par, life goes on
+    return {from:arr[0],to:arr[1]};
+  }
+
+  // pick časovni par – random iz TIME_ORDER
+  function pickTimePair(){
+    const i = randInt(0, TIME_ORDER.length-1);
+    let j = randInt(0, TIME_ORDER.length-1);
+    if(i===j) j = (j+1) % TIME_ORDER.length; // ne pretvarjaj v isto stvar, lol
+    return { from: TIME_ORDER[i], to: TIME_ORDER[j] };
+  }
+
+  // generiraj “given” tako, da bo rezultat imel max 2 dec (brez roundanja)
+  // ideja: target = k/100 → garantiran limit 0–2 dec
+  function chooseGivenForMaxTwoDecimals(from, to, level){
+    const R = TIME_TO_SECONDS[from] / TIME_TO_SECONDS[to];
+    const c = LEVELS[level];
+    if (R >= 1){
+      // množenje z int → dec(given) se ohrani
+      const mode = randInt(0,2); // ciljaj 0,1 ali 2 dec
+      if (mode === 0){
+        const minK = Math.ceil(c.min);
+        const maxK = Math.max(minK, Math.floor(c.max));
+        return randInt(minK, Math.min(maxK, minK+500));
+      } else if (mode === 1){
+        const minK = Math.ceil(c.min*10);
+        const maxK = Math.max(minK, Math.floor(c.max*10));
+        return randInt(minK, Math.min(maxK, minK+500)) / 10;
+      } else {
+        const minK = Math.ceil(c.min*100);
+        const maxK = Math.max(minK, Math.floor(c.max*100));
+        return randInt(minK, Math.min(maxK, minK+500)) / 100;
+      }
+    } else {
+      // deljenje z int D: given = (k*D)/100 → result = k/100
+      const D = Math.round(1/R);
+      const minK = Math.ceil(c.min*100 / D);
+      const maxK = Math.max(minK, Math.floor(c.max*100 / D));
+      const k = randInt(minK, Math.min(maxK, minK+500));
+      return (k*D)/100;
+    }
+  }
+
+  // build task – če je čas, gre čez svoj pipeline; drugače SI predpone
+  function buildTask(idx, cat, level, smer){
+    if(cat==='cas'){
+      const {from,to} = pickTimePair();
+      const given = chooseGivenForMaxTwoDecimals(from, to, level);
+      const seconds = given * TIME_TO_SECONDS[from];
+      const result = seconds / TIME_TO_SECONDS[to]; // tole pride ven točno do 2 dec
+      return renderTask(idx, given, from, to, 'cas', result, 1, true);
+    }
+    const base = BASE_UNITS[cat];
+    const {from,to} = pickPrefixPair(base.prefixes, level, smer);
+    const dim = base.dim, unit = base.unit;
+    const given = gridNumber(level).value;
+    const expDiff = (PREFIX_EXP[from]-PREFIX_EXP[to]) * dim;
+    const factor = Math.pow(10, expDiff);
+    const result = given * factor;
+    return renderTask(idx, given, from+unit, to+unit, cat, result, dim, false);
+  }
+
+  // chain za namige – human readable koraki (nič pametovanja)
+  function timeChain(from, to){
+    const TIME_ORDER = ['teden','dan','h','min','s','cs','ms'];
+    const ADJ_FACT = { 'teden->dan':7, 'dan->h':24, 'h->min':60, 'min->s':60, 's->cs':100, 'cs->ms':10 };
+    const i = TIME_ORDER.indexOf(from);
+    const j = TIME_ORDER.indexOf(to);
+    if(i===-1 || j===-1) return { lines:[], ops:[], direction:0 };
+    const step = i<j ? +1 : -1;
+    const lines = [], ops = [];
+    for(let k=i; k!==j; k+=step){
+      const a = TIME_ORDER[k], b = TIME_ORDER[k+step];
+      const key = a+'->'+b, invKey = b+'->'+a;
+      const f = (step===+1) ? ADJ_FACT[key] : ADJ_FACT[invKey];
+      if(step===+1){ lines.push(`1 ${a} = ${f.toLocaleString('sl-SI')} ${b}`); ops.push({op:'*', f}); }
+      else { lines.push(`1 ${b} = ${f.toLocaleString('sl-SI')} ${a}`); ops.push({op:'/', f}); }
+    }
+    return { lines, ops };
+  }
+
+  // render task – sestavi UI, namig, rešitev, checker… all-in-one
+  function renderTask(idx, given, fromUnit, toUnit, cat, result, dim, isTime){
+    const task = document.createElement('div');
+    task.className='task'; task.dataset.locked='false';
+
+    const h = document.createElement('h3');
+    if (isTime) {
+      const fromLabel = labelTimeUnit(given, fromUnit, 'result');   // npr. "3 dni", "2 tedna"
+      const toLabel   = labelTimeUnit(null,  toUnit,   'title');    // “dan” ali “teden”
+      h.innerHTML = `#${idx+1}: Pretvori <b>${fmtUpTo2(given)}</b> ${fromLabel} v ${toLabel}.`;
+    } else {
+      const fromP = extractPrefix(fromUnit), toP = extractPrefix(toUnit);
+      const baseU = extractBase(fromUnit);
+      const titleFrom = displayUnit(fromP, baseU, dim);
+      const titleTo = displayUnit(toP, baseU, dim);
+      h.innerHTML = `#${idx+1}: Pretvori <b>${fmtSI(given)}</b> ${titleFrom} v ${titleTo}.`;
+    }
+    task.appendChild(h);
+
+    // vnos + knofi – enter dela isto kot “Preveri to”
+    const row = document.createElement('div'); row.className='row';
+    const input = document.createElement('input'); input.type='text'; input.inputMode='decimal'; input.placeholder='vnesi rezultat (0–2 dec)'; input.className='answer';
+    const checkBtn = document.createElement('button'); checkBtn.className='btn'; checkBtn.textContent='Preveri to';
+    const hintBtn = document.createElement('button'); hintBtn.className='btn'; hintBtn.textContent='Pokaži namig';
+    const solBtn = document.createElement('button'); solBtn.className='btn'; solBtn.textContent='Pokaži rešitev';
+    row.appendChild(input); row.appendChild(checkBtn); row.appendChild(hintBtn); row.appendChild(solBtn);
+    task.appendChild(row);
+
+    const resultEl = document.createElement('div'); resultEl.className='result muted'; task.appendChild(resultEl);
+    const hintEl = document.createElement('div'); hintEl.className='hint'; hintEl.style.display='none'; task.appendChild(hintEl);
+    const solEl = document.createElement('div'); solEl.className='solution'; solEl.style.display='none';
+    if (isTime) {
+      const fromLabel = labelTimeUnit(given,  fromUnit, 'result');
+      const toLabel   = labelTimeUnit(result, toUnit,   'result');
+      solEl.innerHTML = `${fmtUpTo2(given)} ${fromLabel} = <b>${fmtUpTo2(result)}</b> ${toLabel}`;
+    } else {
+      solEl.innerHTML = `${fmtSI(given)} ${fromUnit} = <b>${fmtSI(result)}</b> ${toUnit}`;
+    }
+    task.appendChild(solEl);
+
+    // namig – show your work, teacher style
+    if(isTime){
+      const { lines, ops } = timeChain(fromUnit, toUnit);
+      let expr = `${fmtUpTo2(given)} ${fromUnit}`;
+      ops.forEach(({op,f}) => { expr += ` ${op} ${f.toLocaleString('sl-SI')}`; });
+      expr += ' = ?';
+      hintEl.textContent = `Namig (0–2 decimalki, brez zaokroževanja):\n` + lines.join('\n') + `\n` + expr;
+    } else {
+      const fromP = extractPrefix(fromUnit), toP = extractPrefix(toUnit);
+      const baseU = extractBase(fromUnit);
+      const expFrom = PREFIX_EXP[fromP];
+      const expTo = PREFIX_EXP[toP];
+      const f1_base = Math.pow(10, expFrom);   // do base (dim=1)
+      const f2_base_to = Math.pow(10, -expTo); // base -> target (dim=1)
+      const f1 = Math.pow(f1_base, dim);
+      const f2 = Math.pow(f2_base_to, dim);
+      const base1 = displayUnit('', baseU, 1);
+      const titleBase = displayUnit('', baseU, dim);
+      const titleFrom = displayUnit(fromP, baseU, dim);
+      const titleTo = displayUnit(toP, baseU, dim);
+      let line1, line2;
+      if(dim===1){
+        line1 = `1 ${titleFrom} = ${f1.toLocaleString('sl-SI')} ${titleBase}`;
+        line2 = `1 ${titleBase} = ${f2.toLocaleString('sl-SI')} ${titleTo}`;
+      } else {
+        // power showoff – kvadriraj/kubiraj faktorje pravilno, ne blefirat
+        const powSym = dim===2?'²':dim===3?'³':('^'+dim);
+        line1 = `1 ${titleFrom} = (${f1_base.toLocaleString('sl-SI')} ${base1})${powSym} = ${f1.toLocaleString('sl-SI')} ${titleBase}`;
+        line2 = `1 ${titleBase} = (${f2_base_to.toLocaleString('sl-SI')} ${displayUnit(toP, baseU, 1)})${powSym} = ${f2.toLocaleString('sl-SI')} ${titleTo}`;
+      }
+      hintEl.textContent =
+        `Namig:\n`+
+        `${line1}\n${line2}\n`+
+        `${fmtSI(given)} ${titleFrom} × ${f1.toLocaleString('sl-SI')} × ${f2.toLocaleString('sl-SI')} = ?`;
+    }
+
+    // SI format helper – reši znanstvene zapise in odvečne nule
+    function fmtSI(x){
+      let s = String(x);
+      if(!/[eE]/.test(s)){ s=(+x).toPrecision(12); }
+      if(/[eE]/.test(s)){ const [m,e]=s.split(/e/i); return m.replace('.',',')+'e'+e; }
+      if(s.includes('.')) s=s.replace(/(\.\d*?[1-9])0+$/,'$1').replace(/\.0+$/,'');
+      return s.replace('.',',');
+    }
+
+    function lock(){task.dataset.locked='true'; input.disabled=true; checkBtn.disabled=true;}
+
+    // checker – 0–2 dec policy + “Pravilno!” flex
+    function check(){
+      if(task.dataset.locked==='true') return;
+      const raw = input.value;
+      const user = parseNum(raw);
+      if(!Number.isFinite(user)){ resultEl.innerHTML=`<span class="bad">Vnesi število.</span>`; return; }
+      state.total+=1;
+      if(isTime){
+        // če pretiravaš z decimalkami → nope
+        const decs = (raw.includes(',')||raw.includes('.')) ? (raw.replace(',', '.').split('.')[1]||'').length : 0;
+        if(decs > 2){
+          resultEl.innerHTML=`<span class="bad">Največ 2 decimalki.</span>`;
+          updateKPI(); return;
+        }
+        const target = Math.round(result*100)/100; // target je že skuhan
+        if(eqTol(user, target)){
+          const toLabel = labelTimeUnit(user, toUnit, 'result');
+          state.correct+=1;
+          resultEl.innerHTML=`<b>${fmtUpTo2(user)} ${toLabel}</b> — <span class="ok">Pravilno!</span>`;
+          lock();
+        } else {
+          resultEl.innerHTML=`${fmtUpTo2(given)} ≠ ${fmtUpTo2(user)} <span class="bad">Ni prav.</span>`;
+        }
+      } else {
+        const correct = eqTol(user, result);
+        if(correct){
+          state.correct+=1;
+          resultEl.innerHTML=`<b>${fmtSI(user)}</b> — <span class="ok">Pravilno!</span>`;
+          lock();
+        } else {
+          resultEl.innerHTML=`${fmtSI(given)} ≠ ${fmtSI(user)} <span class="bad">Poskusi ponovno.</span>`;
+        }
+      }
+      updateKPI();
+    }
+
+    // UX: Enter = check; ostalo so toggle knofi
+    input.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); check(); }});
+    checkBtn.addEventListener('click',check);
+    hintBtn.addEventListener('click',()=>{ hintEl.style.display = hintEl.style.display==='none' ? '' : 'none'; });
+    solBtn.addEventListener('click',()=>{ solEl.style.display = solEl.style.display==='none' ? '' : 'none'; });
+
+    tasksEl.appendChild(task);
+    return task;
+  }
+
+  // spawn 5 taskov – instant action
+  function makeFive(){
+    state.correct=0; state.total=0; updateKPI();
+    tasksEl.innerHTML='';
+    const cat=$('#cat').value, level=$('#level').value, smer=$('#smer').value;
+    for(let i=0;i<5;i++){ buildTask(i,cat,level,smer); }
+    const first=tasksEl.querySelector('input.answer'); if(first) first.focus();
+  }
+
+  // knofi – tisk + nova runda
+  $('#make5').addEventListener('click',makeFive);
+  $('#printBtn').addEventListener('click',()=>window.print());
+
+  // init – ni loading screena, gas
+  makeFive();
+})();
 </script>
 </body>
 </html>
