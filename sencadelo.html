@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sence – Umbra, Penumbra, Antumbra</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at top left, #0b0f1a, #111827);
+      color: #e2e8f0;
+      margin: 0;
+      overflow-x: hidden;
+    }
+
+    h1 {
+      text-align: center;
+      color: #ffd166;
+      margin: 15px 0;
+      font-size: clamp(1.4rem, 1vw + 1rem, 2rem);
+      font-weight: 600;
+    }
+
+    .page {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 20px;
+    }
+
+    /* LEVI PANEL */
+    .panel {
+      background: rgba(30,41,59,0.8);
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      padding: 24px;
+      border: 1px solid rgba(148,163,184,0.08);
+    }
+
+    .panel h2 {
+      margin-top: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .scenario-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .scenario-btns button {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      background: #334155;
+      color: #fff;
+      border: 0;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      line-height: 1.2;
+      padding: .6rem .9rem;
+      cursor: pointer;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.6);
+      transition: background .15s ease, box-shadow .15s ease;
+    }
+
+    .scenario-btns button.active {
+      background: #475569;
+      box-shadow: 0 15px 28px rgba(0,0,0,0.7);
+    }
+
+    .scenario-btns button:hover {
+      background: #475569;
+      box-shadow: 0 15px 28px rgba(0,0,0,0.7);
+    }
+
+    .slider-block {
+      margin-bottom: 22px;
+    }
+
+    .slider-block label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 1rem;
+      color: #fff;
+      font-weight: 500;
+    }
+
+    .noUi-target {
+      background: #1e293b;
+      border: 1px solid #475569;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,.6), 0 8px 24px rgba(0,0,0,0.6);
+      border-radius: 6px;
+      height: 10px;
+    }
+
+    .noUi-connect {
+      background: #14b8a6;
+    }
+
+    .noUi-handle {
+      border-radius: 6px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 6px 16px rgba(0,0,0,.6);
+      width: 40px;
+      height: 28px;
+      top: -10px;
+      cursor: grab;
+    }
+
+    .noUi-handle:before,
+    .noUi-handle:after {
+      display: none;
+    }
+
+    /* DESNI PANEL */
+    .stage-wrapper {
+      background: radial-gradient(circle at top, #0a1224 0%, #1e2636 80%);
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      border: 1px solid rgba(148,163,184,0.08);
+      padding: 16px;
+      min-height: 520px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    svg {
+      width: 100%;
+      height: 500px;
+      border-radius: 8px;
+      display: block;
+    }
+
+    .label {
+      font-size: 12px;
+      fill: #cbd5e1;
+      text-anchor: middle;
+      font-family: 'Segoe UI', sans-serif;
+      user-select: none;
+    }
+
+    .label-small {
+      font-size: 11px;
+      fill: #cbd5e1;
+      font-family: 'Segoe UI', sans-serif;
+      user-select: none;
+    }
+
+    .ray-line {
+      stroke: rgba(255,255,255,0.5);
+      stroke-width: 1.5;
+      stroke-dasharray: 4 4;
+      fill: none;
+    }
+
+    .umbra-fill {
+      fill: rgba(37,99,235,0.55);
+    }
+
+    .antumbra-fill {
+      fill: rgba(96,165,250,0.35);
+    }
+
+    .penumbra-fill {
+      fill: rgba(30,58,138,0.4);
+    }
+
+    .marker-point {
+      fill: #fff;
+      stroke: #0f172a;
+      stroke-width: 2px;
+    }
+
+    .screen-line {
+      stroke: rgba(255,255,255,0.4);
+      stroke-width: 2;
+      stroke-dasharray: 6 4;
+    }
+
+    .screen-slice-umbra {
+      fill: rgba(37,99,235,0.8);
+    }
+
+    .screen-slice-antumbra {
+      fill: rgba(96,165,250,0.6);
+    }
+
+    .screen-slice-penumbra {
+      fill: rgba(30,58,138,0.5);
+    }
+
+    @media (max-width: 900px) {
+      .page {
+        grid-template-columns: 1fr;
+      }
+      .stage-wrapper {
+        order: -1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Sence – Umbra, Penumbra, Antumbra</h1>
+
+  <div class="page">
+    <section class="panel">
+      <h2>Scenarij</h2>
+
+      <div class="scenario-btns">
+        <button id="sunmoon">☀️ <span>Sonce – Luna</span></button>
+        <button id="lamp">💡 <span>Žarnica – Žoga</span></button>
+        <button id="point">🔦 <span>Točkovni vir – Žoga</span></button>
+      </div>
+
+      <h2>Nastavitve</h2>
+
+      <div class="slider-block">
+        <label for="srcRadius">Polmer vira</label>
+        <div id="srcRadius"></div>
+      </div>
+
+      <div class="slider-block">
+        <label for="occRadius">Polmer zakrivala</label>
+        <div id="occRadius"></div>
+      </div>
+
+      <div class="slider-block">
+        <label for="distance">Razdalja med virom in zakrivalom</label>
+        <div id="distance"></div>
+      </div>
+
+      <div class="slider-block">
+        <label for="screenPos">Položaj zaslona (detektorja)</label>
+        <div id="screenPos"></div>
+      </div>
+    </section>
+
+    <section class="stage-wrapper">
+      <svg id="scene" viewBox="0 0 900 500"></svg>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.js"></script>
+  <script>
+    const svg = document.getElementById("scene");
+
+    // začetne vrednosti: Sonce – Luna
+    let srcR = 60;
+    let occR = 55;
+    let dist = 250;
+    let screenOffset = 500;
+
+    const SRC_X = 200;
+    const SRC_Y = 250;
+
+    function makeEl(name, attrs, textContent=null) {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", name);
+      for (const [k,v] of Object.entries(attrs)) el.setAttribute(k, v);
+      if (textContent !== null) el.textContent = textContent;
+      return el;
+    }
+
+    // ------------------------------------------
+    // Matematika tangent dveh krogov
+    // ------------------------------------------
+    // Vrne seznam žarkov:
+    // { p1:[x,y], p2:[x,y], dir:[dx,dy], kind:"outer"|"inner" }
+    function computeTangents(x1,y1,r1, x2,y2,r2) {
+      const tangents = [];
+
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const d2 = dx*dx + dy*dy;
+      const d = Math.sqrt(d2);
+      if (d === 0) return tangents;
+
+      // ortonormalna baza
+      const ux = dx / d;
+      const uy = dy / d;
+      const vx = -uy;
+      const vy = ux;
+
+      function solveForSign(sign, kindName) {
+        function buildTangentsForSigns(s1, s2) {
+          const k = (s2*r2 - s1*r1)/d;
+          if (Math.abs(k) >= 1) return [];
+
+          const L = 1/Math.sqrt(1 - k*k);
+          const m = k * L;
+          const c = s1 * r1 * L;
+
+          // tangenta y = m x + c v lokalnem sistemu (S v (0,0), O v (d,0))
+          // normalni vektor je (m, -1), |n| = sqrt(m^2+1)=L
+
+          // točka dotika na prvem krogu:
+          // -(s1*r1)*(m/L, -1/L)
+          const T1x_local = -s1 * r1 * m / L;
+          const T1y_local =  s1 * r1 / L;
+
+          // točka dotika na drugem krogu:
+          // (d,0) - (s2*r2)*(m/L, -1/L)
+          const T2x_local = d - s2 * r2 * m / L;
+          const T2y_local =     s2 * r2 / L;
+
+          // smer žarka (1,m)
+          const Dx_local = 1;
+          const Dy_local = m;
+          const normD = Math.sqrt(Dx_local*Dx_local + Dy_local*Dy_local);
+          let dirLocalX = Dx_local / normD;
+          let dirLocalY = Dy_local / normD;
+
+          // lokalno -> globalno
+          function localToGlobal(xL,yL){
+            return [
+              x1 + xL*ux + yL*vx,
+              y1 + xL*uy + yL*vy
+            ];
+          }
+
+          const [T1x, T1y] = localToGlobal(T1x_local, T1y_local);
+          const [T2x, T2y] = localToGlobal(T2x_local, T2y_local);
+
+          // smer v globalu
+          let dirGx = dirLocalX*ux + dirLocalY*vx;
+          let dirGy = dirLocalX*uy + dirLocalY*vy;
+
+          // želimo, da gremo v desno (dx > 0)
+          if (dirGx < 0) {
+            dirGx *= -1;
+            dirGy *= -1;
+          }
+
+          return [{
+            p1:[T1x,T1y],
+            p2:[T2x,T2y],
+            dir:[dirGx,dirGy],
+            kind: kindName
+          }];
+        }
+
+        if (sign === +1) {
+          // outer tangente (s1=s2) → meja umbre/antumbre
+          tangents.push(...buildTangentsForSigns(+1,+1));
+          tangents.push(...buildTangentsForSigns(-1,-1));
+        } else {
+          // inner tangente (s1=-s2) → meja penumbre
+          tangents.push(...buildTangentsForSigns(+1,-1));
+          tangents.push(...buildTangentsForSigns(-1,+1));
+        }
+      }
+
+      solveForSign(+1,"outer");
+      solveForSign(-1,"inner");
+
+      return tangents;
+    }
+
+    function pointAtX(ray, Xtarget) {
+      const [x0,y0] = ray.p2;
+      const [dx,dy] = ray.dir;
+      const t = (Xtarget - x0)/dx;
+      return { x:Xtarget, y:y0 + t*dy };
+    }
+
+    function intersectRays(rayA, rayB) {
+      const Ax = rayA.p2[0], Ay = rayA.p2[1];
+      const Bx = rayB.p2[0], By = rayB.p2[1];
+      const Adx = rayA.dir[0], Ady = rayA.dir[1];
+      const Bdx = rayB.dir[0], Bdy = rayB.dir[1];
+
+      const denom = Adx * (-Bdy) - Ady * (-Bdx);
+      if (Math.abs(denom) < 1e-9) return null;
+
+      const rhsx = Bx - Ax;
+      const rhsy = By - Ay;
+      const detT = rhsx * (-Bdy) - rhsy * (-Bdx);
+      const t = detT / denom;
+
+      return { x: Ax + t*Adx, y: Ay + t*Ady };
+    }
+
+    function classifyScreenSlice(hasUmbraRegion, umbTip, xo, farX, pointLike) {
+      if (pointLike) {
+        return "točkovni vir (idealna umbra)";
+      }
+      if (hasUmbraRegion && umbTip && farX <= umbTip.x) {
+        return "popoln mrk (umbra)";
+      }
+      if (!hasUmbraRegion) {
+        return "obročasti mrk (antumbra)";
+      }
+      return "delni mrk (penumbra)";
+    }
+
+    // fallback za primer, ko ni klasične sence
+    function drawScreenOnlyNoRays(farX, message) {
+      // zaslon
+      svg.appendChild(makeEl("line",{
+        x1:farX,
+        y1:0,
+        x2:farX,
+        y2:500,
+        class:"screen-line"
+      }));
+
+      svg.appendChild(makeEl("text",{
+        x:farX-14,
+        y:20,
+        class:"label-small",
+        "text-anchor":"end"
+      },"zaslon"));
+
+      svg.appendChild(makeEl("text",{
+        x:farX-14,
+        y:36,
+        class:"label-small",
+        "text-anchor":"end"
+      }, message));
+    }
+
+    function drawScene() {
+      svg.innerHTML = "";
+
+      const xs = SRC_X;
+      const ys = SRC_Y;
+      const xo = xs + dist;
+      const yo = SRC_Y;
+
+      const farX = xo + screenOffset;
+
+      // razdalja med središčema in prekrivanje krogov
+      const centerDist = Math.hypot(xo - xs, yo - ys);
+      const circlesOverlap = centerDist < (srcR + occR);
+
+      // telo vira
+      svg.appendChild(makeEl("circle", {
+        cx: xs,
+        cy: ys,
+        r: srcR,
+        fill: "#ffd400"
+      }));
+
+      // zakrivalo
+      svg.appendChild(makeEl("circle", {
+        cx: xo,
+        cy: yo,
+        r: occR,
+        fill: "rgba(96,125,255,0.5)"
+      }));
+
+      // če je zakrivalo "v" viru → ne prikazujemo mrka / stožcev
+      if (circlesOverlap) {
+        drawScreenOnlyNoRays(
+          farX,
+          "Ni klasične sence: ovira je preblizu ali delno v viru. To ni primer mrka."
+        );
+        return;
+      }
+
+      // izračun tangent
+      const raysAll = computeTangents(xs,ys,srcR, xo,yo,occR);
+      const outer = raysAll.filter(r=>r.kind==="outer");
+      const inner = raysAll.filter(r=>r.kind==="inner");
+
+      if (outer.length < 2 || inner.length < 2) {
+        // če ni dovolj žarkov za definicijo senc → razlaga
+        drawScreenOnlyNoRays(
+          farX,
+          "Ni oblikovane umbre/penumbre za ta položaj."
+        );
+        return;
+      }
+
+      // sortiranje
+      function avgY(ray){ return (ray.p1[1] + ray.p2[1]) / 2; }
+      outer.sort((a,b)=>avgY(a)-avgY(b));
+      inner.sort((a,b)=>avgY(a)-avgY(b));
+
+      const topOuter = outer[0];
+      const botOuter = outer[1];
+      const topInner = inner[0];
+      const botInner = inner[1];
+
+      // točke daleč
+      const topOuterFar = pointAtX(topOuter, farX);
+      const botOuterFar = pointAtX(botOuter, farX);
+      const topInnerFar = pointAtX(topInner, farX);
+      const botInnerFar = pointAtX(botInner, farX);
+
+      // konec umbre = presečišče "outer" žarkov
+      const umbTip = intersectRays(topOuter, botOuter);
+
+      // ali obstaja prava umbra?
+      let hasUmbraRegion = false;
+      let hasAntumbraRegion = false;
+
+      if (umbTip && umbTip.x > xo) {
+        hasUmbraRegion = true;
+        hasAntumbraRegion = true;
+      } else {
+        hasUmbraRegion = false;
+        hasAntumbraRegion = true;
+      }
+
+      const pointLike = srcR < 8; // "točkovni vir"
+
+      // --------------------------
+      // PENUMBRA
+      // --------------------------
+      if (!pointLike) {
+        const penPath = `
+          M ${topInner.p2[0]} ${topInner.p2[1]}
+          L ${topInnerFar.x} ${topInnerFar.y}
+          L ${botInnerFar.x} ${botInnerFar.y}
+          L ${botInner.p2[0]} ${botInner.p2[1]}
+          Z
+        `;
+        svg.appendChild(makeEl("path", {
+          d: penPath,
+          class: "penumbra-fill"
+        }));
+      }
+
+      // --------------------------
+      // UMBRA (polna tema)
+      // --------------------------
+      if (hasUmbraRegion && umbTip && !pointLike) {
+        const umbPath = `
+          M ${topOuter.p2[0]} ${topOuter.p2[1]}
+          L ${umbTip.x} ${umbTip.y}
+          L ${botOuter.p2[0]} ${botOuter.p2[1]}
+          Z
+        `;
+        svg.appendChild(makeEl("path", {
+          d: umbPath,
+          class: "umbra-fill"
+        }));
+      }
+
+      // --------------------------
+      // Točkovni vir → samo en stožec umbre
+      // --------------------------
+      if (pointLike) {
+        const conePath = `
+          M ${topOuter.p2[0]} ${topOuter.p2[1]}
+          L ${topOuterFar.x} ${topOuterFar.y}
+          L ${botOuterFar.x} ${botOuterFar.y}
+          L ${botOuter.p2[0]} ${botOuter.p2[1]}
+          Z
+        `;
+        svg.appendChild(makeEl("path", {
+          d: conePath,
+          class: "umbra-fill"
+        }));
+      }
+
+      // --------------------------
+      // ANTUMBRA (obročasti mrk)
+      // --------------------------
+      if (hasAntumbraRegion && !pointLike) {
+        const startAX = (umbTip && umbTip.x > xo) ? umbTip.x : xo;
+        const startTopY = (umbTip && umbTip.x > xo) ? umbTip.y : topOuter.p2[1];
+        const startBotY = (umbTip && umbTip.x > xo) ? umbTip.y : botOuter.p2[1];
+
+        const antPath = `
+          M ${startAX} ${startTopY}
+          L ${topOuterFar.x} ${topOuterFar.y}
+          L ${botOuterFar.x} ${botOuterFar.y}
+          L ${startAX} ${startBotY}
+          Z
+        `;
+        svg.appendChild(makeEl("path", {
+          d: antPath,
+          class: "antumbra-fill"
+        }));
+      }
+
+      // --------------------------
+      // ŽARKI (črtkane črte)
+      // --------------------------
+      function drawRay(ray) {
+        const farPt = pointAtX(ray, farX);
+        const dStr = `
+          M ${ray.p1[0]} ${ray.p1[1]}
+          L ${ray.p2[0]} ${ray.p2[1]}
+          L ${farPt.x} ${farPt.y}
+        `;
+        svg.appendChild(makeEl("path", {
+          d: dStr,
+          class: "ray-line"
+        }));
+      }
+      outer.forEach(drawRay);
+      if (!pointLike) inner.forEach(drawRay);
+
+      // --------------------------
+      // Označevalec "konec umbre" / "začetek antumbre"
+      // --------------------------
+      if (!pointLike) {
+        if (umbTip && umbTip.x > xo) {
+          svg.appendChild(makeEl("circle", {
+            cx: umbTip.x,
+            cy: umbTip.y,
+            r: 4,
+            class: "marker-point"
+          }));
+          svg.appendChild(makeEl("text", {
+            x: umbTip.x + 10,
+            y: umbTip.y - 10,
+            class: "label-small",
+            "text-anchor":"start"
+          }, "Konec umbre"));
+        } else {
+          svg.appendChild(makeEl("circle", {
+            cx: xo,
+            cy: yo,
+            r: 4,
+            class: "marker-point"
+          }));
+          svg.appendChild(makeEl("text", {
+            x: xo + 10,
+            y: yo - 10,
+            class: "label-small",
+            "text-anchor":"start"
+          }, "Začetek antumbre"));
+        }
+      }
+
+      // --------------------------
+      // Napisi "Penumbra", "Umbra", "Antumbra"
+      // --------------------------
+      if (!pointLike) {
+        const midYpen = (topInnerFar.y + botInnerFar.y)/2;
+        svg.appendChild(makeEl("text", {
+          x: farX - 80,
+          y: midYpen - 10,
+          class: "label"
+        }, "Penumbra"));
+
+        if (hasUmbraRegion && umbTip) {
+          const midUmbX = (topOuter.p2[0] + umbTip.x + botOuter.p2[0]) / 3;
+          const midUmbY = (topOuter.p2[1] + umbTip.y + botOuter.p2[1]) / 3;
+          svg.appendChild(makeEl("text", {
+            x: midUmbX + 10,
+            y: midUmbY,
+            class: "label"
+          }, "Umbra"));
+        }
+
+        if (hasAntumbraRegion) {
+          const midAntY = (topOuterFar.y + botOuterFar.y)/2;
+          svg.appendChild(makeEl("text", {
+            x: farX - 80,
+            y: midAntY + 15,
+            class: "label"
+          }, "Antumbra"));
+        }
+      } else {
+        const midUY = (topOuterFar.y + botOuterFar.y)/2;
+        svg.appendChild(makeEl("text",{
+          x: farX - 80,
+          y: midUY,
+          class: "label"
+        },"Umbra"));
+      }
+
+      // --------------------------
+      // ZASLON (detektor)
+      // --------------------------
+      svg.appendChild(makeEl("line", {
+        x1: farX,
+        y1: 0,
+        x2: farX,
+        y2: 500,
+        class: "screen-line"
+      }));
+
+      // prerez sence na zaslonu
+      const topInnerFarAt = pointAtX(topInner, farX);
+      const botInnerFarAt = pointAtX(botInner, farX);
+      const topOuterFarAt = pointAtX(topOuter, farX);
+      const botOuterFarAt = pointAtX(botOuter, farX);
+
+      function sortByY(a,b){return a.y-b.y;}
+      const innerOnScreen = [topInnerFarAt, botInnerFarAt].sort(sortByY);
+      const outerOnScreen = [topOuterFarAt, botOuterFarAt].sort(sortByY);
+
+      const sliceWidth = 10;
+      const yTopPen = innerOnScreen[0].y;
+      const yTopCore = outerOnScreen[0].y;
+      const yBotCore = outerOnScreen[1].y;
+      const yBotPen = innerOnScreen[1].y;
+
+      if (!pointLike && yTopPen < yTopCore) {
+        svg.appendChild(makeEl("rect",{
+          x:farX - sliceWidth,
+          y:yTopPen,
+          width:sliceWidth,
+          height:(yTopCore - yTopPen),
+          class:"screen-slice-penumbra"
+        }));
+      }
+
+      if (yBotCore > yTopCore) {
+        const isStillUmbraHere = (hasUmbraRegion && umbTip && farX <= umbTip.x);
+        let middleClass;
+        if (pointLike) {
+          middleClass = "screen-slice-umbra";
+        } else {
+          middleClass = isStillUmbraHere ? "screen-slice-umbra" : "screen-slice-antumbra";
+        }
+        svg.appendChild(makeEl("rect",{
+          x:farX - sliceWidth,
+          y:yTopCore,
+          width:sliceWidth,
+          height:(yBotCore - yTopCore),
+          class: middleClass
+        }));
+      }
+
+      if (!pointLike && yBotPen > yBotCore) {
+        svg.appendChild(makeEl("rect",{
+          x:farX - sliceWidth,
+          y:yBotCore,
+          width:sliceWidth,
+          height:(yBotPen - yBotCore),
+          class:"screen-slice-penumbra"
+        }));
+      }
+
+      // napis ob zaslonu – vrsta mrka
+      const mrkLabel = classifyScreenSlice(
+        hasUmbraRegion,
+        umbTip,
+        xo,
+        farX,
+        pointLike
+      );
+
+      svg.appendChild(makeEl("text",{
+        x:farX - sliceWidth - 4,
+        y:20,
+        class:"label-small",
+        "text-anchor":"end"
+      },"zaslon"));
+
+      svg.appendChild(makeEl("text",{
+        x:farX - sliceWidth - 4,
+        y:36,
+        class:"label-small",
+        "text-anchor":"end"
+      }, mrkLabel));
+    }
+
+    // --------------------------
+    // sliderji
+    // --------------------------
+    function setupSlider(id, min, max, start, step, onUpdate) {
+      const slider = document.getElementById(id);
+      noUiSlider.create(slider, {
+        start: [start],
+        connect: [true, false],
+        range: { min, max },
+        step
+      });
+      slider.noUiSlider.on("update", (v) => onUpdate(parseFloat(v[0])));
+      return slider;
+    }
+
+    const srcSlider = setupSlider("srcRadius", 5, 120, srcR, 1,
+      v => { srcR = v; drawScene(); });
+
+    const occSlider = setupSlider("occRadius", 5, 120, occR, 1,
+      v => { occR = v; drawScene(); });
+
+    const distSlider = setupSlider("distance", 10, 400, dist, 5,
+      v => { dist = v; drawScene(); });
+
+    const screenSlider = setupSlider("screenPos", 200, 700, screenOffset, 10,
+      v => { screenOffset = v; drawScene(); });
+
+    function setActiveScenarioButton(id) {
+      document.getElementById("sunmoon").classList.remove("active");
+      document.getElementById("lamp").classList.remove("active");
+      document.getElementById("point").classList.remove("active");
+      document.getElementById(id).classList.add("active");
+    }
+
+    function setScenario(rSrc, rOcc, dVal, scenarioId) {
+      srcR = rSrc;
+      occR = rOcc;
+      dist = dVal;
+
+      srcSlider.noUiSlider.set(srcR);
+      occSlider.noUiSlider.set(occR);
+      distSlider.noUiSlider.set(dist);
+
+      setActiveScenarioButton(scenarioId);
+      drawScene();
+    }
+
+    document.getElementById("sunmoon").onclick = () => {
+      // približno enak navidezni premer (totalni + obročasti mrk scenariji)
+      setScenario(60, 55, 250, "sunmoon");
+    };
+
+    document.getElementById("lamp").onclick = () => {
+      // žarnica-žoga: izrazita antumbra
+      setScenario(30, 20, 150, "lamp");
+    };
+
+    document.getElementById("point").onclick = () => {
+      // skoraj točkovni vir → čista umbra, ni penumbre
+      setScenario(5, 20, 100, "point");
+    };
+
+    // Začetno stanje
+    setActiveScenarioButton("sunmoon");
+    drawScene();
+  </script>
+</body>
+</html>
