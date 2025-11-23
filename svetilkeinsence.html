@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flashlight Shadow Lab v4.1 (6DOF)</title>
+  <style>
+    /* Stajling za cel page. */
+    body { margin: 0; overflow: hidden; background-color: #0f0f0f; font-family: 'Segoe UI', sans-serif; }
+    canvas { display: block; }
+    
+    /* UI OVERLAY - Glavni meni */
+    #ui-container {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 340px; 
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      color: #fff;
+      user-select: none;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    #ui-container::-webkit-scrollbar { width: 6px; }
+    #ui-container::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+    h1 { margin: 0 0 5px 0; font-size: 1.2rem; color: #fff; }
+    p { font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px; }
+
+    .control-group { 
+      margin-bottom: 15px; 
+      border-top: 1px solid #334155; 
+      padding-top: 15px; 
+    }
+    
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Barve headerjev */
+    .f1-color { color: #fbbf24; } 
+    .f2-color { color: #38bdf8; } 
+    .f3-color { color: #f472b6; } 
+    .obj-color { color: #4ade80; } 
+    .amb-color { color: #a78bfa; } 
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      margin-bottom: 4px;
+    }
+
+    input[type=range] {
+      width: 100%;
+      cursor: pointer;
+      margin-bottom: 12px;
+      accent-color: #fff;
+      height: 4px;
+    }
+
+    /* STYLING ZA RADIO GUMBE (Barve) */
+    .color-picker {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      justify-content: space-between;
+      background: rgba(0,0,0,0.2);
+      padding: 5px;
+      border-radius: 6px;
+    }
+    
+    .radio-label {
+      cursor: pointer;
+      font-size: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #94a3b8;
+    }
+    
+    .radio-label input {
+      margin-bottom: 2px;
+      cursor: pointer;
+    }
+
+    .radio-label input:checked + span {
+      color: #fff;
+      font-weight: bold;
+      text-shadow: 0 0 5px rgba(255,255,255,0.5);
+    }
+
+    #instructions {
+      position: absolute;
+      bottom: 20px;
+      width: 100%;
+      text-align: center;
+      color: rgba(255,255,255,0.4);
+      pointer-events: none;
+      font-size: 0.9rem;
+    }
+  </style>
+  
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <div id="ui-container">
+   
+
+    <div class="control-group">
+      <div class="group-header amb-color">💡 Splošna Svetloba</div>
+      <label>Jakost Okolice</label>
+      <input type="range" id="amb_int" min="0.5" max="10" step="0.1" value="2">
+    </div>
+
+    <div class="control-group">
+      <div class="group-header obj-color">⬜ Objekt (Prizma)</div>
+      <label>Pozicija X</label>
+      <input type="range" id="obj_x" min="-30" max="30" step="0.5" value="0">
+      <label>Pozicija Z</label>
+      <input type="range" id="obj_z" min="-20" max="20" step="0.5" value="0">
+      <label>Rotacija</label>
+      <input type="range" id="obj_rot" min="-180" max="180" step="1" value="0">
+    </div>
+
+    <div class="control-group">
+      <div class="group-header f1-color">🔦 Svetilka 1 (Sredina)</div>
+      
+      <div class="color-picker">
+        <label class="radio-label"><input type="radio" name="f1_mode" value="OFF"><span>OFF</span></label>
+        <label class="radio-label"><input type="radio" name="f1_mode" value="white" checked><span>Bela</span></label>
+        <label class="radio-label"><input type="radio" name="f1_mode" value="red"><span>Rdeča</span></label>
+        <label class="radio-label"><input type="radio" name="f1_mode" value="green"><span>Zelena</span></label>
+        <label class="radio-label"><input type="radio" name="f1_mode" value="blue"><span>Modra</span></label>
+      </div>
+
+      <label>Pozicija X</label>
+      <input type="range" id="f1_x" min="-40" max="40" step="0.5" value="0">
+      <label>Višina (Y)</label>
+      <input type="range" id="f1_y" min="1" max="60" step="0.5" value="15">
+      <label>Pozicija Z</label>
+      <input type="range" id="f1_z" min="0" max="60" step="0.5" value="40">
+      
+      <label>Smer (Levo/Desno)</label>
+      <input type="range" id="f1_rot" min="-180" max="180" step="1" value="0">
+      <label>Naklon (Gor/Dol)</label>
+      <input type="range" id="f1_pitch" min="-90" max="90" step="1" value="0">
+      
+      <label>Moč</label>
+      <input type="range" id="f1_int" min="0" max="20000" step="100" value="15000">
+    </div>
+
+    <div class="control-group">
+      <div class="group-header f2-color">🔦 Svetilka 2 (Levo)</div>
+
+      <div class="color-picker">
+        <label class="radio-label"><input type="radio" name="f2_mode" value="OFF" checked><span>OFF</span></label>
+        <label class="radio-label"><input type="radio" name="f2_mode" value="white"><span>Bela</span></label>
+        <label class="radio-label"><input type="radio" name="f2_mode" value="red"><span>Rdeča</span></label>
+        <label class="radio-label"><input type="radio" name="f2_mode" value="green"><span>Zelena</span></label>
+        <label class="radio-label"><input type="radio" name="f2_mode" value="blue"><span>Modra</span></label>
+      </div>
+
+      <label>Pozicija X</label>
+      <input type="range" id="f2_x" min="-40" max="40" step="0.5" value="-28">
+      <label>Višina (Y)</label>
+      <input type="range" id="f2_y" min="1" max="60" step="0.5" value="15">
+      <label>Pozicija Z</label>
+      <input type="range" id="f2_z" min="0" max="60" step="0.5" value="28">
+      
+      <label>Smer (Levo/Desno)</label>
+      <input type="range" id="f2_rot" min="-180" max="180" step="1" value="45">
+      <label>Naklon (Gor/Dol)</label>
+      <input type="range" id="f2_pitch" min="-90" max="90" step="1" value="0">
+
+      <label>Moč</label>
+      <input type="range" id="f2_int" min="0" max="20000" step="100" value="900">
+    </div>
+
+    <div class="control-group">
+      <div class="group-header f3-color">🔦 Svetilka 3 (Desno)</div>
+
+      <div class="color-picker">
+        <label class="radio-label"><input type="radio" name="f3_mode" value="OFF" checked><span>OFF</span></label>
+        <label class="radio-label"><input type="radio" name="f3_mode" value="white"><span>Bela</span></label>
+        <label class="radio-label"><input type="radio" name="f3_mode" value="red"><span>Rdeča</span></label>
+        <label class="radio-label"><input type="radio" name="f3_mode" value="green"><span>Zelena</span></label>
+        <label class="radio-label"><input type="radio" name="f3_mode" value="blue"><span>Modra</span></label>
+      </div>
+
+      <label>Pozicija X</label>
+      <input type="range" id="f3_x" min="-40" max="40" step="0.5" value="28">
+      <label>Višina (Y)</label>
+      <input type="range" id="f3_y" min="1" max="60" step="0.5" value="15">
+      <label>Pozicija Z</label>
+      <input type="range" id="f3_z" min="0" max="60" step="0.5" value="28">
+      
+      <label>Smer (Levo/Desno)</label>
+      <input type="range" id="f3_rot" min="-180" max="180" step="1" value="-45">
+      <label>Naklon (Gor/Dol)</label>
+      <input type="range" id="f3_pitch" min="-90" max="90" step="1" value="0">
+
+      <label>Moč</label>
+      <input type="range" id="f3_int" min="0" max="20000" step="100" value="900">
+    </div>
+
+  </div>
+
+  <div id="instructions">
+    Levi Klik: Rotacija • Desni Klik: Premik (Pan) • Scroll: Zoom
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // 1. SCENE SETUP
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111111); 
+    scene.fog = new THREE.FogExp2(0x111111, 0.012);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(0, 45, 80);
+    
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 10, 0);
+    controls.maxPolarAngle = Math.PI / 2 - 0.05; 
+    controls.minDistance = 20;
+    controls.maxDistance = 120;
+
+    // 2. ROOM GEOMETRY
+    const floorGeo = new THREE.PlaneGeometry(300, 300);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const wallGeo = new THREE.PlaneGeometry(160, 90);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1.0, metalness: 0 });
+    const wall = new THREE.Mesh(wallGeo, wallMat);
+    wall.position.set(0, 45, -50); 
+    wall.receiveShadow = true;
+    scene.add(wall);
+
+    // 3. THE SHADOW OBJECT
+    const boxGeo = new THREE.BoxGeometry(10, 25, 10);
+    const boxMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 1.0, metalness: 0.0 });
+    const prism = new THREE.Mesh(boxGeo, boxMat);
+    prism.position.set(0, 12.5, 0); 
+    prism.castShadow = true;
+    prism.receiveShadow = true;
+    scene.add(prism);
+
+    // Helper funkcija za barve
+    function getColorHex(mode) {
+        switch(mode) {
+            case 'white': return 0xffffff;
+            case 'red': return 0xff0000;
+            case 'green': return 0x00ff00;
+            case 'blue': return 0x0000ff;
+            default: return 0xffffff;
+        }
+    }
+
+    // 4. FLASHLIGHT CLASS (UPDATED FOR 6DOF)
+    class Flashlight {
+      constructor(color, x, y, z) {
+        // Light Source
+        this.light = new THREE.SpotLight(color, 900); 
+        this.light.position.set(x, y, z);
+        this.light.angle = Math.PI / 7;
+        this.light.penumbra = 0.3;
+        this.light.decay = 1.6;
+        this.light.distance = 250;
+        
+        this.light.castShadow = true;
+        this.light.shadow.mapSize.width = 2048;
+        this.light.shadow.mapSize.height = 2048;
+        this.light.shadow.bias = -0.0001;
+
+        this.target = new THREE.Object3D();
+        scene.add(this.target);
+        this.light.target = this.target;
+        scene.add(this.light);
+
+        // Ohišje luči
+        const bodyGeo = new THREE.CylinderGeometry(1, 1.5, 6, 16);
+        bodyGeo.rotateX(-Math.PI / 2);
+        this.bodyMat = new THREE.MeshStandardMaterial({ 
+          color: 0x333333, 
+          emissive: color, 
+          emissiveIntensity: 0.6,
+          roughness: 0.5
+        });
+        this.mesh = new THREE.Mesh(bodyGeo, this.bodyMat);
+        scene.add(this.mesh);
+      }
+
+      // Update function now accepts Y and Pitch (vertical angle)
+      update(x, y, z, yawDeg, pitchDeg, intensity, mode) {
+        
+        if (mode === 'OFF') {
+            this.light.intensity = 0;
+            this.bodyMat.emissive.setHex(0x000000); 
+        } else {
+            const colorHex = getColorHex(mode);
+            this.light.color.setHex(colorHex);
+            this.light.intensity = intensity;
+            this.bodyMat.emissive.setHex(colorHex);
+        }
+
+        // Set Position (3D)
+        this.light.position.set(x, y, z);
+        this.mesh.position.set(x, y, z);
+        
+        // Calculate Direction (Spherical coordinates to Cartesian)
+        // Yaw = horizontal rotation, Pitch = vertical tilt
+        const radYaw = yawDeg * (Math.PI / 180);
+        const radPitch = pitchDeg * (Math.PI / 180);
+
+        const r = 50; // distance to target point
+        
+        // Math: 
+        // y component depends only on sin(pitch)
+        // horizontal radius depends on cos(pitch)
+        const dy = Math.sin(radPitch) * r;
+        const h = Math.cos(radPitch) * r;
+        const dx = Math.sin(radYaw) * h;
+        const dz = -Math.cos(radYaw) * h; // Z is negative into screen
+
+        this.target.position.set(x + dx, y + dy, z + dz);
+        this.mesh.lookAt(this.target.position);
+      }
+    }
+
+    // Inicializacija
+    // Svetilka 1 (Bela, ON)
+    const f1 = new Flashlight(0xffffff, 0, 15, 40); 
+    // Svetilka 2 (Bela, OFF, Levo)
+    const f2 = new Flashlight(0xffffff, -28, 15, 28);  
+    // Svetilka 3 (Bela, OFF, Desno)
+    const f3 = new Flashlight(0xffffff, 28, 15, 28); 
+
+    // 5. AMBIENT LIGHT
+    const ambient = new THREE.AmbientLight(0xffffff, 2); 
+    scene.add(ambient);
+
+    // 6. UI HANDLING
+    function getRadioValue(name) {
+        const radios = document.getElementsByName(name);
+        for (let i = 0; i < radios.length; i++) {
+            if (radios[i].checked) return radios[i].value;
+        }
+        return 'OFF';
+    }
+
+    // UI Reference Object
+    const ui = {
+      amb_int: document.getElementById('amb_int'),
+      obj_x: document.getElementById('obj_x'),
+      obj_z: document.getElementById('obj_z'),
+      obj_rot: document.getElementById('obj_rot'),
+      
+      // Svetilka 1
+      f1_x: document.getElementById('f1_x'),
+      f1_y: document.getElementById('f1_y'),
+      f1_z: document.getElementById('f1_z'),
+      f1_rot: document.getElementById('f1_rot'),
+      f1_pitch: document.getElementById('f1_pitch'),
+      f1_int: document.getElementById('f1_int'),
+      
+      // Svetilka 2
+      f2_x: document.getElementById('f2_x'),
+      f2_y: document.getElementById('f2_y'),
+      f2_z: document.getElementById('f2_z'),
+      f2_rot: document.getElementById('f2_rot'),
+      f2_pitch: document.getElementById('f2_pitch'),
+      f2_int: document.getElementById('f2_int'),
+
+      // Svetilka 3
+      f3_x: document.getElementById('f3_x'),
+      f3_y: document.getElementById('f3_y'),
+      f3_z: document.getElementById('f3_z'),
+      f3_rot: document.getElementById('f3_rot'),
+      f3_pitch: document.getElementById('f3_pitch'),
+      f3_int: document.getElementById('f3_int'),
+    };
+
+    function updateScene() {
+      ambient.intensity = parseFloat(ui.amb_int.value);
+
+      f1.update(
+        parseFloat(ui.f1_x.value),
+        parseFloat(ui.f1_y.value),
+        parseFloat(ui.f1_z.value),
+        parseFloat(ui.f1_rot.value),
+        parseFloat(ui.f1_pitch.value),
+        parseFloat(ui.f1_int.value),
+        getRadioValue('f1_mode')
+      );
+
+      f2.update(
+        parseFloat(ui.f2_x.value),
+        parseFloat(ui.f2_y.value),
+        parseFloat(ui.f2_z.value),
+        parseFloat(ui.f2_rot.value),
+        parseFloat(ui.f2_pitch.value),
+        parseFloat(ui.f2_int.value),
+        getRadioValue('f2_mode')
+      );
+
+      f3.update(
+        parseFloat(ui.f3_x.value),
+        parseFloat(ui.f3_y.value),
+        parseFloat(ui.f3_z.value),
+        parseFloat(ui.f3_rot.value),
+        parseFloat(ui.f3_pitch.value),
+        parseFloat(ui.f3_int.value),
+        getRadioValue('f3_mode')
+      );
+
+      prism.position.x = parseFloat(ui.obj_x.value);
+      prism.position.z = parseFloat(ui.obj_z.value);
+      const rotRad = parseFloat(ui.obj_rot.value) * (Math.PI / 180);
+      prism.rotation.y = rotRad;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      updateScene(); 
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+
+  </script>
+</body>
+</html>

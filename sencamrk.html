@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sence in mrki – Hibridna verzija (Stabilna)</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.css">
+  <style>
+    /* --- OSNOVNI STIL --- */
+    :root {
+      --bg-dark: #020617;     
+      --panel-bg: #1e293b;    
+      --accent: #38bdf8;      
+      --text-main: #f8fafc;   
+      --sun-glow: #fbbf24;    
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Roboto', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      margin: 0;
+      padding: 20px;
+      overflow-x: hidden;
+      /* Kritično: Prepreči izbiranje teksta kjerkoli */
+      user-select: none; 
+      -webkit-user-select: none;
+      /* Prepreči privzete touch akcije (scroll/zoom) */
+      touch-action: none; 
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      font-size: 2.2rem;
+      text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+
+    .subtitle {
+      color: #cbd5e1;
+      font-size: 0.6em;
+      font-weight: 500;
+      display: block;
+      margin-top: 5px;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 320px 1fr; 
+      gap: 30px;
+      max-width: 1800px;
+      margin: 0 auto;
+      align-items: start;
+    }
+
+    .controls {
+      background: var(--panel-bg);
+      padding: 25px;
+      border-radius: 20px;
+      border: 2px solid #475569;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      position: sticky;
+      top: 20px;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      color: var(--accent);
+      margin-top: 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 25px;
+      border-bottom: 2px solid #334155;
+      padding-bottom: 10px;
+      font-weight: 700;
+    }
+
+    .slider-wrapper { margin-bottom: 40px; }
+    
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+    .val-display { color: var(--accent); font-family: 'Consolas', monospace; font-weight: bold; font-size: 1.3rem; }
+
+    .noUi-target {
+      background: #020617;
+      border: 1px solid #475569;
+      height: 14px; 
+    }
+    .noUi-connect { background: var(--accent); }
+    .noUi-handle {
+      background: #fff;
+      border: 3px solid var(--accent);
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+      width: 32px !important; 
+      height: 32px !important;
+      right: -16px !important;
+      border-radius: 50%;
+      cursor: grab;
+    }
+    .noUi-handle:before, .noUi-handle:after { display: none; }
+
+    .stage-area {
+      display: flex;
+      flex-direction: column;
+      gap: 25px;
+    }
+
+    .canvas-box {
+      background: radial-gradient(circle at 10% 50%, #1e293b 0%, #000000 100%);
+      border-radius: 20px;
+      border: 2px solid #475569;
+      padding: 10px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      position: relative;
+    }
+
+    svg#mainSvg {
+      width: 100%;
+      height: 450px;
+      display: block;
+      overflow: visible;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    /* === REŠITEV ZA MRTVE KLIKE === */
+    /* Vsi elementi znotraj SVG naj ignorirajo miško. 
+       Klik gre "skozi" njih direktno na #mainSvg, kjer ga ujame JS. */
+    svg#mainSvg * {
+      pointer-events: none;
+    }
+
+    .region-umbra { fill: rgba(0, 0, 0, 0.95); } 
+    .region-penumbra { fill: rgba(100, 116, 139, 0.5); } 
+    .region-antumbra { fill: rgba(56, 189, 248, 0.25); }
+
+    .guide-line {
+      stroke: #fcd34d;
+      stroke-width: 2;
+      stroke-dasharray: 8 8;
+      opacity: 0.6;
+    }
+
+    .drag-line {
+      stroke: rgba(255,255,255,0.6);
+      stroke-width: 3;
+    }
+    
+    .gaze-line {
+      stroke: #38bdf8;
+      stroke-width: 2;
+      stroke-dasharray: 4 6;
+      opacity: 0.7;
+    }
+
+    .fov-cone {
+      fill: rgba(56, 189, 248, 0.1);
+      stroke: rgba(56, 189, 248, 0.4);
+      stroke-width: 2;
+      stroke-dasharray: 6 4;
+    }
+
+    .observer-box {
+      background: #020617;
+      border-radius: 24px;
+      border: 3px solid #334155;
+      padding: 30px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-around;
+      gap: 30px;
+      box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
+    }
+
+    .eye-view-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-grow: 1;
+    }
+
+    .eye-circle {
+      width: 320px; 
+      height: 320px;
+      background: #000; 
+      border-radius: 50%;
+      border: 6px solid #475569;
+      margin: 15px 0;
+      box-shadow: 0 0 50px rgba(255,255,255,0.05);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 12px 30px;
+      border-radius: 99px;
+      font-size: 1.3rem; 
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      background: #334155;
+      color: #fff;
+      border: 2px solid #475569;
+      min-width: 300px;
+      text-align: center;
+      margin-top: 10px;
+      white-space: nowrap; 
+    }
+    
+    .badge-umbra { background: #7f1d1d; color: #fca5a5; border-color: #ef4444; box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+    .badge-penumbra { background: #334155; color: #cbd5e1; border-color: #94a3b8; box-shadow: 0 0 20px rgba(148, 163, 184, 0.3); }
+    .badge-antumbra { background: #0c4a6e; color: #7dd3fc; border-color: #0ea5e9; box-shadow: 0 0 20px rgba(14, 165, 233, 0.4); }
+    .badge-none { background: #000; color: #64748b; border-color: #334155; }
+
+    .legend {
+      background: rgba(255,255,255,0.03);
+      padding: 20px;
+      border-radius: 16px;
+      min-width: 250px;
+    }
+    .legend ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      color: #e2e8f0;
+      font-size: 1rem;
+      line-height: 2.2;
+    }
+    .dot {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      margin-right: 12px;
+      vertical-align: middle;
+    }
+
+    @media (max-width: 1100px) {
+      .container { grid-template-columns: 1fr; }
+      .observer-box { flex-direction: column; }
+      .status-badge { white-space: normal; font-size: 1.1rem;}
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Sence in mrki <span class="subtitle">Simulator sončevega mrka</span></h1>
+
+  <div class="container">
+    
+    <div class="controls">
+      <h2>Parametri</h2>
+      
+      <div class="slider-wrapper">
+        <div class="slider-header">
+          <span>Velikost Sonca</span>
+          <span id="prikaz-rSrc" class="val-display">60</span>
+        </div>
+        <div id="drsnik-vir"></div>
+      </div>
+
+      <div class="slider-wrapper">
+        <div class="slider-header">
+          <span>Velikost Lune (ovire)</span>
+          <span id="prikaz-rOcc" class="val-display">40</span>
+        </div>
+        <div id="drsnik-ovira"></div>
+      </div>
+
+      <div class="slider-wrapper">
+        <div class="slider-header">
+          <span>Razdalja</span>
+          <span id="prikaz-dist" class="val-display">300</span>
+        </div>
+        <div id="drsnik-razdalja"></div>
+      </div>
+      
+      <div style="margin-top:40px; padding:20px; background:rgba(56, 189, 248, 0.1); border-radius:15px; border: 2px solid rgba(56, 189, 248, 0.3);">
+        <p style="margin:0; color: #fff; font-size: 1rem; line-height: 1.5;">
+          🕹️ <strong>NAVODILO:</strong><br>
+          Premikaj belo "oko" (navpičnico) po grafu.<br><br>
+          Spodaj opazuj povezavo med tvojim <strong>položajem (senco)</strong> in tem, <strong>kar vidiš (mrk)</strong>.
+        </p>
+      </div>
+    </div>
+
+    <div class="stage-area">
+      <div class="canvas-box">
+        <svg id="mainSvg" viewBox="0 0 900 400">
+          </svg>
+      </div>
+
+      <div class="observer-box">
+        
+        <div class="eye-view-wrapper">
+          <div style="color:#94a3b8; font-size:1.2rem; text-transform:uppercase; letter-spacing:2px; font-weight:700;">
+            Kaj vidiš ti?
+          </div>
+          
+          <svg id="eyeSvg" class="eye-circle" viewBox="-150 -150 300 300"></svg>
+          
+          <div id="oznaka-mrka" class="status-badge badge-none">Ni mrka</div>
+        </div>
+        
+        <div class="legend">
+          <h3 style="margin:0 0 15px 0; color:#fff; border-bottom:1px solid #ffffff33; padding-bottom:10px;">Legenda (območja):</h3>
+          <ul>
+            <li><span class="dot" style="background:#fbbf24; border:1px solid #fff;"></span> Sonce (Vir)</li>
+            <li><span class="dot" style="background:#1e293b; border:2px solid #64748b;"></span> Luna (Ovira)</li>
+            <li><span class="dot" style="background:#000; border:1px solid #555;"></span> Popolna senca <strong>(UMBRA)</strong></li>
+            <li><span class="dot" style="background:#64748b;"></span> Polsenca <strong>(PENUMBRA)</strong></li>
+             <li><span class="dot" style="background:rgba(56, 189, 248, 0.25); border:1px solid #0ea5e9;"></span> Podaljšana senca <strong>(ANTUMBRA)</strong></li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.1/dist/nouislider.min.js"></script>
+
+  <script>
+    /* === GLOBALNE SPREMENLJIVKE === */
+    const STANJE = {
+      rVir: 60,    
+      rOvira: 55,  
+      razdalja: 300, 
+      zaslonX: 650,
+      zaslonY: 200
+    };
+
+    const PLATNO_W = 900;
+    const CENTER_Y = 200; 
+    const VIR_X = 100;    
+
+    const svgPlatno = document.getElementById('mainSvg');
+    const svgOko = document.getElementById('eyeSvg');
+    const napisStanja = document.getElementById('oznaka-mrka');
+
+    let zvezdeHTML = "";
+    function generirajZvezde() {
+      let s = '<g id="starsGroup">';
+      for (let i = 0; i < 80; i++) { 
+        const x = (Math.random() - 0.5) * 300; 
+        const y = (Math.random() - 0.5) * 300;
+        const r = Math.random() * 1.5 + 0.5;
+        const op = Math.random() * 0.6 + 0.4;
+        s += `<circle cx="${x}" cy="${y}" r="${r}" fill="white" opacity="${op}" />`;
+      }
+      s += '</g>';
+      zvezdeHTML = s;
+    }
+    generirajZvezde();
+
+    function dodajDefinicije() {
+      return `
+        <defs>
+          <filter id="glowEffect" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+          <radialGradient id="sunGrad">
+            <stop offset="20%" stop-color="#fff" />
+            <stop offset="95%" stop-color="#fbbf24" />
+          </radialGradient>
+        </defs>
+      `;
+    }
+
+    /* === GLAVNA RISARSKA FUNKCIJA === */
+    function narisiVse() {
+      let vsebina = dodajDefinicije();
+      
+      const { rVir, rOvira, razdalja, zaslonX, zaslonY } = STANJE;
+      const oviraX = VIR_X + razdalja;
+      
+      const dolzinaUmbre = (razdalja * rVir) / (rVir - rOvira);
+      const konecUmbreX = VIR_X + dolzinaUmbre;
+      const maxX = 1200; 
+
+      const fovDist = zaslonX; 
+      const fovPolVisina = fovDist * (100 / 400); 
+      const fovPath = `M ${zaslonX} ${zaslonY} 
+                       L 0 ${zaslonY - fovPolVisina} 
+                       L 0 ${zaslonY + fovPolVisina} Z`;
+      
+      vsebina += `<path d="${fovPath}" class="fov-cone" />`;
+
+      const kNot = (rVir + rOvira) / razdalja;
+      const yZgOvira = CENTER_Y - rOvira; 
+      const ySpOvira = CENTER_Y + rOvira;
+      const deltaY_Pen = (maxX - oviraX) * kNot;
+      
+      vsebina += `<path d="M ${oviraX} ${yZgOvira} L ${maxX} ${yZgOvira - deltaY_Pen} L ${maxX} ${ySpOvira + deltaY_Pen} L ${oviraX} ${ySpOvira} Z" class="region-penumbra" />`;
+
+      if (rVir > rOvira) {
+        vsebina += `<path d="M ${oviraX} ${yZgOvira} L ${konecUmbreX} ${CENTER_Y} L ${oviraX} ${ySpOvira} Z" class="region-umbra" />`;
+
+        if (maxX > konecUmbreX) {
+          const kZun = (rVir - rOvira) / razdalja;
+          const deltaY_Ant = (maxX - konecUmbreX) * kZun;
+          vsebina += `<path d="M ${konecUmbreX} ${CENTER_Y} L ${maxX} ${CENTER_Y - deltaY_Ant} L ${maxX} ${CENTER_Y + deltaY_Ant} Z" class="region-antumbra" />`;
+        }
+      } else {
+        const kSirjenje = (rOvira - rVir) / razdalja;
+        const deltaY = (maxX - oviraX) * kSirjenje;
+        vsebina += `<path d="M ${oviraX} ${yZgOvira} L ${maxX} ${yZgOvira - deltaY} L ${maxX} ${ySpOvira + deltaY} L ${oviraX} ${ySpOvira} Z" class="region-umbra" />`;
+      }
+
+      vsebina += `<circle cx="${VIR_X}" cy="${CENTER_Y}" r="${rVir}" fill="url(#sunGrad)" filter="url(#glowEffect)" />`;
+      vsebina += `<circle cx="${oviraX}" cy="${CENTER_Y}" r="${rOvira}" fill="#1e293b" stroke="#64748b" stroke-width="3" />`;
+
+      const crta = (y1, y2) => {
+        const k = (y2 - y1) / razdalja;
+        const yEnd = y1 + k * (maxX - VIR_X);
+        return `<line x1="${VIR_X}" y1="${y1}" x2="${maxX}" y2="${yEnd}" class="guide-line" />`;
+      };
+      vsebina += crta(CENTER_Y - rVir, CENTER_Y - rOvira);
+      vsebina += crta(CENTER_Y + rVir, CENTER_Y + rOvira);
+
+      vsebina += `<line x1="${zaslonX}" y1="0" x2="${zaslonX}" y2="400" class="drag-line" />`;
+      vsebina += `<line x1="${zaslonX}" y1="${zaslonY}" x2="${VIR_X - 50}" y2="${zaslonY}" class="gaze-line" />`;
+
+      vsebina += `<g class="drag-handle">
+                    <rect x="${zaslonX - 30}" y="${zaslonY - 40}" width="60" height="80" fill="transparent" />
+                    <rect x="${zaslonX - 15}" y="${zaslonY - 25}" width="30" height="50" rx="10" 
+                          fill="#fff" stroke="#38bdf8" stroke-width="3" 
+                          style="filter: drop-shadow(0 0 10px rgba(56, 189, 248, 1));" />
+                  </g>`;
+
+      svgPlatno.innerHTML = vsebina;
+      narisiOko(rVir, rOvira, razdalja, zaslonX, zaslonY, oviraX);
+    }
+
+    function narisiOko(rV, rO, dist, xZaslon, yZaslon, xOvira) {
+      const dDoVira = xZaslon - VIR_X;
+      const dDoOvire = xZaslon - xOvira;
+
+      if (dDoOvire <= 0) {
+        napisStanja.textContent = "Si pred luno!";
+        napisStanja.className = "status-badge badge-none";
+        svgOko.innerHTML = ""; 
+        return;
+      }
+
+      const faktor = 600; 
+      
+      const rV_navidezni = (rV / dDoVira) * faktor;
+      const rO_navidezni = (rO / dDoOvire) * faktor;
+
+      const offsetV = (CENTER_Y - yZaslon) * (faktor / dDoVira);
+      const offsetO = (CENTER_Y - yZaslon) * (faktor / dDoOvire);
+
+      let content = zvezdeHTML; 
+
+      content += `<circle cx="0" cy="${offsetV}" r="${rV_navidezni}" fill="#fbbf24" />`;
+      content += `<circle cx="0" cy="${offsetO}" r="${rO_navidezni}" 
+                  fill="#1e293b" stroke="#334155" stroke-width="2" />`;
+
+      svgOko.innerHTML = content;
+
+      const dCentrov = Math.abs(offsetV - offsetO);
+      
+      if (dCentrov >= rV_navidezni + rO_navidezni) {
+        nastaviBadge("Ni mrka (Na svetlobi)", "badge-none");
+      } else {
+        if (rO_navidezni >= rV_navidezni) {
+          if (dCentrov <= rO_navidezni - rV_navidezni) {
+            nastaviBadge("Popolni mrk (Opazovalec je v UMBRI)", "badge-umbra");
+          } else {
+            nastaviBadge("Delni mrk (Opazovalec je v PENUMBRI)", "badge-penumbra");
+          }
+        } else {
+          if (dCentrov <= rV_navidezni - rO_navidezni) {
+            nastaviBadge("Obročasti mrk (Opazovalec je v ANTUMBRI)", "badge-antumbra");
+          } else {
+            nastaviBadge("Delni mrk (Opazovalec je v PENUMBRI)", "badge-penumbra");
+          }
+        }
+      }
+    }
+
+    function nastaviBadge(tekst, klasa) {
+      napisStanja.textContent = tekst;
+      napisStanja.className = `status-badge ${klasa}`;
+    }
+
+    function narediSlider(id, min, max, start, callback) {
+      const el = document.getElementById(id);
+      noUiSlider.create(el, {
+        start: [start],
+        connect: [true, false],
+        range: { 'min': min, 'max': max },
+        step: 1
+      });
+      el.noUiSlider.on('update', (values) => {
+        const val = parseFloat(values[0]);
+        const displayId = id.replace('drsnik-', 'prikaz-');
+        if(document.getElementById(displayId)) {
+             document.getElementById(displayId).innerText = Math.round(val);
+        }
+        callback(val);
+        narisiVse();
+      });
+    }
+
+    narediSlider('drsnik-vir', 10, 80, 60, (v) => STANJE.rVir = v);
+    narediSlider('drsnik-ovira', 10, 80, 55, (v) => STANJE.rOvira = v);
+    narediSlider('drsnik-razdalja', 100, 500, 300, (v) => STANJE.razdalja = v);
+
+    /* === POINTER LOGIKA (ROBUSTNA) === */
+    let vlecemZaslon = false;
+
+    function getPointerPos(e) {
+      const rect = svgPlatno.getBoundingClientRect();
+      const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+      const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+      
+      const scaleX = 900 / rect.width;
+      const scaleY = 400 / rect.height;
+      
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
+    }
+
+    function startDrag(e) {
+      const pos = getPointerPos(e);
+      // Tolerance
+      if (Math.abs(pos.x - STANJE.zaslonX) < 70 && Math.abs(pos.y - STANJE.zaslonY) < 90) { 
+        if (e.cancelable) e.preventDefault(); 
+        vlecemZaslon = true;
+        svgPlatno.style.cursor = 'move';
+      }
+    }
+
+    function moveDrag(e) {
+      if (!vlecemZaslon) return;
+      if (e.cancelable) e.preventDefault();
+      
+      const pos = getPointerPos(e);
+      
+      let noviX = Math.max(VIR_X + STANJE.razdalja + STANJE.rOvira + 10, Math.min(890, pos.x));
+      let noviY = Math.max(10, Math.min(390, pos.y));
+      
+      STANJE.zaslonX = noviX;
+      STANJE.zaslonY = noviY;
+      requestAnimationFrame(() => narisiVse());
+    }
+
+    function endDrag() {
+      vlecemZaslon = false;
+      svgPlatno.style.cursor = 'crosshair';
+    }
+
+    svgPlatno.addEventListener('mousedown', startDrag);
+    window.addEventListener('mousemove', moveDrag);
+    window.addEventListener('mouseup', endDrag);
+
+    svgPlatno.addEventListener('touchstart', startDrag, { passive: false });
+    window.addEventListener('touchmove', moveDrag, { passive: false });
+    window.addEventListener('touchend', endDrag);
+
+    narisiVse();
+
+  </script>
+</body>
+</html>
