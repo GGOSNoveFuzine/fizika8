@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Flappy Predpone — Neon Edition</title>
+  <title>Flappy Predpone — Final Stable</title>
   <style>
-    /* --- STYLING (Hude barve pa to) --- */
+    /* --- STYLING --- */
     :root{
       --bg:#020617;
       --fg:#f8fafc;
@@ -19,11 +19,12 @@
     
     header{display:flex;gap:.5rem;align-items:center;justify-content:space-between;padding:.5rem .75rem;background:#00000066; border-bottom:1px solid #1e293b; z-index: 50;}
     header .title{font-weight:800;letter-spacing:1px; text-transform:uppercase; background:linear-gradient(to right, #22d3ee, #3b82f6); -webkit-background-clip:text; color:transparent;}
-    
+    header .controls{display:flex;gap:0.5rem;}
+
     #game{flex:1;position:relative; overflow:hidden;}
     canvas{width:100%;height:100%;display:block;}
     
-    /* HUD display */
+    /* HUD */
     .hud{position:absolute;left:0;right:0;top:0;display:flex;gap:.5rem;align-items:center;justify-content:space-between;padding:.5rem .75rem;pointer-events:none; z-index:10;}
     .chip{background:var(--panel);backdrop-filter:blur(4px);padding:.4rem .8rem;border-radius:8px;font-weight:600;font-size:.9rem; border:1px solid #334155; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);}
     
@@ -35,7 +36,7 @@
     .target-label { font-size:0.7rem; text-transform:uppercase; color:#94a3b8; letter-spacing:1px;}
     .target-val { font-weight:900; color:#fbbf24; font-size:1.4rem; text-shadow:0 0 10px rgba(251, 191, 36, 0.5); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);}
     
-    /* ANIMACIJE za feedback */
+    /* Animations */
     .pulse-target { animation: pulse-yellow 0.6s ease-in-out; }
     @keyframes pulse-yellow {
       0% { transform: scale(1); color:#fbbf24; }
@@ -43,7 +44,6 @@
       100% { transform: scale(1); color:#fbbf24; }
     }
 
-    /* Warning animation - RDEČ ALERT */
     .target-warning { animation: flash-red 0.5s infinite alternate; border: 1px solid #ef4444; }
     @keyframes flash-red {
       0% { background: var(--panel); box-shadow: 0 0 5px red; }
@@ -62,6 +62,13 @@
     button:hover{transform:scale(1.05); box-shadow:0 0 15px var(--accent);}
     button:active{transform:scale(0.95); background:#0891b2;}
     
+    .header-btn {
+      padding:0.3rem 0.6rem; 
+      background:#334155; 
+      color:white;
+      font-size: 1.2rem;
+    }
+
     .small{font-size:.85rem;opacity:.7}
     .credit{font-size:0.7rem; opacity:0.5; margin-top:1rem;}
   </style>
@@ -71,7 +78,8 @@
     <header>
       <div class="title">Flappy Predpone</div>
       <div class="controls">
-        <button id="btnMute" style="padding:0.3rem 0.6rem; background:#334155; color:white;" aria-pressed="false" title="Zvok">🔊</button>
+        <button id="btnFull" class="header-btn" title="Cel zaslon">⛶</button>
+        <button id="btnMute" class="header-btn" title="Zvok">🔊</button>
       </div>
     </header>
     
@@ -123,40 +131,32 @@
   </audio>
 
   <script>
-  /* --- AUDIO SETUP (Hybrid style) --- */
-  // 1. MP3 Playlista za vajb
+  /* --- AUDIO --- */
   const bgMusic = document.getElementById('bgMusic');
-  
-  // 2. SFX Synth (DIY piskanje v brskalniku)
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   const audioCtx = new AudioContext();
   let muted = false;
 
   const synth = {
-    flap: () => playTone(300, 'triangle', 0.1, -5), // en hiter whoosh
-    good: () => { playTone(800, 'sine', 0.1); setTimeout(()=>playTone(1200, 'sine', 0.2), 50); }, // coin sound
-    bad:  () => playTone(150, 'sawtooth', 0.3, -10), // error buzz
-    // WARNING SOUND: Alarm beep beep beep
+    flap: () => playTone(300, 'triangle', 0.1, -5), 
+    good: () => { playTone(800, 'sine', 0.1); setTimeout(()=>playTone(1200, 'sine', 0.2), 50); }, 
+    bad:  () => playTone(150, 'sawtooth', 0.3, -10), 
     warning: () => {
       if(muted) return;
       const now = audioCtx.currentTime;
-      // trije hitri piski
       [0, 0.2, 0.4].forEach(offset => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = 'square'; // bl zoprn zvok, da opaziš
+        osc.type = 'square';
         osc.frequency.setValueAtTime(600, now + offset);
         gain.gain.setValueAtTime(0.1, now + offset);
         gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.1);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(now + offset);
-        osc.stop(now + offset + 0.15);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(now + offset); osc.stop(now + offset + 0.15);
       });
     }
   };
 
-  // Helper za piskanje
   function playTone(freq, type, duration, drop=0) {
     if(muted || !audioCtx) return;
     if(audioCtx.state === 'suspended') audioCtx.resume();
@@ -165,67 +165,65 @@
     osc.type = type;
     osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
     if(drop) osc.frequency.exponentialRampToValueAtTime(Math.max(10, freq+drop*10), audioCtx.currentTime + duration);
-    
     gain.gain.setValueAtTime(0.2, audioCtx.currentTime); 
     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + duration);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + duration);
   }
 
-  // Mute button logic - da utišaš če ti gre na živce
+  // --- UI BUTTONS ---
   const btnMute = document.getElementById('btnMute');
   btnMute.addEventListener('click', (e)=>{ 
-    e.target.blur(); // da spacebar ne triggera gumba
+    e.target.blur(); 
     muted = !muted; 
     btnMute.textContent = muted ? '🔇' : '🔊'; 
-    
-    // Hendlamo še background music
     bgMusic.muted = muted;
-    if(!muted && running) {
-        bgMusic.play().catch(()=>{});
+    if(!muted && running) bgMusic.play().catch(()=>{});
+  });
+
+  const btnFull = document.getElementById('btnFull');
+  btnFull.addEventListener('click', (e)=>{
+    e.target.blur();
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => console.log(err));
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
     }
   });
 
-  /* --- SETUP MAŠINE (Canvas) --- */
+
+  /* --- CANVAS SETUP --- */
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d', { alpha: false });
   
-  // Fixaj DPI da ne bo blurry na telefonih
   function resizeCanvas(){
     const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
     const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.floor(rect.width * dpr);
-    canvas.height = Math.floor(rect.height * dpr);
+    const w = rect.width || window.innerWidth;
+    const h = rect.height || window.innerHeight;
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
     ctx.setTransform(dpr,0,0,dpr,0,0); 
   }
   window.addEventListener('resize', resizeCanvas);
 
-  /* --- KONFIGURACIJA IGRE --- */
-  const SPEED = 2.5;         // Hitrost skrolanja
-  const GRAVITY = 0.35;      // Kolk dol te vleče
-  const FLAP_V = -6.5;       // Kolk gor skočiš
-  const PIPE_W = 75;         // Širina stebrov
-  const PIPE_INTERVAL = 3200;// Na kolk časa pride nov steber
+  /* --- CONSTANTS --- */
+  const SPEED = 2.5;         
+  const GRAVITY = 0.35;      
+  const FLAP_V = -6.5;       
+  const PIPE_W = 75;         
+  const PIPE_INTERVAL = 3200;
   const FUEL_MAX = 100;
-  const FUEL_DRAIN = 2.5;    // Počasn drain (bolj easy)
-  const FUEL_HIT_GOOD = 25;  // Nagrada
-  const FUEL_HIT_BAD = 15;   // Kazen
-  const PIPE_GAP_RATIO = 0.36; // Luknja med stebri
-  const GOAL_DURATION_MS = 15000; // Menjava cilja na 15s
+  const FUEL_DRAIN = 2.5;    
+  const FUEL_HIT_GOOD = 25;  
+  const FUEL_HIT_BAD = 15;   
+  const PIPE_GAP_RATIO = 0.36; 
+  const GOAL_DURATION_MS = 15000; 
 
   const COLORS = {
-    bg: '#020617',
-    pipe: '#1e293b',
-    pipeGlow: '#22d3ee',
-    cardNeutral: '#6366f1',
-    good: '#10b981',
-    bad: '#ef4444'
+    bg: '#020617', pipe: '#1e293b', pipeGlow: '#22d3ee', cardNeutral: '#6366f1', good: '#10b981', bad: '#ef4444'
   };
 
-  // Vsi prefixi k jih mamo na lagerju
   const PREFIXES = [
     { name:'kilo',  pow:3,  forms:['1000','10³','k'] },
     { name:'hekto', pow:2,  forms:['100','10²','h'] },
@@ -235,10 +233,10 @@
     { name:'mili',  pow:-3, forms:['0,001','10⁻³','m'] }
   ];
 
-  /* --- STATE SPREMENLJIVKE --- */
+  /* --- GAME STATE --- */
   let target = PREFIXES[0];
   let nextGoalAt = 0;
-  let warningActive = false; // A trenutno blinka warning?
+  let warningActive = false; 
   let fuel = FUEL_MAX * 0.8;
   let distance = 0;
   let lastPipeAt = 0;
@@ -249,17 +247,13 @@
   const pipes = [];
   const pickups = [];
   const particles = [];
-  
-  // Dva layerja za parallax efekt
   const bgLayers = [ { speed: 0.2, offset: 0 }, { speed: 1.5, offset: 0 } ];
-  
-  // Statistika za na konc
   const stats = Object.fromEntries(PREFIXES.map(p=>[p.name,{good:0,bad:0}]));
 
-  /* --- UI REFERENCE --- */
+  /* --- DOM ELEMENTS --- */
   const distEl = document.getElementById('dist');
   const targetEl = document.getElementById('target');
-  const targetBox = document.getElementById('targetBox'); // Za warning border
+  const targetBox = document.getElementById('targetBox');
   const startTargetEl = document.getElementById('startTarget');
   const fuelFillEl = document.getElementById('fuelFill');
   const startOverlay = document.getElementById('start');
@@ -268,34 +262,24 @@
   const statsEl = document.getElementById('stats');
   const flashFx = document.getElementById('flashFx');
 
-
-  /* --- LOGIKA IGRE --- */
-  
-  // Zamenjaj cilj in resetiraj warninge
+  /* --- LOGIC --- */
   function setNewTarget(){
     let prev = target;
-    // Najdi enga novga, da ni isti k prej
     do { target = PREFIXES[Math.floor(Math.random()*PREFIXES.length)]; } while(target===prev && PREFIXES.length>1);
     
-    // UI updejti
     targetEl.textContent = `${target.name}`;
     nextGoalAt = performance.now() + GOAL_DURATION_MS;
     
-    // Reset warning visualov
     warningActive = false;
     targetBox.classList.remove('target-warning'); 
-    
-    // Mal pulse animacije da se vid da je switch
     targetEl.parentElement.classList.remove('pulse-target');
-    void targetEl.offsetWidth; // trigger reflow hack
+    void targetEl.offsetWidth; 
     targetEl.parentElement.classList.add('pulse-target');
     
-    // Flash čez cel ekran
     flashFx.style.opacity = '0.4'; 
     setTimeout(()=> flashFx.style.opacity = '0', 300);
   }
 
-  // Nared nov steber pa par kartic zraven
   function spawnPipe(){
     const h = canvas.height / (window.devicePixelRatio||1);
     const gap = h * PIPE_GAP_RATIO;
@@ -304,11 +288,8 @@
     const margin = 20; 
     pipes.push({ x: (canvas.width/(window.devicePixelRatio||1))+50, topH: gapY });
 
-    // Spawn kartic (pickups)
     const count = 4 + Math.floor(Math.random()*3); 
-    const numGood = Math.max(1, Math.round(count * 0.4)); // ene 40% jih je tapravih
-    
-    // Shuffle logic, da niso vedno na istem mestu
+    const numGood = Math.max(1, Math.round(count * 0.4)); 
     const order = Array.from({length:count}, (_,i)=> i < numGood);
     for(let i=order.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
 
@@ -316,41 +297,27 @@
     for(let i=0;i<count;i++){
       const shouldBeInitialMatch = order[i];
       let originPrefix;
-      
-      // A bo taprava al napačna?
       if(shouldBeInitialMatch) originPrefix = target;
       else {
-        // Zberi naključno napačno
         do { originPrefix = PREFIXES[Math.floor(Math.random()*PREFIXES.length)]; } while(originPrefix===target);
       }
-      
       const txt = originPrefix.forms[Math.floor(Math.random()*originPrefix.forms.length)];
       const py = Math.random()*(gap - 2*margin) + (gapY + margin);
-      
-      pickups.push({ 
-        x: pipeCenterX + i*45 + 20, 
-        y: py, 
-        text: txt, 
-        originName: originPrefix.name, 
-        baseY: py, 
-        offset: Math.random() * Math.PI * 2 // za bobbing animacijo
-      });
+      pickups.push({ x: pipeCenterX + i*45 + 20, y: py, text: txt, originName: originPrefix.name, baseY: py, offset: Math.random() * Math.PI * 2 });
     }
   }
 
-  // Boom efekt
   function createExplosion(x, y, color){
     for(let i=0; i<12; i++){
       particles.push({ x, y, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, life: 1.0, color, size: 3+Math.random()*4 });
     }
   }
 
-  /* --- INPUT HANDLING --- */
+  /* --- INPUT --- */
   function flap(){
     if(!running) return;
     player.v = FLAP_V;
-    synth.flap(); // Zvok!
-    // Mal dima iz auspuha
+    synth.flap(); 
     for(let i=0;i<3;i++){
       particles.push({ x: player.x - 10, y: player.y + (Math.random()-0.5)*10, vx: -2 - Math.random(), vy: (Math.random()-0.5), life: 0.6, color: '#e0f2fe', size: 4 });
     }
@@ -362,48 +329,52 @@
   });
   canvas.addEventListener('pointerdown', (e)=> { e.preventDefault(); flap(); });
 
-  // Štart gumb logika
   function handleStartClick(e){
-    if(e && e.target) e.target.blur(); // Odstrani fokus da enter/space ne klikata gumba
-    
-    // Unlockaj audio context če je browser zatežil
+    if(e && e.target) e.target.blur(); 
     if(audioCtx.state === 'suspended') audioCtx.resume();
-    
-    // Štartaj musko
     bgMusic.currentTime = 0;
-    bgMusic.volume = 0.4; // Mal tišje k SFX
+    bgMusic.volume = 0.4; 
     if(!muted) bgMusic.play().catch(e => console.log("Audio play blocked until interaction"));
     
     reset(); start();
   }
   document.getElementById('btnStart').addEventListener('click', handleStartClick);
-  document.getElementById('btnRestart').addEventListener('click', handleStartClick);
+  
+  // *** NUCLEAR FIX: PONOVNI ZAGON = REFRESH PAGE ***
+  document.getElementById('btnRestart').addEventListener('click', () => {
+    window.location.reload();
+  });
 
-  /* --- MAIN LOOP (Tle se dogaja magija) --- */
+  /* --- MAIN LOOP --- */
   function reset(){
     resizeCanvas();
-    // Reset stats
     for(const k in stats){ stats[k].good = 0; stats[k].bad = 0; }
     
     target = PREFIXES[Math.floor(Math.random()*PREFIXES.length)];
     targetEl.textContent = `${target.name}`;
     startTargetEl.textContent = targetEl.textContent;
     
-    // Prvi goal timing
     nextGoalAt = performance.now() + GOAL_DURATION_MS;
     warningActive = false;
     targetBox.classList.remove('target-warning');
 
-    // Player position reset
-    player.x = canvas.getBoundingClientRect().width * 0.2 || 100;
-    player.y = canvas.getBoundingClientRect().height * 0.45 || 200;
-    player.v = 0; player.rotation = 0;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
     
-    fuel = FUEL_MAX*0.8; // 80% goriva za štart
+    player.x = (w > 0) ? w * 0.2 : 100;
+    player.y = (h > 0) ? h * 0.45 : 200;
+    player.v = 0; 
+    player.rotation = 0;
+    
+    fuel = FUEL_MAX*0.8; 
     distance = 0; 
     distEl.textContent = '0 m';
     
-    pipes.length = 0; pickups.length = 0; particles.length = 0; lastPipeAt = 0;
+    pipes.length = 0; pickups.length = 0; particles.length = 0;
+    bgLayers[0].offset = 0; bgLayers[1].offset = 0;
+    
+    lastPipeAt = performance.now();
   }
 
   function start(){ running = true; startOverlay.style.display='none'; overOverlay.style.display='none'; lastTime=performance.now(); }
@@ -413,10 +384,8 @@
     overOverlay.style.display='flex'; 
     finalDistEl.textContent = distEl.textContent;
     
-    // Ugasn musko k umreš
     bgMusic.pause();
 
-    // Izpis statistike
     const lines = PREFIXES.map(p=>{
       const s = stats[p.name]; const total = s.good + s.bad; if(total===0) return null;
       return `<b>${p.name}</b>: ${s.good}/${total} (${Math.round((s.good/total)*100)}%)`;
@@ -429,88 +398,61 @@
     const w = canvas.width / (window.devicePixelRatio||1); const h = canvas.height / (window.devicePixelRatio||1);
 
     if(running){
-      // --- LOGIKA ZA MENJAVO PREFIXOV ---
       const timeLeft = nextGoalAt - t;
-      
-      // Če je cajt potekel, zamenjaj
-      if(timeLeft <= 0){
-        setNewTarget();
-      } 
-      // Če je še manj k 2 sekundi, prižgi alarme!
-      else if(timeLeft < 2000 && !warningActive){
-        warningActive = true;
-        targetBox.classList.add('target-warning'); // visual flash
-        synth.warning(); // zvočni beep beep beep
-      }
+      if(timeLeft <= 0){ setNewTarget(); } 
+      else if(timeLeft < 2000 && !warningActive){ warningActive = true; targetBox.classList.add('target-warning'); synth.warning(); }
 
-      // --- FUEL LOGIC ---
       fuel -= (FUEL_DRAIN * dt / 1000);
-      if(fuel <= 0){ fuel=0; updateFuelBar(); return gameOver(); } // RIP bencin
+      if(fuel <= 0){ fuel=0; updateFuelBar(); return gameOver(); } 
 
-      // --- PARALLAX BG ---
       bgLayers[0].offset += bgLayers[0].speed; bgLayers[1].offset += bgLayers[1].speed;
 
-      // --- PIPI (Stebri) ---
       if(t - lastPipeAt > PIPE_INTERVAL){ lastPipeAt = t; spawnPipe(); }
       for(const p of pipes) p.x -= SPEED;
-      if(pipes.length && pipes[0].x + PIPE_W < -50) pipes.shift(); // Briši stare
+      if(pipes.length && pipes[0].x + PIPE_W < -50) pipes.shift(); 
 
-      // --- KARTICE ---
       for(const c of pickups){ c.x -= SPEED; c.y = c.baseY + Math.sin((t/300) + c.offset) * 5; }
       if(pickups.length && pickups[0].x < -100) pickups.shift();
 
-      // --- DELCI (Particles) ---
       for(let i=particles.length-1; i>=0; i--){ const p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.life-=0.03; p.size*=0.95; if(p.life<=0) particles.splice(i,1); }
 
-      // --- FIZIKA ---
       player.v += GRAVITY; player.y += player.v; player.rotation += 0.15;
       distance += SPEED * (dt/16.67); distEl.textContent = Math.floor(distance/3) + ' m';
       updateFuelBar();
 
-      // --- COLLISIONS (Bum v steno) ---
-      if(player.y < 0 || player.y > h) return gameOver(); // Strop/Tla
+      if(player.y < 0 || player.y > h) return gameOver(); 
       
       const gap = h * PIPE_GAP_RATIO;
       for(const p of pipes){
-        // Check če si zadel zgornji al pa spodnji del cevi
         if(inRect(player.x, player.y, p.x+4, 0, PIPE_W-8, p.topH) || inRect(player.x, player.y, p.x+4, p.topH+gap, PIPE_W-8, h-(p.topH+gap))) return gameOver();
       }
       
-      // Check če si pobral kartico
       for(let i=pickups.length-1; i>=0; i--){
         const c = pickups[i];
-        // Simple circle-rect collision (mal poenostavljen)
         if(Math.abs(player.x - c.x) < 30 && Math.abs(player.y - c.y) < 25){
           if(c.originName === target.name){
-            // YAY
             fuel = Math.min(FUEL_MAX, fuel + FUEL_HIT_GOOD); synth.good(); stats[target.name].good++; createExplosion(c.x, c.y, COLORS.good);
           } else {
-            // NAY
             fuel = Math.max(0, fuel - FUEL_HIT_BAD); synth.bad(); stats[target.name].bad++; createExplosion(c.x, c.y, COLORS.bad);
           }
-          pickups.splice(i,1); // Odstrani pobrano
+          pickups.splice(i,1); 
         }
       }
     }
 
-    // --- DRAWING (Risanje na ekran) ---
     ctx.fillStyle = COLORS.bg; ctx.fillRect(0,0,w,h);
     
     drawParallax(w, h);
     
-    // Stebri
     ctx.shadowBlur = 15; ctx.shadowColor = COLORS.pipeGlow;
     for(const p of pipes){ const gap = h * PIPE_GAP_RATIO; drawNeonPipe(p.x, 0, PIPE_W, p.topH); drawNeonPipe(p.x, p.topH+gap, PIPE_W, h-(p.topH+gap)); }
     ctx.shadowBlur = 0;
     
-    // Delci
     for(const p of particles){ ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.beginPath(); ctx.rect(p.x, p.y, p.size, p.size); ctx.fill(); }
     ctx.globalAlpha = 1;
     
-    // Kartice
     for(const c of pickups) drawHoloCard(c.x, c.y, c.text);
     
-    // Igralec
     drawPlayer(player.x, player.y, player.r, player.rotation, player.v);
     
     requestAnimationFrame(loop);
@@ -541,6 +483,7 @@
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, 0, 1); ctx.restore();
   }
   function drawPlayer(x, y, r, rot, vy){
+    if(isNaN(x) || isNaN(y)) return;
     ctx.save(); ctx.translate(x, y);
     const tilt = Math.min(0.5, Math.max(-0.5, vy * 0.08)); ctx.rotate(tilt);
     ctx.shadowBlur = 15; ctx.shadowColor = '#22d3ee';
@@ -555,7 +498,6 @@
     if(pct < 0.25) fuelFillEl.style.background = '#ef4444'; else fuelFillEl.style.background = 'linear-gradient(90deg,#fde047,#10b981)';
   }
 
-  // Dejmo gas!
   reset(); requestAnimationFrame((t)=>{ lastTime=t; loop(t); });
   </script>
 </body>
