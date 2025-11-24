@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fizika 8: Odboj svetlobe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; user-select: none; }
+        .paper-pattern {
+            background-color: #ffffff;
+            background-image: 
+                linear-gradient(#e2e8f0 1px, transparent 1px),
+                linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .math-font { font-family: 'Times New Roman', serif; font-style: italic; }
+        .cursor-pin { cursor: crosshair; }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .shake-anim { animation: shake 0.4s ease-in-out; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        const App = () => {
+            // --- STANJA ---
+            const [step, setStep] = useState(1); 
+            const [pin1, setPin1] = useState(null);
+            const [pin2, setPin2] = useState(null);
+            
+            const [hitPoint, setHitPoint] = useState(null); 
+            const [missed, setMissed] = useState(false);
+            const [trueAngle, setTrueAngle] = useState(0);
+            
+            const [showProtractor, setShowProtractor] = useState(false);
+            const [alphaInput, setAlphaInput] = useState("");
+            const [betaInput, setBetaInput] = useState("");
+            const [feedback, setFeedback] = useState("");
+
+            // --- KONSTANTE ---
+            const width = 800;
+            const height = 500;
+            const mirrorY = 400;
+            const mirrorWidth = 300;
+            const mirrorXStart = (width - mirrorWidth) / 2;
+            const mirrorXEnd = mirrorXStart + mirrorWidth;
+
+            // --- LOGIKA ---
+            const handleCanvasClick = (e) => {
+                if (step >= 3) return;
+
+                const rect = e.target.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                if (y >= mirrorY - 10) return; 
+                if (x > width / 2 + 50) return; 
+
+                if (step === 1) {
+                    setPin1({ x, y });
+                    setStep(2);
+                } else if (step === 2) {
+                    if (Math.abs(pin1.x - x) < 10 && Math.abs(pin1.y - y) < 10) return;
+                    const p2 = { x, y };
+                    setPin2(p2);
+                    calculateResult(pin1, p2);
+                }
+            };
+
+            const calculateResult = (p1, p2) => {
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                
+                if (Math.abs(dy) < 0.1) {
+                    setMissed(true);
+                    setStep(3);
+                    return;
+                }
+
+                const m = dy / dx;
+                const xHit = (mirrorY - p1.y) / m + p1.x;
+
+                if (xHit >= mirrorXStart && xHit <= mirrorXEnd) {
+                    setHitPoint({ x: xHit, y: mirrorY });
+                    setMissed(false);
+                    
+                    const angleLineRad = Math.atan2(dy, dx);
+                    const angleLineDeg = angleLineRad * (180 / Math.PI);
+                    const incidentAngle = Math.abs(90 - Math.abs(angleLineDeg)); 
+                    setTrueAngle(incidentAngle);
+                } else {
+                    setHitPoint({ x: xHit, y: mirrorY });
+                    setMissed(true);
+                }
+                setStep(3);
+            };
+
+            const resetExperiment = () => {
+                setStep(1);
+                setPin1(null);
+                setPin2(null);
+                setHitPoint(null);
+                setMissed(false);
+                setAlphaInput("");
+                setBetaInput("");
+                setFeedback("");
+                setShowProtractor(false);
+            };
+
+            const retryPlacement = () => {
+                setStep(2);
+                setPin2(null);
+                setHitPoint(null);
+                setMissed(false);
+            };
+
+            const checkMeasurement = () => {
+                const a = parseFloat(alphaInput);
+                const b = parseFloat(betaInput);
+                if (isNaN(a) || isNaN(b)) {
+                    setFeedback("⚠️ Vpiši obe vrednosti.");
+                    return;
+                }
+                
+                if (Math.abs(a - trueAngle) < 4 && Math.abs(b - trueAngle) < 4) {
+                    if (Math.abs(a - b) <= 1) {
+                        setFeedback("✅ ODLIČNO! Kota sta enaka (α = β). To je odbojni zakon.");
+                    } else {
+                        setFeedback("✅ Dobro izmerjeno. Opaziš, da sta številki skoraj enaki?");
+                    }
+                } else {
+                    setFeedback("❌ Ni točno. Poskusi ponovno natančno odčitati z geotrikotnika.");
+                }
+            };
+
+            const getReflectedPin = (p, axisX) => {
+                if (!p) return {x:0, y:0};
+                return { x: axisX + (axisX - p.x), y: p.y };
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col items-center p-4 font-sans text-slate-800">
+                    <div className="w-full max-w-5xl bg-white p-4 rounded-xl shadow border-l-8 border-blue-600 mb-6 flex justify-between items-center">
+                        <div>
+                            <div className="text-xs font-bold text-blue-600 uppercase tracking-wider">Vaja: Stran 20</div>
+                            <h1 className="text-2xl font-bold">Kam se odbije žarek?</h1>
+                        </div>
+                        <button onClick={resetExperiment} className="bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded text-sm font-bold transition">
+                            Začni znova
+                        </button>
+                    </div>
+
+                    <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        
+                        <div className="lg:col-span-4 space-y-4">
+                            <div className={`bg-white p-4 rounded-lg border shadow-sm transition-all ${step===1 ? 'ring-2 ring-blue-400 border-blue-500' : 'opacity-60'}`}>
+                                <div className="flex items-center gap-2 font-bold text-slate-700 mb-2">
+                                    <span className="bg-slate-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span>
+                                    Postavi 1. buciko
+                                </div>
+                                <p className="text-sm text-slate-600">Klikni na levo stran papirja.</p>
+                            </div>
+
+                            <div className={`bg-white p-4 rounded-lg border shadow-sm transition-all ${step===2 ? 'ring-2 ring-blue-400 border-blue-500' : 'opacity-60'}`}>
+                                <div className="flex items-center gap-2 font-bold text-slate-700 mb-2">
+                                    <span className="bg-slate-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span>
+                                    Usmeri žarek
+                                </div>
+                                <p className="text-sm text-slate-600">Postavi 2. buciko tako, da bo žarek zadel zrcalo.</p>
+                            </div>
+
+                            {step === 3 && missed && (
+                                <div className="bg-red-50 border border-red-200 p-4 rounded-lg shake-anim">
+                                    <h3 className="font-bold text-red-700 mb-1">Zgrešil si zrcalo!</h3>
+                                    <p className="text-sm text-red-600 mb-3">Žarek gre mimo zrcala, zato se svetloba ne odbije.</p>
+                                    <button onClick={retryPlacement} className="w-full bg-red-600 text-white py-2 rounded font-bold hover:bg-red-700 transition">
+                                        Popravi 2. buciko
+                                    </button>
+                                </div>
+                            )}
+
+                            {step === 3 && !missed && (
+                                <div className="bg-green-50 border border-green-200 p-4 rounded-lg animate-fade-in">
+                                    <h3 className="font-bold text-green-800 mb-2">Uspešen zadetek!</h3>
+                                    <p className="text-sm text-green-700 mb-4">
+                                        Aplikacija je določila <strong>Odbojno točko</strong> in narisala <strong>pravokotnico</strong>.
+                                    </p>
+                                    {!showProtractor ? (
+                                        <button onClick={() => setShowProtractor(true)} className="w-full bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700 shadow-lg transform hover:scale-105 transition">
+                                            📏 Izmeri kote
+                                        </button>
+                                    ) : (
+                                        <div className="space-y-3 bg-white p-3 rounded border border-green-200">
+                                            <p className="text-xs font-bold text-slate-500 uppercase">Odčitaj z geotrikotnika:</p>
+                                            <div className="flex items-center gap-2">
+                                                <span className="math-font text-lg font-bold text-blue-600 w-6">α</span>
+                                                <input type="number" value={alphaInput} onChange={e=>setAlphaInput(e.target.value)} className="border rounded w-full p-1 text-center" placeholder="°" />
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="math-font text-lg font-bold text-red-600 w-6">β</span>
+                                                <input type="number" value={betaInput} onChange={e=>setBetaInput(e.target.value)} className="border rounded w-full p-1 text-center" placeholder="°" />
+                                            </div>
+                                            <button onClick={checkMeasurement} className="w-full bg-slate-800 text-white py-1 rounded text-sm font-bold">Preveri</button>
+                                            {feedback && <div className="text-xs font-bold mt-2 p-1 bg-slate-100 rounded">{feedback}</div>}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="lg:col-span-8 bg-white rounded-xl shadow-inner border border-slate-300 overflow-hidden relative" style={{height: '500px'}}>
+                            <div className="absolute top-2 left-2 text-[10px] text-slate-400 font-mono border px-1 rounded bg-white">
+                                MIZA (Pogled od zgoraj)
+                            </div>
+
+                            <svg 
+                                width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} 
+                                className={`paper-pattern ${step < 3 ? 'cursor-pin' : ''}`}
+                                onClick={handleCanvasClick}
+                            >
+                                {step < 3 && (
+                                    <rect x="0" y="0" width={width/2 + 50} height={mirrorY} fill="blue" fillOpacity="0.03" />
+                                )}
+
+                                {/* ZRCALO */}
+                                <g>
+                                    <rect x={mirrorXStart} y={mirrorY} width={mirrorWidth} height="15" fill="#94a3b8" stroke="#475569" strokeWidth="2" />
+                                    <rect x={mirrorXStart} y={mirrorY} width={mirrorWidth} height="5" fill="#cbd5e1" />
+                                    <path d={`M ${mirrorXStart} ${mirrorY+15} L ${mirrorXEnd} ${mirrorY+15}`} stroke="#64748b" strokeWidth="2" strokeDasharray="4,4" />
+                                    
+                                    {/* NAPIS PREMAKNJEN NIŽJE */}
+                                    <text x={width/2} y={mirrorY+55} textAnchor="middle" fontSize="12" fill="#64748b" fontWeight="bold">RAVNO ZRCALO</text>
+                                </g>
+
+                                {pin1 && pin2 && (
+                                    <g>
+                                        <line 
+                                            x1={pin1.x} y1={pin1.y} 
+                                            x2={hitPoint ? hitPoint.x : (pin1.x + (pin2.x - pin1.x) * 10)} 
+                                            y2={hitPoint ? hitPoint.y : (pin1.y + (pin2.y - pin1.y) * 10)}
+                                            stroke={missed ? "#ef4444" : "#3b82f6"} 
+                                            strokeWidth={missed ? 2 : 3}
+                                            strokeDasharray={missed ? "5,5" : ""}
+                                            opacity={missed ? 0.5 : 1}
+                                        />
+                                    </g>
+                                )}
+
+                                {!missed && step === 3 && hitPoint && (
+                                    <g>
+                                        {/* Odbiti žarek */}
+                                        <line 
+                                            x1={hitPoint.x} y1={hitPoint.y}
+                                            x2={getReflectedPin(pin1, hitPoint.x).x} y2={getReflectedPin(pin1, hitPoint.x).y}
+                                            stroke="#ef4444" strokeWidth="3"
+                                        />
+
+                                        {/* VPADNA PRAVOKOTNICA - PODALJŠANA DO VRHA */}
+                                        <line 
+                                            x1={hitPoint.x} y1={hitPoint.y} 
+                                            x2={hitPoint.x} y2={0} 
+                                            stroke="#64748b" strokeWidth="1.5" strokeDasharray="6,4" 
+                                        />
+                                        {/* NAPIS VEČJI IN BOLJ VIDEN */}
+                                        <text x={hitPoint.x + 8} y={100} fontSize="14" fill="#475569" fontWeight="bold" style={{writingMode: 'vertical-rl'}}>vpadna pravokotnica</text>
+
+                                        {/* Odbojna točka */}
+                                        <circle cx={hitPoint.x} cy={hitPoint.y} r="5" fill="#dc2626" stroke="white" strokeWidth="2" />
+                                        <text x={hitPoint.x} y={mirrorY+30} fontSize="11" fill="#dc2626" fontWeight="bold" textAnchor="middle" className="bg-white">ODBOJNA TOČKA</text>
+
+                                        <circle cx={getReflectedPin(pin2, hitPoint.x).x} cy={getReflectedPin(pin2, hitPoint.x).y} r="6" fill="white" stroke="#ef4444" strokeWidth="2" />
+                                        <text x={getReflectedPin(pin2, hitPoint.x).x + 10} y={getReflectedPin(pin2, hitPoint.x).y} fontSize="12" fill="#ef4444" fontWeight="bold">3</text>
+
+                                        <circle cx={getReflectedPin(pin1, hitPoint.x).x} cy={getReflectedPin(pin1, hitPoint.x).y} r="6" fill="white" stroke="#ef4444" strokeWidth="2" />
+                                        <text x={getReflectedPin(pin1, hitPoint.x).x + 10} y={getReflectedPin(pin1, hitPoint.x).y} fontSize="12" fill="#ef4444" fontWeight="bold">4</text>
+                                    
+                                        {showProtractor && (
+                                            <g>
+                                                <text x={hitPoint.x - 20} y={hitPoint.y - 40} className="math-font" fontSize="18" fill="blue" fontWeight="bold">α</text>
+                                                <text x={hitPoint.x + 15} y={hitPoint.y - 40} className="math-font" fontSize="18" fill="red" fontWeight="bold">β</text>
+                                            </g>
+                                        )}
+                                    </g>
+                                )}
+
+                                {pin1 && (
+                                    <g>
+                                        <circle cx={pin1.x} cy={pin1.y} r="6" fill="#2563eb" stroke="white" strokeWidth="2" />
+                                        <text x={pin1.x - 15} y={pin1.y} fontSize="12" fill="#2563eb" fontWeight="bold">1</text>
+                                    </g>
+                                )}
+                                {pin2 && (
+                                    <g>
+                                        <circle cx={pin2.x} cy={pin2.y} r="6" fill="#2563eb" stroke="white" strokeWidth="2" />
+                                        <text x={pin2.x - 15} y={pin2.y} fontSize="12" fill="#2563eb" fontWeight="bold">2</text>
+                                    </g>
+                                )}
+
+                                {showProtractor && hitPoint && !missed && (
+                                    <g transform={`translate(${hitPoint.x - 200}, ${hitPoint.y - 200})`} style={{pointerEvents: 'none'}}>
+                                        <path d="M 0 200 A 200 200 0 0 1 400 200 L 0 200" fill="rgba(255, 255, 255, 0.8)" stroke="#475569" strokeWidth="1" />
+                                        <line x1="200" y1="200" x2="200" y2="0" stroke="#475569" strokeWidth="1" />
+                                        
+                                        <circle cx="200" cy="200" r="3" fill="none" stroke="red" strokeWidth="2" />
+                                        
+                                        {[0, 10, 20, 30, 40, 45, 50, 60, 70, 80, 90, 100, 110, 120, 130, 135, 140, 150, 160, 170, 180].map(deg => {
+                                            const rad = (deg * Math.PI) / 180;
+                                            const isMajor = deg % 10 === 0 || deg === 45 || deg === 135;
+                                            
+                                            const x1 = 200 - 190 * Math.cos(rad);
+                                            const y1 = 200 - 190 * Math.sin(rad);
+                                            const x2 = 200 - (190 - (isMajor ? 15 : 8)) * Math.cos(rad);
+                                            const y2 = 200 - (190 - (isMajor ? 15 : 8)) * Math.sin(rad);
+                                            
+                                            return (
+                                                <g key={deg}>
+                                                    <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#334155" strokeWidth={isMajor ? 1.5 : 1} />
+                                                    {isMajor && deg % 10 === 0 && deg !== 90 && (
+                                                        <text 
+                                                            x={200 - 165 * Math.cos(rad)} 
+                                                            y={200 - 165 * Math.sin(rad)} 
+                                                            fontSize="10" 
+                                                            textAnchor="middle" 
+                                                            alignmentBaseline="middle"
+                                                            fill="#475569"
+                                                            transform={`rotate(${deg-90}, ${200 - 165 * Math.cos(rad)}, ${200 - 165 * Math.sin(rad)})`}
+                                                        >
+                                                            {deg}
+                                                        </text>
+                                                    )}
+                                                </g>
+                                            );
+                                        })}
+                                        <text x="200" y="30" textAnchor="middle" fontSize="12" fontWeight="bold" fill="#ef4444">90</text>
+                                    </g>
+                                )}
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
