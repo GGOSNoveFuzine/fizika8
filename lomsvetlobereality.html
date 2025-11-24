@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lom Svetlobe - Realistični Prikaz s Teorijo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #2c3e50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #ecf0f1;
+            padding-bottom: 40px;
+        }
+        h1 {
+            margin-top: 15px;
+            font-weight: 300;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        #container {
+            position: relative;
+            margin: 10px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            border-radius: 4px;
+            overflow: hidden;
+            background-color: #000;
+            border: 4px solid #34495e;
+        }
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        .controls {
+            background: #34495e;
+            padding: 15px 20px;
+            width: 800px;
+            max-width: 95%;
+            border-radius: 8px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            border-top: 4px solid #e67e22;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        label {
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            color: #bdc3c7;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: none;
+            background: #ecf0f1;
+            color: #2c3e50;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .info-panel {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: rgba(255,255,255,0.1);
+            width: 800px;
+            max-width: 95%;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+        
+        /* Theory Section Styling */
+        .theory-panel {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #34495e;
+            width: 800px;
+            max-width: 95%;
+            border-radius: 8px;
+            border-left: 6px solid #3498db;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            color: #ecf0f1;
+            line-height: 1.6;
+        }
+        .theory-panel h3 {
+            margin-top: 0;
+            color: #3498db;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+        .formula-box {
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            text-align: center;
+            font-size: 1.5rem;
+            font-family: 'Times New Roman', serif;
+            font-style: italic;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .variable {
+            font-family: 'Times New Roman', serif;
+            font-style: italic;
+            font-weight: bold;
+            color: #e67e22;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            gap: 15px;
+        }
+        .checkbox-wrapper label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-weight: normal;
+        }
+        input[type="checkbox"] {
+            accent-color: #e67e22;
+            width: 16px;
+            height: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Raziskujemo Lom Svetlobe</h1>
+
+    <div id="container">
+        <canvas id="canvas" width="800" height="500"></canvas>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="mediumSelect">Izberi snov (lomni količnik n):</label>
+            <select id="mediumSelect">
+                <option value="1.33">Voda (n = 1.33)</option>
+                <option value="1.50" selected>Steklo (n = 1.50)</option>
+                <option value="2.42">Diamant (n = 2.42)</option>
+                <option value="1.00">Zrak (n = 1.00)</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label>Pripomočki:</label>
+            <div class="checkbox-wrapper">
+                <label><input type="checkbox" id="showNormal" checked> Vpadna pravokotnica</label>
+                <label><input type="checkbox" id="showAngles" checked> Koti</label>
+                <label><input type="checkbox" id="showProtractor"> Kotomer</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <span style="color:#ff6b6b">Vpadni kot (α): <b id="angleAlpha">0</b>°</span>
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        <span style="color:#4cd137">Lomni kot (β): <b id="angleBeta">0</b>°</span>
+        <div style="font-size: 0.8rem; margin-top: 8px; color: #bdc3c7;">
+            <i>Namig: Z miško zagrabi laser in ga premikaj!</i>
+        </div>
+    </div>
+
+    <div class="theory-panel">
+        <h3>💡 Kaj je lomni količnik (n)?</h3>
+        <p>
+            Lomni količnik (<span class="variable">n</span>) je razmerje med hitrostjo svetlobe v vakuumu (<span class="variable">c</span>) in hitrostjo svetlobe v snovi (<span class="variable">v</span>):
+        </p>
+        
+        <div class="formula-box">
+            n = c / v
+        </div>
+
+        <ul style="list-style-type: disc; margin-left: 20px;">
+            <li><span class="variable">c</span> (hitrost svetlobe v vakuumu) je največja možna hitrost v vesolju (300.000 km/s).</li>
+            <li><span class="variable">v</span> (hitrost svetlobe v snovi) je vedno manjša od <span class="variable">c</span>, ker atomi snovi svetlobo "motijo" in jo upočasnijo.</li>
+        </ul>
+
+        <p style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+            👉 <b>Zapomni si:</b> Ker delimo večje število z manjšim, je rezultat vedno <b>večji od 1</b>.
+        </p>
+    </div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const mediumSelect = document.getElementById('mediumSelect');
+    const showNormalCb = document.getElementById('showNormal');
+    const showAnglesCb = document.getElementById('showAngles');
+    const showProtractorCb = document.getElementById('showProtractor');
+    const angleAlphaDisplay = document.getElementById('angleAlpha');
+    const angleBetaDisplay = document.getElementById('angleBeta');
+
+    // Physics State
+    let laserAngle = 45; 
+    let n1 = 1.00; // Air
+    let n2 = 1.50; // Default
+    let materialType = "glass"; 
+    
+    // Interaction State
+    let isDragging = false;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = 350;
+
+    // Animation State
+    let time = 0;
+    let bubbles = [];
+
+    for(let i=0; i<20; i++) {
+        bubbles.push({
+            x: Math.random() * canvas.width,
+            y: centerY + Math.random() * (canvas.height/2),
+            r: Math.random() * 3 + 1,
+            speed: Math.random() * 0.5 + 0.2
+        });
+    }
+
+    // --- Event Listeners ---
+    mediumSelect.addEventListener('change', () => {
+        n2 = parseFloat(mediumSelect.value);
+        if (n2 === 1.33) materialType = "water";
+        else if (n2 === 1.50) materialType = "glass";
+        else if (n2 === 2.42) materialType = "diamond";
+        else materialType = "air";
+    });
+
+    canvas.addEventListener('mousedown', (e) => checkClick(e));
+    canvas.addEventListener('mousemove', (e) => updateDrag(e));
+    canvas.addEventListener('mouseup', () => isDragging = false);
+    canvas.addEventListener('mouseleave', () => isDragging = false);
+    
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        checkClick(e.touches[0]);
+    });
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        updateDrag(e.touches[0]);
+    });
+    canvas.addEventListener('touchend', () => isDragging = false);
+
+    function checkClick(e) {
+        const mousePos = getMousePos(e);
+        const thetaRad = toRadians(laserAngle);
+        const sourceX = centerX - Math.sin(thetaRad) * 180;
+        const sourceY = centerY - Math.cos(thetaRad) * 180;
+        
+        const dist = Math.hypot(mousePos.x - sourceX, mousePos.y - sourceY);
+        if (dist < 40) isDragging = true;
+    }
+
+    function updateDrag(e) {
+        const mousePos = getMousePos(e);
+        const distHandle = Math.hypot(mousePos.x - (centerX - Math.sin(toRadians(laserAngle))*180), mousePos.y - (centerY - Math.cos(toRadians(laserAngle))*180));
+        canvas.style.cursor = distHandle < 40 ? 'pointer' : 'default';
+
+        if (isDragging && mousePos.y < centerY) {
+            let dx = centerX - mousePos.x;
+            let dy = centerY - mousePos.y;
+            let angle = Math.atan2(dx, dy) * (180 / Math.PI);
+            if (angle > 85) angle = 85;
+            if (angle < -85) angle = -85;
+            laserAngle = angle;
+        }
+    }
+
+    function getMousePos(evt) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+            y: (evt.clientY - rect.top) * (canvas.height / rect.height)
+        };
+    }
+
+    // --- Drawing Functions ---
+
+    function drawEnvironment() {
+        let gradSky = ctx.createLinearGradient(0, 0, 0, centerY);
+        if (materialType === "glass" || materialType === "diamond") {
+            gradSky.addColorStop(0, "#34495e"); 
+            gradSky.addColorStop(1, "#2c3e50");
+        } else {
+            gradSky.addColorStop(0, "#87CEEB"); 
+            gradSky.addColorStop(1, "#E0F7FA");
+        }
+        ctx.fillStyle = gradSky;
+        ctx.fillRect(0, 0, canvas.width, centerY);
+
+        if (materialType === "water") drawWater();
+        else if (materialType === "glass") drawGlass();
+        else if (materialType === "diamond") drawDiamond();
+        else {
+            ctx.fillStyle = "#E0F7FA";
+            ctx.fillRect(0, centerY, canvas.width, centerY);
+        }
+    }
+
+    function drawWater() {
+        let gradWater = ctx.createLinearGradient(0, centerY, 0, canvas.height);
+        gradWater.addColorStop(0, "rgba(0, 150, 200, 0.6)");
+        gradWater.addColorStop(1, "rgba(0, 50, 100, 0.9)");
+        ctx.fillStyle = gradWater;
+        ctx.fillRect(0, centerY, canvas.width, centerY);
+
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        for (let i = 0; i <= canvas.width; i+=10) {
+            let yOffset = Math.sin((i + time) * 0.05) * 3;
+            ctx.lineTo(i, centerY + yOffset);
+        }
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.lineTo(0, canvas.height);
+        ctx.fillStyle = "rgba(0, 100, 255, 0.2)";
+        ctx.fill();
+        
+        ctx.beginPath();
+        for (let i = 0; i <= canvas.width; i+=5) {
+            let yOffset = Math.sin((i + time) * 0.05) * 3;
+            ctx.lineTo(i, centerY + yOffset);
+        }
+        ctx.strokeStyle = "rgba(255,255,255,0.5)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255,255,255,0.3)";
+        bubbles.forEach(b => {
+            b.y -= b.speed;
+            if(b.y < centerY) b.y = canvas.height;
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+            ctx.fill();
+        });
+    }
+
+    function drawGlass() {
+        ctx.fillStyle = "#8d6e63"; 
+        ctx.fillRect(0, centerY, canvas.width, centerY);
+        ctx.strokeStyle = "#6d4c41";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for(let i=0; i<canvas.width; i+=40) {
+            ctx.moveTo(i, centerY);
+            ctx.lineTo(i + 20, canvas.height);
+        }
+        ctx.stroke();
+
+        const margin = 50;
+        const blockHeight = 200;
+        let gradGlass = ctx.createLinearGradient(0, centerY, 0, centerY + blockHeight);
+        gradGlass.addColorStop(0, "rgba(200, 240, 255, 0.7)");
+        gradGlass.addColorStop(1, "rgba(180, 220, 240, 0.5)");
+        
+        ctx.fillStyle = gradGlass;
+        ctx.fillRect(margin, centerY, canvas.width - margin*2, blockHeight);
+        ctx.strokeStyle = "rgba(100, 200, 180, 0.8)";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(margin, centerY, canvas.width - margin*2, blockHeight);
+        
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        ctx.beginPath();
+        ctx.moveTo(margin + 20, centerY);
+        ctx.lineTo(margin + 60, centerY);
+        ctx.lineTo(margin + 20, centerY + blockHeight);
+        ctx.lineTo(margin - 20, centerY + blockHeight);
+        ctx.fill();
+    }
+
+    function drawDiamond() {
+        ctx.fillStyle = "#1a1a1a";
+        ctx.fillRect(0, centerY, canvas.width, centerY);
+
+        let gradDia = ctx.createLinearGradient(centerX - 200, centerY, centerX + 200, canvas.height);
+        gradDia.addColorStop(0, "rgba(220, 240, 255, 0.8)");
+        gradDia.addColorStop(0.5, "rgba(255, 255, 255, 0.9)");
+        gradDia.addColorStop(1, "rgba(200, 230, 255, 0.8)");
+        
+        ctx.fillStyle = gradDia;
+        ctx.fillRect(0, centerY, canvas.width, canvas.height);
+
+        ctx.strokeStyle = "rgba(255,255,255,0.4)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for(let i=0; i<canvas.width; i+=100) {
+            ctx.moveTo(i, centerY);
+            ctx.lineTo(centerX, canvas.height);
+        }
+        ctx.stroke();
+    }
+
+    function drawLaser() {
+        let theta1 = toRadians(laserAngle);
+        let sinTheta2 = (n1 / n2) * Math.sin(theta1);
+        let theta2 = Math.asin(sinTheta2);
+        let isTIR = Math.abs(sinTheta2) > 1;
+
+        let srcX = centerX - Math.sin(theta1) * (radius - 50);
+        let srcY = centerY - Math.cos(theta1) * (radius - 50);
+
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "red";
+        ctx.strokeStyle = "#ff3333";
+        ctx.lineWidth = 4;
+        ctx.lineCap = "round";
+        
+        ctx.beginPath();
+        ctx.moveTo(srcX, srcY);
+        ctx.lineTo(centerX, centerY);
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#555";
+        ctx.beginPath();
+        ctx.arc(srcX, srcY, 12, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = "red";
+        ctx.beginPath();
+        ctx.arc(srcX, srcY, 6, 0, Math.PI*2);
+        ctx.fill();
+
+        if (!isTIR) {
+            let endX = centerX + Math.sin(theta2) * radius;
+            let endY = centerY + Math.cos(theta2) * radius;
+            
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "#00ff00";
+            ctx.strokeStyle = "#66ff66";
+            ctx.lineWidth = 3;
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            let grad = ctx.createLinearGradient(centerX, centerY, endX, endY);
+            grad.addColorStop(0, "rgba(100, 255, 100, 0.9)");
+            grad.addColorStop(1, "rgba(100, 255, 100, 0.0)");
+            ctx.strokeStyle = grad;
+            
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+        }
+
+        let refX = centerX - Math.sin(-theta1) * radius;
+        let refY = centerY - Math.cos(-theta1) * radius;
+        
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = "red";
+        let gradRef = ctx.createLinearGradient(centerX, centerY, refX, refY);
+        gradRef.addColorStop(0, "rgba(255, 50, 50, 0.5)");
+        gradRef.addColorStop(1, "rgba(255, 50, 50, 0.0)");
+        
+        ctx.strokeStyle = gradRef;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(refX, refY);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        angleAlphaDisplay.textContent = Math.abs(laserAngle).toFixed(1);
+        angleBetaDisplay.textContent = isTIR ? "-" : Math.abs(toDegrees(theta2)).toFixed(1);
+
+        drawHelpers(theta1, theta2, isTIR);
+    }
+
+    function drawHelpers(theta1, theta2, isTIR) {
+        if (showNormalCb.checked) {
+            ctx.beginPath();
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(centerX, 20);
+            ctx.lineTo(centerX, canvas.height - 20);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        if (showAnglesCb.checked) {
+            // Alpha
+            let startA = -Math.PI/2;
+            let endA = -Math.PI/2 - toRadians(laserAngle);
+            if (laserAngle > 0) drawArc(centerX, centerY, 50, endA, startA, "α", "#ffcccc");
+            else drawArc(centerX, centerY, 50, startA, endA, "α", "#ffcccc");
+
+            // Beta (Refraction Angle)
+            if (!isTIR) {
+                let normalAngle = Math.PI / 2;
+                let rayAngle = normalAngle - theta2;
+                if (theta2 > 0) {
+                    drawArc(centerX, centerY, 50, rayAngle, normalAngle, "β", "#ccffcc");
+                } else {
+                    drawArc(centerX, centerY, 50, normalAngle, rayAngle, "β", "#ccffcc");
+                }
+            }
+        }
+
+        if (showProtractorCb.checked) {
+            ctx.drawImage(protractorImg(), centerX - 200, centerY - 200, 400, 400);
+        }
+    }
+
+    function drawArc(x, y, r, s, e, label, color) {
+        ctx.beginPath();
+        ctx.arc(x, y, r, s, e);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        let mid = (s+e)/2;
+        let txtX = x + Math.cos(mid) * (r + 15);
+        let txtY = y + Math.sin(mid) * (r + 15);
+        ctx.fillStyle = color;
+        ctx.font = "bold 16px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, txtX, txtY);
+    }
+
+    let cachedProtractor = null;
+    function protractorImg() {
+        if (cachedProtractor) return cachedProtractor;
+        
+        let pCanvas = document.createElement('canvas');
+        pCanvas.width = 400;
+        pCanvas.height = 400;
+        let pCtx = pCanvas.getContext('2d');
+        let cx = 200, cy = 200;
+        
+        pCtx.beginPath();
+        pCtx.arc(cx, cy, 180, 0, Math.PI*2);
+        pCtx.strokeStyle = "rgba(255,255,255,0.3)";
+        pCtx.lineWidth = 2;
+        pCtx.stroke();
+
+        pCtx.fillStyle = "rgba(255,255,255,0.5)";
+        pCtx.textAlign = "center";
+        pCtx.font = "10px Arial";
+
+        for(let i=0; i<360; i+=10) {
+            let rad = toRadians(i);
+            let x1 = cx + Math.cos(rad)*170;
+            let y1 = cy + Math.sin(rad)*170;
+            let x2 = cx + Math.cos(rad)*180;
+            let y2 = cy + Math.sin(rad)*180;
+            
+            pCtx.beginPath();
+            pCtx.moveTo(x1, y1);
+            pCtx.lineTo(x2, y2);
+            pCtx.stroke();
+
+            if(i%30 === 0) {
+                 let tx = cx + Math.cos(rad)*155;
+                 let ty = cy + Math.sin(rad)*155;
+                 let label = i; 
+                 pCtx.fillText(label, tx, ty);
+            }
+        }
+        cachedProtractor = pCanvas;
+        return cachedProtractor;
+    }
+
+    function toRadians(deg) { return deg * Math.PI / 180; }
+    function toDegrees(rad) { return rad * 180 / Math.PI; }
+
+    function loop() {
+        time += 1;
+        drawEnvironment();
+        drawLaser();
+        requestAnimationFrame(loop);
+    }
+
+    loop();
+
+</script>
+</body>
+</html>
