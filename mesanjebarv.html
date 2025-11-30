@@ -7,7 +7,7 @@
     
     <style>
         /* ==================================== */
-        /* CSS STILI (STYLE.CSS)      */
+        /* CSS STILI */
         /* ==================================== */
         
         body {
@@ -67,11 +67,10 @@
         /* Postavitev segmentov v mrežo */
         .color-select-grid {
             display: grid;
-            /* Prilagodi širino stolpcev glede na število segmentov (CSS Variable) */
             grid-template-columns: repeat(var(--segments-count, 2), 1fr); 
             gap: 10px;
             margin-bottom: 20px;
-            width: 100%; /* Da se raztegne za boljšo mrežo */
+            width: 100%; 
         }
 
         .color-picker-item {
@@ -170,8 +169,8 @@
             </div>
 
         <div class="controls-group">
-            <label for="speedRange">Hitrost vrtenja:</label>
-            <input type="range" id="speedRange" min="1" max="100" value="50" oninput="nastaviHitrostIzDrsnika()">
+            <label for="speedRange">Hitrost vrtenja (max 200):</label>
+            <input type="range" id="speedRange" min="1" max="200" value="50" oninput="nastaviHitrostIzDrsnika()">
             <span id="speedValue">50</span>
         </div>
         
@@ -189,7 +188,7 @@
 
     <script>
         /* ==================================== */
-        /* JAVASCRIPT (SCRIPT.JS)      */
+        /* JAVASCRIPT LOGIKA */
         /* ==================================== */
         
         const disk = document.getElementById('vrteci-disk');
@@ -267,18 +266,22 @@
             const speed = parseInt(speedRange.value);
             speedValueSpan.textContent = speed; 
 
-            // Logika za pretvorbo drsnika (1-100) v trajanje animacije (5.0s do 0.01s)
+            // POSODOBLJENA LOGIKA za pretvorbo drsnika (1-200) v trajanje animacije (5.0s do 0.001s)
             let duration;
+
             if (speed < 10) duration = 5 - (speed * 0.4); 
-            else if (speed < 25) duration = 1.5 - ((speed - 10) * 0.05);
+            else if (speed < 25) duration = 1.5 - ((speed - 10) * 0.05); 
             else if (speed < 50) duration = 0.3 - ((speed - 25) * 0.008); 
             else if (speed < 75) duration = 0.1 - ((speed - 50) * 0.001); 
-            else duration = 0.05 - ((speed - 75) * 0.0005); 
+            else if (speed <= 100) duration = 0.05 - ((speed - 75) * 0.0005);
+            // Dodatna hitrost od 101 do 200
+            else if (speed < 150) duration = 0.012 - ((speed - 100) * 0.00008); 
+            else duration = 0.008 - ((speed - 150) * 0.00003); 
 
-            // Preprečite neveljavno trajanje
-            if (duration <= 0.01) duration = 0.01; 
+            // Preprečite neveljavno trajanje (minimalno 0.001 sekunde)
+            if (duration <= 0.001) duration = 0.001; 
             
-            disk.style.animationDuration = `${duration.toFixed(3)}s`;
+            disk.style.animationDuration = `${duration.toFixed(4)}s`;
         }
 
 
