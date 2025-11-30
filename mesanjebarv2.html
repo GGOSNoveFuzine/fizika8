@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optično Mešanje RGB Barv (Vrtavka)</title>
+    
+    <style>
+        /* ==================================== */
+        /* CSS STILI */
+        /* ==================================== */
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #e0f2f7; 
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 650px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .controls-group {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px; 
+        }
+
+        label {
+            font-weight: bold;
+            margin-right: 10px;
+            color: #555;
+        }
+
+        select, input[type="range"] {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            background-color: #f9f9f9;
+        }
+
+        /* Postavitev segmentov v mrežo */
+        .color-select-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--segments-count, 2), 1fr); 
+            gap: 10px;
+            margin-bottom: 20px;
+            width: 100%; 
+        }
+
+        .color-picker-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .color-picker-item label {
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .color-picker-item select {
+            padding: 8px 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 15px;
+            text-align: center;
+        }
+
+        .gumb {
+            padding: 12px 25px;
+            margin: 0 8px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 17px;
+            font-weight: bold;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .gumb:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .gumb-start { 
+            background-color: #28a745;
+            color: white; 
+        }
+        
+        .gumb-hitra-akcija { 
+            background-color: #ffc107;
+            color: #333; 
+        }
+
+
+        .gumb-stop { 
+            background-color: #dc3545;
+            color: white; 
+        }
+
+        .vrteci-disk {
+            width: 280px;
+            height: 280px;
+            border-radius: 50%; 
+            margin: 30px auto;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+            background: conic-gradient(#FF0000 0% 50%, #00FF00 50% 100%); 
+            animation: vrtenje 0s linear infinite paused; 
+            border: 5px solid #bdc3c7; 
+        }
+        
+        /* Definiramo ekstremno hitro animacijo v CSS, da obidemo omejitve JS */
+        .vrteci-disk.vrtenje-ekstremno-hitro {
+            animation-duration: 0.005s; /* Zelo hitro: 200 obratov/sekundo */
+        }
+
+        @keyframes vrtenje {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .opomba-zaslon {
+            margin-top: 30px;
+            max-width: 500px;
+            text-align: center;
+            font-size: 0.9em;
+            color: #666;
+            line-height: 1.5;
+            padding-top: 20px;
+            border-top: 1px dashed #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Optično Mešanje RGB Barv</h1>
+
+        <div class="controls-group">
+            <label for="numSegments">Število segmentov (2-8):</label>
+            <select id="numSegments" onchange="generateColorPickers()">
+                <option value="2">2 segmenta</option>
+                <option value="3">3 segmenta</option>
+                <option value="4">4 segmenti</option>
+                <option value="5">5 segmentov</option>
+                <option value="6">6 segmentov</option>
+                <option value="7">7 segmentov</option>
+                <option value="8">8 segmentov</option>
+            </select>
+        </div>
+
+        <div id="colorPickers" class="controls-group color-select-grid">
+            </div>
+
+        <div class="controls-group">
+            <label for="speedRange">Hitrost vrtenja (max 200):</label>
+            <input type="range" id="speedRange" min="1" max="200" value="50" oninput="nastaviHitrostIzDrsnika()">
+            <span id="speedValue">50</span>
+        </div>
+        
+        <div class="controls-group">
+            <button class="gumb gumb-start" onclick="zacniVrtenje()">Zaženi (iz drsnika)</button>
+            <button class="gumb gumb-hitra-akcija" onclick="zacniEkstremnoHitroVrtenje()">Ekstremno Hitro Zlitje</button>
+            <button class="gumb gumb-stop" onclick="ustaviVrtenje()">Ustavi</button>
+        </div>
+
+        <div id="vrteci-disk" class="vrteci-disk"></div>
+
+        <p class="opomba-zaslon">
+            **OPOMBA O ZASLONU:** Pri "Ekstremno Hitrem Zlitju" se trajanje nastavi na 0.005s. Če ste izbrali Rdečo in Zeleno, bi morali videti **Rumeno**. Če se barva ne zlije, je to posledica omejitev vašega brskalnika/naprave.
+        </p>
+    </div>
+
+    <script>
+        /* ==================================== */
+        /* JAVASCRIPT LOGIKA */
+        /* ==================================== */
+        
+        const disk = document.getElementById('vrteci-disk');
+        const numSegmentsSelect = document.getElementById('numSegments');
+        const colorPickersContainer = document.getElementById('colorPickers');
+        const speedRange = document.getElementById('speedRange');
+        const speedValueSpan = document.getElementById('speedValue');
+
+        // DEFINICIJA DOVOLJENIH BARV (Samo RGB + nevtralne)
+        const PRIMARY_COLORS = {
+            'Rdeča (R)': '#FF0000',
+            'Zelena (G)': '#00FF00',
+            'Modra (B)': '#0000FF',
+            'Bela': '#FFFFFF', 
+            'Črna': '#000000'
+        };
+
+        // Funkcija za generiranje izbirnikov barv (Select polj)
+        function generateColorPickers() {
+            const numSegments = parseInt(numSegmentsSelect.value);
+            colorPickersContainer.innerHTML = ''; 
+
+            // Nastavi CSS Grid za pravilno postavitev polj
+            colorPickersContainer.style.setProperty('--segments-count', numSegments);
+
+            // Privzete barve za hitro konfiguracijo
+            const defaultColors = ['Rdeča (R)', 'Zelena (G)', 'Modra (B)', 'Rdeča (R)', 'Zelena (G)', 'Modra (B)', 'Bela', 'Črna'];
+
+            for (let i = 0; i < numSegments; i++) {
+                const colorPickerWrapper = document.createElement('div');
+                colorPickerWrapper.className = 'color-picker-item';
+                
+                let selectHtml = `<label for="color${i}">Segment ${i + 1}:</label>`;
+                selectHtml += `<select id="color${i}" onchange="updateDiskGradient()">`;
+                
+                // Dodajanje opcij v padajoči seznam
+                for (const name in PRIMARY_COLORS) {
+                    const hex = PRIMARY_COLORS[name];
+                    // Nastavi privzeto barvo
+                    const isSelected = (name === defaultColors[i]) ? 'selected' : '';
+                    selectHtml += `<option value="${hex}" ${isSelected}>${name}</option>`;
+                }
+                selectHtml += `</select>`;
+
+                colorPickerWrapper.innerHTML = selectHtml;
+                colorPickersContainer.appendChild(colorPickerWrapper);
+            }
+            updateDiskGradient(); // Posodobi gradient
+        }
+
+        // Funkcija za posodabljanje conic gradienta diska
+        function updateDiskGradient() {
+            const numSegments = parseInt(numSegmentsSelect.value);
+            const segmentAngle = 100 / numSegments; // Procent za vsak segment
+            let gradientString = 'conic-gradient(';
+
+            for (let i = 0; i < numSegments; i++) {
+                const colorInput = document.getElementById(`color${i}`);
+                const colorHex = colorInput ? colorInput.value : PRIMARY_COLORS['Bela']; 
+
+                const startPercent = i * segmentAngle;
+                const endPercent = (i + 1) * segmentAngle;
+
+                gradientString += `${colorHex} ${startPercent}% ${endPercent}%`;
+                if (i < numSegments - 1) {
+                    gradientString += ', ';
+                }
+            }
+            gradientString += ')';
+            disk.style.background = gradientString;
+        }
+
+        // Funkcija za nastavitev hitrosti animacije glede na drsnik
+        function nastaviHitrostIzDrsnika() {
+            const speed = parseInt(speedRange.value);
+            speedValueSpan.textContent = speed; 
+            
+            // Odstrani razred za ekstremno hitrost, če se uporablja drsnik
+            disk.classList.remove('vrtenje-ekstremno-hitro');
+
+
+            // POSODOBLJENA LOGIKA za pretvorbo drsnika (1-200) v trajanje animacije (5.0s do 0.001s)
+            let duration;
+
+            if (speed < 10) duration = 5 - (speed * 0.4); 
+            else if (speed < 25) duration = 1.5 - ((speed - 10) * 0.05); 
+            else if (speed < 50) duration = 0.3 - ((speed - 25) * 0.008); 
+            else if (speed < 75) duration = 0.1 - ((speed - 50) * 0.001); 
+            else if (speed <= 100) duration = 0.05 - ((speed - 75) * 0.0005);
+            else if (speed < 150) duration = 0.012 - ((speed - 100) * 0.00008); 
+            else duration = 0.008 - ((speed - 150) * 0.00003); 
+
+            if (duration <= 0.001) duration = 0.001; 
+            
+            disk.style.animationDuration = `${duration.toFixed(4)}s`;
+        }
+
+
+        // Funkcija za zagon vrtenja z vrednostjo drsnika
+        function zacniVrtenje() {
+            disk.style.animationPlayState = 'running';
+            nastaviHitrostIzDrsnika(); 
+        }
+
+        // NOVO: Funkcija za zagon fiksne, ekstremne hitrosti (za zanesljivo zlitje)
+        function zacniEkstremnoHitroVrtenje() {
+            // Dodaj razred z ekstremno nizkim trajanjem animacije
+            disk.classList.add('vrtenje-ekstremno-hitro');
+            disk.style.animationDuration = ''; // Ponastavimo JS določeno trajanje
+            disk.style.animationPlayState = 'running';
+        }
+
+        // Funkcija za ustavitev vrtenja
+        function ustaviVrtenje() {
+            disk.style.animationPlayState = 'paused';
+        }
+
+        // Inicializacija ob nalaganju strani
+        document.addEventListener('DOMContentLoaded', () => {
+            generateColorPickers(); // Generiraj privzete izbirnike (2 segmenta)
+            nastaviHitrostIzDrsnika(); // Nastavi privzeto hitrost
+        });
+    </script>
+</body>
+</html>
