@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optična Klop: Lom Svetlobe - Ray Tracing</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+
+    <style>
+        /* --- STYLES - Sam' da je dark mode in fitnes --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: #f0f0f0;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            padding: 10px;
+        }
+
+        #canvas-container {
+            border: 2px solid #444;
+            background-color: #000;
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .controls-panel {
+            background-color: #2c2c2c;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            border: 1px solid #444;
+        }
+
+        .control-group {
+            background-color: #383838;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            position: relative;
+        }
+        
+        .control-group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #555;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+        }
+
+        .control-group h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #4da6ff;
+        }
+        
+        .lens-toggle {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #ccc;
+            font-size: 0.9rem;
+        }
+        
+        .lens-toggle input[type="checkbox"] {
+            margin: 0;
+            width: 16px;
+            height: 16px;
+            accent-color: #4da6ff;
+            cursor: pointer;
+        }
+
+        .control-item {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+        
+        select, input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background-color: #222;
+            color: #fff;
+            box-sizing: border-box;
+        }
+
+        .value-display {
+            font-size: 0.85rem;
+            color: #aaa;
+            text-align: right;
+            margin-top: -5px;
+        }
+
+        .mode-notice {
+            font-size: 0.8rem;
+            color: #ffcc00;
+            font-style: italic;
+            margin-top: 5px;
+        }
+        
+        .disabled-lens-controls {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Interaktivna Optična Klop (Lom Svetlobe)</h1>
+        
+        <div class="controls-panel">
+            
+            <div class="control-group">
+                <div class="control-group-header">
+                    <h2>1. Vir svetlobe</h2>
+                </div>
+                <div class="control-item">
+                    <label for="sourceMode">Tip vira:</label>
+                    <select id="sourceMode">
+                        <option value="beam">Svetlobni snop (Lom)</option>
+                        </select>
+                </div>
+
+                <div id="beamControls" class="control-item">
+                    <label for="beamSelect">Oblika snopa:</label>
+                    <select id="beamSelect">
+                        <option value="1">1 ozek žarek (Vzporedni)</option>
+                        <option value="3" selected>3 ozki žarki (Vzporedni)</option>
+                        <option value="5">5 ozkih žarkov (Vzporedni)</option>
+                        <option value="wide">Širok snop (Vzporedni)</option>
+                        <option value="2_div">2 žarka (Divergentni)</option>
+                        <option value="4_div">4 žarki (Divergentni)</option>
+                    </select>
+                </div>
+
+                <div id="sourcePositionControls" class="control-item">
+                    <label for="lightBoxXPos">X položaj vira:</label>
+                    <input type="range" id="lightBoxXPos" min="0" max="300" value="0">
+                    <div id="val-lightBoxXPos" class="value-display">X = 0</div>
+                </div>
+
+                <div id="sourceYOffsetControls" class="control-item">
+                    <label for="lightBoxYOffset">Y odmik vira:</label>
+                    <input type="range" id="lightBoxYOffset" min="-100" max="100" value="0">
+                    <div id="val-lightBoxYOffset" class="value-display">Y = 0</div>
+                </div>
+            </div>
+            
+            <div class="control-group" id="lens1Group">
+                <div class="control-group-header">
+                    <h2>2. Leča 1 ($F_1$)</h2>
+                    <label class="lens-toggle">
+                        <input type="checkbox" id="toggle1" checked> Vklop
+                    </label>
+                </div>
+                <div id="lens1Settings">
+                    <div class="control-item">
+                        <label for="type1">Tip leče:</label>
+                        <select id="type1">
+                            <option value="Bikonveksna" selected>Bikonveksna (Zbiralna)</option>
+                            <option value="Planokonveksna">Planokonveksna (Zbiralna)</option>
+                            <option value="Bikonkavna">Bikonkavna (Razpršilna)</option>
+                            <option value="Planokonkavna">Planokonkavna (Razpršilna)</option>
+                            <option value="Planparalelna">Planparalelna plošča</option>
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label for="curve1">Polmer ukrivljenosti (R):</label>
+                        <input type="range" id="curve1" min="80" max="600" value="250">
+                        <div id="val-curve1" class="value-display">R = 250</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group" id="lens2Group">
+                <div class="control-group-header">
+                    <h2>3. Leča 2 ($F_2$)</h2>
+                     <label class="lens-toggle">
+                        <input type="checkbox" id="toggle2" checked> Vklop
+                    </label>
+                </div>
+                <div id="lens2Settings">
+                    <div class="control-item">
+                        <label for="type2">Tip leče:</label>
+                        <select id="type2">
+                            <option value="Bikonveksna" selected>Bikonveksna (Zbiralna)</option>
+                            <option value="Planokonveksna">Planokonveksna (Zbiralna)</option>
+                            <option value="Bikonkavna">Bikonkavna (Razpršilna)</option>
+                            <option value="Planokonkavna">Planokonkavna (Razpršilna)</option>
+                            <option value="Planparalelna">Planparalelna plošča</option>
+                        </select>
+                    </div>
+                     <div class="control-item">
+                        <label for="curve2">Polmer ukrivljenosti (R):</label>
+                        <input type="range" id="curve2" min="80" max="600" value="300">
+                        <div id="val-curve2" class="value-display">R = 300</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="canvas-container"></div>
+    </div>
+
+    <script>
+        // --- KONSTANTE ---
+        const WIDTH = 1000;
+        const HEIGHT = 500;
+        const Optic_Axis_Y = HEIGHT / 2;
+        const LENS2_X_OFFSET = 300; 
+        const LENS_HEIGHT = 160;
+        const MIN_THICKNESS = 4; 
+        const Refractive_Index = 1.5;
+        const Light_Color = '#FFFF00'; 
+        const SOURCE_BOX_WIDTH = 60; 
+        
+        // --- SETUP & STATE ---
+        // Ni več object state, ker je ta feature off
+        
+        function setup() {
+            let canvas = createCanvas(WIDTH, HEIGHT);
+            canvas.parent('canvas-container'); 
+            
+            // Event listenerji - listenamo za vsak input
+            document.querySelectorAll('select, input[type="range"], input[type="checkbox"]').forEach(control => {
+                control.addEventListener('input', (e) => {
+                    updateUI();
+                });
+            });
+            
+            updateUI(); // First run, let's go!
+        }
+        
+        // Odstranjen mouse event handling, ker ni več predmeta (object mode is gone)
+        
+        function updateUI() {
+            // Update display values - to mora delat!
+            document.getElementById('val-curve1').innerText = "R = " + document.getElementById('curve1').value;
+            document.getElementById('val-curve2').innerText = "R = " + document.getElementById('curve2').value;
+            document.getElementById('val-lightBoxXPos').innerText = "X = " + document.getElementById('lightBoxXPos').value;
+            document.getElementById('val-lightBoxYOffset').innerText = "Y = " + document.getElementById('lightBoxYOffset').value;
+
+
+            // Način je fiksiran na "beam", ker smo odstranili "object" mode
+            // UI kontrolniki so vedno aktivni v tem 'beam' mode-u
+            
+            // Update lens activation status (opacities)
+            updateLensState(1);
+            updateLensState(2);
+        }
+        
+        function updateLensState(num) {
+            const toggle = document.getElementById(`toggle${num}`);
+            const settingsDiv = document.getElementById(`lens${num}Settings`);
+            
+            if (toggle.checked) {
+                // Leča je on, full opacity
+                settingsDiv.classList.remove('disabled-lens-controls');
+            } else {
+                // Leča je off/disabled
+                settingsDiv.classList.add('disabled-lens-controls');
+            }
+        }
+
+        function draw() {
+            background(20); 
+            
+            // Optična os - draw the main axis line
+            stroke(100);
+            strokeWeight(1);
+            drawingContext.setLineDash([10, 5]);
+            line(0, Optic_Axis_Y, WIDTH, Optic_Axis_Y);
+            drawingContext.setLineDash([]);
+
+            // Fizikalni parametri - lens positions are fixed in this mode
+            const lens1_X_Pos = 350; 
+            const lens2_X_Pos = lens1_X_Pos + LENS2_X_OFFSET;
+            
+            const isLens1Active = document.getElementById('toggle1').checked;
+            const isLens2Active = document.getElementById('toggle2').checked;
+
+            // Get lens parameters (focal length calculation is done here)
+            const lens1 = getLensParams(1, lens1_X_Pos, isLens1Active);
+            const lens2 = getLensParams(2, lens2_X_Pos, isLens2Active); 
+
+            // --- RISANJE LEČ --- Draw the lenses if they are ON
+            if (isLens1Active) { 
+                drawDynamicLens(lens1, "1");
+            }
+            if (isLens2Active) { 
+                drawDynamicLens(lens2, "2");
+            }
+            
+            // Get lightbox position from sliders
+            const lightBoxX = parseFloat(document.getElementById('lightBoxXPos').value);
+            const lightBoxYOffset = parseFloat(document.getElementById('lightBoxYOffset').value);
+            const lightBoxY = Optic_Axis_Y + lightBoxYOffset;
+            const sourceExitX = lightBoxX + SOURCE_BOX_WIDTH; // X where the rays start
+
+            // --- RISANJE VIRA SVETLOBE (Light box) ---
+            noStroke();
+            fill('#444');
+            // Light box body
+            rect(lightBoxX, lightBoxY - 50, SOURCE_BOX_WIDTH, 100); 
+            fill('#FFD700');
+            // Light slit (the actual source)
+            rect(lightBoxX + SOURCE_BOX_WIDTH - 5, lightBoxY - 40, 5, 80); 
+
+            // --- SLEDENJE ŽARKOM (Ray Tracing Logic) ---
+            const beamType = document.getElementById('beamSelect').value;
+            // Generate rays based on type, starting at (sourceExitX, lightBoxY)
+            const rays = generateRays(beamType, lens1_X_Pos, sourceExitX, lightBoxY);
+            // Trace each ray through the system
+            rays.forEach(ray => traceRaySystem(ray, lens1, lens2));
+        }
+
+        // --- LENS GEOMETRY & PHYSICS ---
+
+        function getLensParams(num, xPos, isActive) {
+            let type = document.getElementById(`type${num}`).value;
+            let R_slider = parseFloat(document.getElementById(`curve${num}`).value);
+            let R1 = Infinity, R2 = Infinity; 
+            
+            if (!isActive) {
+                // Leča je off, treatamo kot Air/Planparalelna plošča (f=inf)
+                type = "Planparalelna plošča";
+                R1 = Infinity;
+                R2 = Infinity;
+                R_slider = 300; // Value doesn't matter, but needs a number
+            } else {
+                // Uporabimo dejanske vrednosti iz UI
+                if (R_slider < LENS_HEIGHT/2 + 2) R_slider = LENS_HEIGHT/2 + 2;
+
+                // Standard Lens Maker's convention for R1 and R2
+                if (type.includes('Bikonveksna')) { R1 = R_slider; R2 = -R_slider; }
+                else if (type.includes('Planokonveksna')) { R1 = Infinity; R2 = -R_slider; }
+                else if (type.includes('Bikonkavna')) { R1 = -R_slider; R2 = R_slider; }
+                else if (type.includes('Planokonkavna')) { R1 = Infinity; R2 = R_slider; }
+                else if (type.includes('Planparalelna')) { R1 = Infinity; R2 = Infinity; } 
+            }
+
+            const f = calculateFocalLength(R1, R2);
+            
+            // Sagitta za drawing, calculated based on R and LENS_HEIGHT
+            const sag1 = (Math.abs(R1) === Infinity) ? 0 : Math.abs(R1) - Math.sqrt(Math.pow(Math.abs(R1), 2) - Math.pow(LENS_HEIGHT/2, 2));
+            const sag2 = (Math.abs(R2) === Infinity) ? 0 : Math.abs(R2) - Math.sqrt(Math.pow(Math.abs(R2), 2) - Math.pow(LENS_HEIGHT/2, 2));
+
+            return {
+                x: xPos,
+                type: type, 
+                R1: R1, R2: R2,
+                f: f, // Focal length is key for ray tracing
+                height: LENS_HEIGHT,
+                sag1: sag1, 
+                sag2: sag2  
+            };
+        }
+
+        function calculateFocalLength(R1, R2) {
+            // Lens Maker's Equation: 1/f = (n-1) * (1/R1 - 1/R2)
+            const n = Refractive_Index;
+            const term1 = (R1 === Infinity || R1 === -Infinity) ? 0 : 1 / R1;
+            const term2 = (R2 === Infinity || R2 === -Infinity) ? 0 : 1 / R2;
+            
+            if (term1 === 0 && term2 === 0) return Infinity; // Planar surfaces = infinite f
+
+            const one_over_f = (n - 1) * (term1 - term2);
+            if (one_over_f === 0) return Infinity;
+            return 1 / one_over_f;
+        }
+
+        function drawDynamicLens(lens, index) {
+            push();
+            translate(lens.x, Optic_Axis_Y);
+            
+            let alpha = document.getElementById(`toggle${index}`).checked ? 100 : 40; 
+
+            if (lens.f > 0) fill(100, 200, 255, alpha); // Converging - blueish
+            else if (lens.f < 0) fill(255, 100, 100, alpha); // Diverging - reddish
+            else fill(200, 200, 200, alpha); // Planar - grayish
+
+            stroke(150);
+            strokeWeight(2);
+
+            let centerT, edgeT;
+            const isConverging = lens.f > 0;
+            const isFlat = lens.f === Infinity;
+
+            // Calculate thickness based on sagitta
+            if (isFlat) {
+                centerT = 20;
+                edgeT = 20;
+            } else if (isConverging) {
+                edgeT = MIN_THICKNESS;
+                centerT = edgeT + lens.sag1 + lens.sag2; // Thick in the middle
+            } else {
+                centerT = MIN_THICKNESS;
+                edgeT = centerT + lens.sag1 + lens.sag2; // Thin in the middle
+            }
+            
+            // Draw the lens shape using Beziers (simplified representation)
+            beginShape();
+            // Right side (R2)
+            vertex(edgeT/2, -lens.height/2);
+            
+            if (Math.abs(lens.R2) === Infinity) {
+                vertex(edgeT/2, lens.height/2); 
+            } else {
+                if (lens.f > 0) { // Zbiralna/Converging
+                     bezierVertex(edgeT/2 + lens.sag2*1.3, -lens.height/4, 
+                                  edgeT/2 + lens.sag2*1.3, lens.height/4, 
+                                  edgeT/2, lens.height/2);
+                } else { // Razpršilna/Diverging
+                     bezierVertex(edgeT/2 - lens.sag2*1.3, -lens.height/4, 
+                                  edgeT/2 - lens.sag2*1.3, lens.height/4, 
+                                  edgeT/2, lens.height/2);
+                }
+            }
+
+            // Bottom edge 
+            vertex(-edgeT/2, lens.height/2);
+
+            // Left side (R1)
+             if (Math.abs(lens.R1) === Infinity) {
+                vertex(-edgeT/2, -lens.height/2);
+            } else {
+                if (lens.f > 0) { // Zbiralna/Converging
+                     bezierVertex(-edgeT/2 - lens.sag1*1.3, lens.height/4, 
+                                  -edgeT/2 - lens.sag1*1.3, -lens.height/4, 
+                                  -edgeT/2, -lens.height/2);
+                } else { // Razpršilna/Diverging
+                     bezierVertex(-edgeT/2 + lens.sag1*1.3, lens.height/4, 
+                                  -edgeT/2 + lens.sag1*1.3, -lens.height/4, 
+                                  -edgeT/2, -lens.height/2);
+                }
+            }
+            
+            endShape(CLOSE);
+
+            // --- Labels for f (focal length) and F/F' ---
+            noStroke();
+            fill(255);
+            textAlign(CENTER);
+            textSize(12);
+            
+            // Display f value in cm
+            let f_text = (Math.abs(lens.f) === Infinity) ? "∞" : Math.round(Math.abs(lens.f/10)) + " cm"; 
+            text(`f = ${f_text}`, 0, lens.height/2 + 20);
+
+            // Draw focal points (F and F') if f is finite
+            if (Math.abs(lens.f) !== Infinity) {
+                stroke(150, 150, 150, 150);
+                strokeWeight(1);
+                
+                let fVal = Math.abs(lens.f);
+                
+                // Left focal point (F)
+                line(-fVal, -5, -fVal, 5);
+                noStroke();
+                text("F", -fVal, 20);
+                
+                // Right focal point (F')
+                stroke(150);
+                line(fVal, -5, fVal, 5);
+                noStroke();
+                text("F'", fVal, 20);
+            }
+
+            pop();
+        }
+
+        // --- RAY GENERATION ---
+
+        function generateRays(type, lens1_X_Pos, sourceExitX, sourceY) {
+            const rays = [];
+            const separation = 20;
+            const startX = sourceExitX; 
+            const startY_center = sourceY;
+
+            let yTargetPositions = []; 
+            
+            if (type.includes('_div')) {
+                // Divergent rays: Startajo iz centralne točke (sourceExitX, sourceY)
+                const numRays = parseInt(type.split('_')[0]);
+                const maxHalfHeight = LENS_HEIGHT / 2 - 20; 
+                const step = (2 * maxHalfHeight) / (numRays + 1);
+                
+                // Določimo target Y positions na Leči 1
+                for (let i = 1; i <= numRays; i++) {
+                    const y_offset = (i - (numRays + 1) / 2) * step;
+                    yTargetPositions.push(Optic_Axis_Y + y_offset); // Target is relative to Optic_Axis_Y
+                }
+                
+                // Izračunamo angle za vsak žarek
+                yTargetPositions.forEach(y_target => {
+                    // Kut je arctan(deltaY / deltaX)
+                    const angle = atan((y_target - startY_center) / (lens1_X_Pos - startX));
+                    
+                    // Žarki vsi startajo v točki (startX, startY_center)
+                    rays.push({ x: startX, y: startY_center, angle: angle }); 
+                });
+                
+            } else if (type === 'wide') {
+                // Wide parallel beam (Vzporedni)
+                const numRays = 15; 
+                const startY_top = startY_center - (LENS_HEIGHT/2 - 10);
+                const beamHeight = LENS_HEIGHT - 20;
+
+                for (let i = 0; i < numRays; i++) {
+                    const y = startY_top + (i) * (beamHeight / numRays);
+                    rays.push({ x: startX, y: y, angle: 0 }); // Angle je 0, ker so parallel
+                }
+            } else {
+                // Narrow parallel beams (Vzporedni)
+                const numRays = parseInt(type);
+                
+                // Parallel rays so odmaknjeni skupaj z lightboxom
+                for (let i = 0; i < numRays; i++) {
+                    const offset = (i - (numRays - 1) / 2) * separation;
+                    rays.push({ x: startX, y: startY_center + offset, angle: 0 }); // Angle je 0
+                }
+            }
+            
+            return rays;
+        }
+
+        // --- RAY TRACING LOGIC (Thin Lens Model) ---
+
+        function traceRaySystem(ray, lens1, lens2) {
+            stroke(Light_Color);
+            strokeWeight(2);
+            noFill();
+
+            let path = [];
+            path.push({x: ray.x, y: ray.y});
+
+            // 1. Segment: From Source to Lens 1
+            let x1 = lens1.x;
+            // Izračunamo Y koordinato na ravnini leče 1
+            let y1 = ray.y + Math.tan(ray.angle) * (x1 - ray.x);
+            
+            // Check če žarek zgreši lečo (hits outside the LENS_HEIGHT zone)
+            if (Math.abs(y1 - Optic_Axis_Y) > LENS_HEIGHT/2) {
+                // Zgrešil! Gre straight ahead
+                let yEnd = ray.y + Math.tan(ray.angle) * (WIDTH - ray.x);
+                line(ray.x, ray.y, WIDTH, yEnd);
+                return;
+            }
+            path.push({x: x1, y: y1});
+
+            // Lom na Leči 1 (Refraction at Lens 1)
+            // Thin lens formula: angle_out = angle_in + (y_offset / f)
+            let y_off1 = Optic_Axis_Y - y1; // Offset od optične osi
+            let angle1 = ray.angle + (y_off1 / lens1.f);
+            
+            // 2. Segment: From Lens 1 to Lens 2
+            let x2 = lens2.x;
+            let y2 = y1 + Math.tan(angle1) * (x2 - x1);
+            
+            let hitLens2 = (Math.abs(y2 - Optic_Axis_Y) <= LENS_HEIGHT/2);
+
+            if (!hitLens2) {
+                // Zgrešil Lečo 2. Gre straight to the end
+                let yEnd = y1 + Math.tan(angle1) * (WIDTH - x1);
+                path.push({x: WIDTH, y: yEnd});
+            } else {
+                path.push({x: x2, y: y2});
+                // Lom na Leči 2
+                let y_off2 = Optic_Axis_Y - y2;
+                let angle2 = angle1 + (y_off2 / lens2.f);
+                
+                // 3. Segment: From Lens 2 to the end
+                let yEnd = y2 + Math.tan(angle2) * (WIDTH - x2);
+                path.push({x: WIDTH, y: yEnd});
+            }
+
+            // Draw the final path of the ray
+            beginShape();
+            path.forEach(p => vertex(p.x, p.y));
+            endShape();
+        }
+
+    </script>
+</body>
+</html>
