@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kamera obskura – demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #000;
+      color: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 1rem;
+      gap: 1rem;
+    }
+
+    h1 {
+      font-size: 1.2rem;
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      font-size: 0.9rem;
+      text-align: center;
+      max-width: 600px;
+    }
+
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    button {
+      padding: 0.6rem 1.2rem;
+      border-radius: 999px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #ffffff;
+      color: #000000;
+    }
+
+    button:active {
+      opacity: 0.7;
+    }
+
+    label {
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    #videoWrapper {
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      overflow: hidden;
+      border-radius: 1rem;
+      border: 2px solid #444;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform-origin: center center;
+    }
+
+    /* Obrnjena slika kot v kameri obskuri: 180° rotacija */
+    .inverted {
+      transform: rotate(180deg);
+    }
+
+    /* “Zatemnitev” – dodatna plast za simulacijo temne sobe */
+    #darkOverlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle, rgba(0,0,0,0) 0%, rgba(0,0,0,0.85) 80%);
+      opacity: 0.7;
+      transition: opacity 0.2s ease;
+    }
+
+    #darkOverlay[data-level="0"] { opacity: 0; }
+    #darkOverlay[data-level="1"] { opacity: 0.3; }
+    #darkOverlay[data-level="2"] { opacity: 0.5; }
+    #darkOverlay[data-level="3"] { opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <h1>Kamera obskura – iPhone demo</h1>
+  <p>
+    1. Pritisni <strong>Zaženi kamero</strong> in dovoli dostop.<br />
+    2. Slika je <strong>obrnjena na glavo</strong>, kot v kameri obskuri.<br />
+    3. Po želji vključi zatemnitev in zrcali zaslon na pametno tablo (AirPlay).
+  </p>
+
+  <div id="controls">
+    <button id="startBtn">Zaženi kamero</button>
+
+    <label>
+      <input type="checkbox" id="invertToggle" checked />
+      Obrni sliko (kamera obskura)
+    </label>
+
+    <label>
+      Zatemnitev:
+      <select id="darkLevel">
+        <option value="0">brez</option>
+        <option value="1">malo</option>
+        <option value="2">srednje</option>
+        <option value="3" selected>močno</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="videoWrapper">
+    <video id="camera" autoplay playsinline muted></video>
+    <div id="darkOverlay" data-level="3"></div>
+  </div>
+
+  <script>
+    (function () {
+      const startBtn = document.getElementById("startBtn");
+      const video = document.getElementById("camera");
+      const invertToggle = document.getElementById("invertToggle");
+      const darkOverlay = document.getElementById("darkOverlay");
+      const darkLevel = document.getElementById("darkLevel");
+
+      let stream = null;
+
+      async function startCamera() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          alert("Ta brskalnik ne podpira kamere. Odpri stran v Safariju na iPhonu.");
+          return;
+        }
+
+        try {
+          // Zadnja kamera (facingMode: environment) – bolje za demonstracijo
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: "environment" }
+            },
+            audio: false
+          });
+
+          video.srcObject = stream;
+          await video.play();
+        } catch (err) {
+          console.error(err);
+          alert("Napaka pri dostopu do kamere: " + err.message);
+        }
+      }
+
+      startBtn.addEventListener("click", startCamera);
+
+      invertToggle.addEventListener("change", () => {
+        if (invertToggle.checked)
