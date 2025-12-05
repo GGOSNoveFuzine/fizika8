@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preslikava z Lečo (Image Formation) - Fixed</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+
+    <style>
+        /* --- STYLES --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* Fill full viewport */
+            overflow: hidden; /* No scrollbars on body */
+        }
+
+        /* Compact Header */
+        .header-strip {
+            flex-shrink: 0; /* Don't shrink */
+            width: 100%;
+            background-color: #2c2c2c;
+            border-bottom: 1px solid #444;
+            padding: 8px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 10;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: #f0f0f0;
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            white-space: nowrap;
+            margin-right: 20px;
+        }
+
+        .controls-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            flex-grow: 1;
+        }
+
+        .control-group {
+            background-color: #383838;
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-group h2 {
+            margin: 0;
+            font-size: 0.8rem;
+            color: #4da6ff;
+            margin-right: 5px;
+            border-right: 1px solid #555;
+            padding-right: 8px;
+            text-transform: uppercase;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            width: 110px;
+        }
+
+        .control-item.short {
+            width: 80px;
+        }
+        
+        .control-item.wide {
+            width: 140px;
+        }
+
+        label {
+            margin-bottom: 1px;
+            font-size: 0.7rem;
+            color: #bbb;
+        }
+        
+        select, input[type="range"] {
+            width: 100%;
+            padding: 0;
+            height: 20px;
+            font-size: 0.8rem;
+            border-radius: 2px;
+            border: 1px solid #555;
+            background-color: #222;
+            color: #fff;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+
+        .value-display {
+            font-size: 0.65rem;
+            color: #aaa;
+            text-align: right;
+            margin-top: -1px;
+            font-family: monospace;
+        }
+
+        /* Main Canvas Area - Fills remaining space */
+        #canvas-wrapper {
+            flex-grow: 1;
+            width: 100%;
+            position: relative;
+            background-color: #000;
+            overflow: hidden; /* Canvas handles drawing */
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(30, 30, 30, 0.9);
+            padding: 8px 25px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            display: flex;
+            gap: 30px;
+            border: 1px solid #555;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .legend-item { display: flex; align-items: center; gap: 10px; color: #ddd; font-weight: 500; }
+        .dot-object { width: 10px; height: 10px; background: #00FF00; border-radius: 50%; box-shadow: 0 0 5px #00FF00; }
+        .dot-image { width: 10px; height: 10px; background: #FF4444; border-radius: 50%; box-shadow: 0 0 5px #FF4444; }
+        .dot-virtual { width: 10px; height: 10px; border: 2px dotted #FF8888; border-radius: 50%; }
+
+        /* Magnification Display */
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(30, 30, 30, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            color: #ddd;
+            font-size: 0.85rem;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Compact Header Controls -->
+    <div class="header-strip">
+        <h1>Optika</h1>
+        <div class="controls-container">
+            
+            <!-- Controls for Object -->
+            <div class="control-group">
+                <h2>Predmet</h2>
+                <div class="control-item">
+                    <label for="objectPos">Položaj (X)</label>
+                    <input type="range" id="objectPos" min="0" max="2000" value="200">
+                    <div id="val-objectPos" class="value-display">200</div>
+                </div>
+                <div class="control-item short">
+                    <label for="objectHeight">Višina (h)</label>
+                    <input type="range" id="objectHeight" min="10" max="150" value="60">
+                    <div id="val-objectHeight" class="value-display">60</div>
+                </div>
+            </div>
+            
+            <!-- Controls for Lens -->
+            <div class="control-group">
+                <h2>Leča</h2>
+                <div class="control-item">
+                    <label for="lensPos">Položaj (X)</label>
+                    <input type="range" id="lensPos" min="0" max="2000" value="800">
+                    <div id="val-lensPos" class="value-display">0</div>
+                </div>
+                <div class="control-item wide">
+                    <label for="lensType">Tip</label>
+                    <select id="lensType">
+                        <option value="Bikonveksna" selected>Zbiralna (Convex)</option>
+                        <option value="Bikonkavna">Razpršilna (Concave)</option>
+                    </select>
+                </div>
+                <div class="control-item short">
+                    <label for="lensCurve">R (Focus)</label>
+                    <!-- Default R=300 for a comfortable 2F distance -->
+                    <input type="range" id="lensCurve" min="250" max="1000" value="300">
+                    <div id="val-lensCurve" class="value-display">300</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Main Large Canvas Wrapper -->
+    <div id="canvas-wrapper">
+        <div id="canvas-container"></div>
+        
+        <!-- Live Data Panel -->
+        <div class="info-panel" id="dataPanel">
+            Povečava (M): 1.0x
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><div class="dot-object"></div> Predmet</div>
+            <div class="legend-item"><div class="dot-image"></div> Realna Slika</div>
+            <div class="legend-item"><div class="dot-virtual"></div> Navidezna Slika</div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS ---
+        const REFRACTIVE_INDEX = 1.5;
+        const LENS_HEIGHT = 400; 
+        const MIN_THICKNESS = 6;
+        const MIN_SAFE_R = 250; 
+        
+        let opticAxisY; 
+        let isInitialized = false;
+
+        function setup() {
+            let wrapper = document.getElementById('canvas-wrapper');
+            let canvas = createCanvas(wrapper.offsetWidth, wrapper.offsetHeight);
+            canvas.parent('canvas-container');
+            
+            opticAxisY = height / 2;
+            
+            document.querySelectorAll('input, select').forEach(el => {
+                el.addEventListener('input', updateLabels);
+            });
+            
+            // Initial setup of positions
+            setInitialPositions();
+            updateSliderRanges();
+            updateLabels();
+        }
+
+        function windowResized() {
+            let wrapper = document.getElementById('canvas-wrapper');
+            resizeCanvas(wrapper.offsetWidth, wrapper.offsetHeight);
+            opticAxisY = height / 2;
+            updateSliderRanges();
+        }
+        
+        function setInitialPositions() {
+            // 1. Center the lens
+            const centerX = width / 2;
+            document.getElementById('lensPos').value = centerX;
+            
+            // 2. Calculate Focal Length for default R=300
+            const defaultR = 300; 
+            const f = defaultR; 
+            
+            // 3. Place Object at 2F (left of lens)
+            const objectStart = centerX - (2 * f);
+            document.getElementById('objectPos').value = objectStart;
+            
+            isInitialized = true;
+        }
+        
+        function updateSliderRanges() {
+            document.getElementById('objectPos').max = width;
+            document.getElementById('lensPos').max = width;
+        }
+
+        function updateLabels() {
+            // Update Object Labels (Absolute X)
+            document.getElementById('val-objectPos').innerText = document.getElementById('objectPos').value;
+            document.getElementById('val-objectHeight').innerText = document.getElementById('objectHeight').value;
+            
+            // Update Lens Label (Relative to Center)
+            const lensVal = parseFloat(document.getElementById('lensPos').value);
+            const centerOffset = Math.round(lensVal - (width / 2));
+            const sign = (centerOffset > 0) ? "+" : "";
+            document.getElementById('val-lensPos').innerText = sign + centerOffset;
+            
+            document.getElementById('val-lensCurve').innerText = document.getElementById('lensCurve').value;
+        }
+
+        function draw() {
+            background(20);
+
+            // 1. Get Values
+            let objX = parseFloat(document.getElementById('objectPos').value);
+            let objH = parseFloat(document.getElementById('objectHeight').value);
+            let lensX = parseFloat(document.getElementById('lensPos').value);
+            let rawR = parseFloat(document.getElementById('lensCurve').value);
+            let type = document.getElementById('lensType').value;
+
+            // Ensure R is physically possible
+            let R = Math.max(rawR, MIN_SAFE_R);
+
+            // 2. Calculate Focal Length (f)
+            let f = calculateFocalLength(type, R);
+            
+            // 3. Draw Optical Axis
+            stroke(80);
+            strokeWeight(1);
+            drawingContext.setLineDash([10, 5]);
+            line(0, opticAxisY, width, opticAxisY);
+            drawingContext.setLineDash([]);
+            
+            // Draw Center Mark for reference
+            stroke(50);
+            line(width/2, 0, width/2, height);
+
+            // 4. Draw Focal Points (F, 2F)
+            drawFocalPoints(lensX, f);
+
+            // 5. Draw Object (Arrow)
+            drawArrow(objX, opticAxisY, objH, '#00FF00', "Predmet");
+
+            // 6. Draw Lens
+            drawLens(lensX, type, R, f);
+
+            // 7. Calculate Image
+            let d_object = lensX - objX; // Distance Object to Lens
+            let magnification = 0;
+            
+            if (Math.abs(d_object - f) < 2) {
+                drawRaysInfinity(objX, -objH, lensX, f);
+                document.getElementById('dataPanel').innerHTML = "Slika v neskončnosti";
+            } else {
+                let d_image = 1 / ((1/f) - (1/d_object));
+                magnification = -d_image / d_object;
+                
+                let imgX = lensX + d_image;
+                let imgH = objH * magnification; 
+
+                // 8. Draw Image (Arrow)
+                let isReal = (d_image > 0);
+                
+                let imgLabel = isReal ? "Realna" : "Navidezna";
+                let imgColor = isReal ? '#FF4444' : '#FF8888';
+                
+                // Only draw if within reasonable bounds
+                if (Math.abs(imgX) < 50000) { 
+                    drawArrow(imgX, opticAxisY, imgH, imgColor, imgLabel, !isReal);
+                    // 9. Ray Tracing
+                    drawPrincipalRays(objX, -objH, lensX, imgX, -imgH, f);
+                }
+                
+                // Update Info Panel
+                let magText = Math.abs(magnification).toFixed(2) + "x";
+                let typeText = isReal ? "Obrnjena" : "Pokončna";
+                document.getElementById('dataPanel').innerHTML = 
+                    `Povečava: <b>${magText}</b> <br> Tip: ${typeText}`;
+            }
+        }
+
+        // --- PHYSICS HELPERS ---
+
+        function calculateFocalLength(type, R) {
+            let n = REFRACTIVE_INDEX;
+            let R1, R2;
+            
+            if (type === "Bikonveksna") { R1 = R; R2 = -R; }
+            else if (type === "Bikonkavna") { R1 = -R; R2 = R; }
+
+            let val = (n - 1) * ((1/R1) - (1/R2));
+            return 1 / val;
+        }
+
+        // --- DRAWING HELPERS ---
+
+        function drawFocalPoints(lensX, f) {
+            fill(255);
+            noStroke();
+            textSize(12);
+            textAlign(CENTER);
+            
+            let absF = Math.abs(f);
+
+            // Helper to draw a tick
+            function drawTick(x, label, isMajor) {
+                stroke(isMajor ? 150 : 80);
+                line(x, opticAxisY - 5, x, opticAxisY + 5);
+                noStroke();
+                fill(isMajor ? 255 : 180);
+                text(label, x, opticAxisY + 20);
+            }
+
+            // Draw F and 2F on both sides
+            drawTick(lensX - absF, "F", true);
+            drawTick(lensX + absF, "F'", true);
+            
+            drawTick(lensX - 2*absF, "2F", false);
+            drawTick(lensX + 2*absF, "2F'", false);
+            
+            // Show f value
+            fill(150);
+            text(`f = ${Math.round(absF)} px`, lensX, opticAxisY + LENS_HEIGHT/2 + 30);
+        }
+
+        function drawArrow(x, yBase, h, color, label, isVirtual = false) {
+            if (Math.abs(h) < 0.1 || Math.abs(x) > 50000) return;
+
+            stroke(color);
+            strokeWeight(3); 
+            if (isVirtual) drawingContext.setLineDash([5, 5]);
+            
+            let yTip = yBase - h;
+            
+            line(x, yBase, x, yTip);
+            
+            push();
+            translate(x, yTip);
+            if (h > 0) rotate(0); 
+            else rotate(PI);
+            
+            noStroke();
+            fill(color);
+            triangle(0, 0, -5, 10, 5, 10);
+            pop();
+
+            drawingContext.setLineDash([]);
+            
+            noStroke();
+            fill(color);
+            textAlign(CENTER);
+            textSize(12);
+            let textY = yBase + (h > 0 ? 20 : -20);
+            text(label, x, textY);
+            
+            // DRAW SIZE LABEL (NEW)
+            // Position it to the right of the midpoint
+            let sizeVal = Math.round(Math.abs(h));
+            textAlign(LEFT);
+            fill(200);
+            textSize(11);
+            text(`h=${sizeVal}`, x + 12, yBase - h/2);
+        }
+
+        function drawLens(x, type, R, f) {
+            push();
+            translate(x, opticAxisY);
+            
+            if (f > 0) fill(100, 200, 255, 100);
+            else fill(255, 100, 100, 100);
+            
+            stroke(150);
+            strokeWeight(2);
+
+            let halfH = LENS_HEIGHT / 2;
+            let safeR = Math.max(R, halfH + 10);
+            let sag = safeR - Math.sqrt(safeR*safeR - halfH*halfH);
+            
+            let wMid = (f > 0) ? MIN_THICKNESS + sag*2 : MIN_THICKNESS;
+            let wEdge = (f > 0) ? MIN_THICKNESS : MIN_THICKNESS + sag*2;
+
+            beginShape();
+            if (type.includes("Bikonveksna")) {
+                vertex(0, -halfH);
+                bezierVertex(wMid, -halfH/2, wMid, halfH/2, 0, halfH);
+                bezierVertex(-wMid, halfH/2, -wMid, -halfH/2, 0, -halfH);
+            } else { 
+                vertex(-wEdge/2, -halfH);
+                bezierVertex(0, -halfH/2, 0, halfH/2, -wEdge/2, halfH);
+                vertex(wEdge/2, halfH);
+                bezierVertex(0, halfH/2, 0, -halfH/2, wEdge/2, -halfH);
+            }
+            endShape(CLOSE);
+            
+            stroke(255, 50);
+            line(0, -halfH, 0, halfH);
+            pop();
+        }
+
+        // --- CORRECTED FUNCTION ---
+        function drawPrincipalRays(objX, objH, lensX, imgX, imgH, f) {
+            let yObjTip = opticAxisY + objH;
+            let yImgTip = opticAxisY + imgH;
+            
+            stroke('#FFFF00');
+            strokeWeight(1.5);
+            noFill();
+
+            let isRealImage = (imgX > lensX);
+            
+            // RAY 1: Parallel -> Focus
+            // Only draw if ray hits within lens physical height
+            if (Math.abs(objH) < LENS_HEIGHT / 2) {
+                line(objX, yObjTip, lensX, yObjTip); 
+                
+                if (isRealImage) {
+                    let slope1 = (yImgTip - yObjTip) / (imgX - lensX);
+                    let endX1 = Math.max(width, imgX + 200);
+                    let endY1 = yObjTip + slope1 * (endX1 - lensX);
+                    line(lensX, yObjTip, endX1, endY1);
+                } else {
+                    let slope1 = (yObjTip - yImgTip) / (lensX - imgX);
+                    let endX1 = width;
+                    let endY1 = yObjTip + slope1 * (endX1 - lensX);
+                    line(lensX, yObjTip, endX1, endY1);
+
+                    stroke(255, 150);
+                    drawingContext.setLineDash([5, 5]);
+                    line(lensX, yObjTip, imgX, yImgTip);
+                    drawingContext.setLineDash([]);
+                    stroke('#FFFF00');
+                }
+            }
+
+            // RAY 2: Center (Always valid)
+            let slope2 = (opticAxisY - yObjTip) / (lensX - objX);
+            let endX2 = width;
+            let endY2 = yObjTip + slope2 * (endX2 - objX);
+            line(objX, yObjTip, endX2, endY2);
+            
+            if (!isRealImage) {
+                 stroke(255, 150);
+                 drawingContext.setLineDash([5, 5]);
+                 line(lensX, opticAxisY, imgX, yImgTip);
+                 drawingContext.setLineDash([]);
+                 stroke('#FFFF00');
+            }
+
+            // RAY 3: Focus -> Parallel
+            // FIX: Only draw if the ray hits within the physical lens height
+            // When Object approaches Focus, imgH becomes infinite. This check suppresses the glitchy ray.
+            if (Math.abs(imgH) < LENS_HEIGHT / 2) {
+                line(objX, yObjTip, lensX, yImgTip);
+                line(lensX, yImgTip, width, yImgTip);
+                
+                if (!isRealImage) {
+                    stroke(255, 150);
+                    drawingContext.setLineDash([5, 5]);
+                    line(lensX, yImgTip, imgX, yImgTip);
+                    drawingContext.setLineDash([]);
+                    stroke('#FFFF00');
+                }
+            }
+        }
+        
+        function drawRaysInfinity(objX, objH, lensX, f) {
+            let yObjTip = opticAxisY + objH;
+            stroke('#FFFF00');
+            strokeWeight(1.5);
+            
+            line(objX, yObjTip, lensX, yObjTip);
+            line(lensX, yObjTip, width, yObjTip + (width-lensX)*( (opticAxisY - yObjTip)/f ) );
+            
+            line(objX, yObjTip, width, yObjTip + (width-objX)*( (opticAxisY - yObjTip)/(lensX-objX) ) );
+            
+            fill(255);
+            noStroke();
+            textSize(16);
+            textAlign(CENTER);
+            text("Slika v neskončnosti (Žarki so vzporedni)", width/2, height-40);
+        }
+
+    </script>
+</body>
+</html>
