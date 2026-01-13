@@ -26,15 +26,29 @@
       --acc:#38bdf8; --hot:#f97316; --shadow:#0008; --ring:#facc15;
     }
     *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; color:var(--ink);
+    
+    /* FIX: Changed height to min-height and adjusted flex alignment */
+    html, body { min-height: 100%; }
+    body {
+      margin: 0; 
+      color: var(--ink);
       background: radial-gradient(1200px 800px at 10% -10%, #0b1220 0%, var(--bg1) 60%),
                   linear-gradient(160deg, var(--bg1), var(--bg2));
-      font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
-      display:flex; align-items:center; justify-content:center; padding:20px;
+      font: 16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      display: flex; 
+      flex-direction: column;
+      align-items: center; 
+      justify-content: flex-start; /* Ensure content starts at the top */
+      padding: 40px 20px;
     }
-    .wrap{width:100%; max-width:1100px}
+
+    /* FIX: margin: auto on the wrapper allows centering without breaking scroll */
+    .wrap {
+      width: 100%; 
+      max-width: 1100px;
+      margin: auto 0; 
+    }
+
     .skip{position:absolute; left:8px; top:-40px; z-index:100; background:#111827; color:#fff;
       padding:8px 12px; border-radius:10px; text-decoration:none; border:1px solid #2b2b2b;
       transition:top .15s ease;}
@@ -61,60 +75,31 @@
     p{margin:0 0 12px; color:var(--muted)}
     .pill{display:inline-block; font-weight:700; color:#041a10;
       background:linear-gradient(180deg, var(--acc), #1ea0d7); border-radius:999px; padding:6px 10px; font-size:12px;}
-    footer{color:var(--muted); font-size:14px; text-align:center; margin-top:14px;}
+    footer{color:var(--muted); font-size:14px; text-align:center; margin-top:24px;}
     .section-title{margin:18px 4px 10px; font-size:20px}
     @media (prefers-reduced-motion: reduce){.card{transition:none}.card:hover{transform:none}}
 
     /* --- SPECIAL CARDS --- */
-
-    /* 1. Ninja Card (Blue) */
     .ninja-card {
-      background: linear-gradient(180deg, #1e40af, #3b82f6); /* Bright blue */
+      background: linear-gradient(180deg, #1e40af, #3b82f6);
       border: 1px solid #2563eb;
       box-shadow: 0 0 20px #3b82f688;
     }
     .ninja-card .badge {
-      background: linear-gradient(180deg, #facc15, #eab308); /* Golden badge */
+      background: linear-gradient(180deg, #facc15, #eab308);
       color: #1f2937;
     }
-
-    /* 2. Yellow/Gold Card (High Contrast) */
     .yellow-card {
-      background: linear-gradient(180deg, #facc15, #eab308); /* Vivid Yellow/Orange */
+      background: linear-gradient(180deg, #facc15, #eab308);
       border: 1px solid #fde047;
       box-shadow: 0 0 20px rgba(234, 179, 8, 0.4);
-      color: #1c1917; /* Dark text for max contrast */
+      color: #1c1917;
     }
-    
-    /* Override specific text colors inside yellow card for readability */
-    .yellow-card h3 {
-      color: #0f172a;
-      font-weight: 800;
-    }
-    .yellow-card p {
-      color: #451a03; /* Dark brown description */
-      font-weight: 600;
-    }
-
-    /* Adjust the icon box inside yellow card */
-    .yellow-card .icon {
-      background: rgba(255, 255, 255, 0.4); /* Semi-transparent white */
-      border: 1px solid rgba(255,255,255,0.6);
-      color: #000;
-    }
-
-    /* Badge on yellow card */
-    .yellow-card .badge {
-      background: #0f172a; /* Dark badge */
-      color: #facc15; /* Yellow text */
-    }
-
-    /* Button on yellow card */
-    .yellow-card .pill {
-      background: #0f172a; /* Dark button */
-      color: #ffffff;
-    }
-    
+    .yellow-card h3 { color: #0f172a; font-weight: 800; }
+    .yellow-card p { color: #451a03; font-weight: 600; }
+    .yellow-card .icon { background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(255,255,255,0.6); color: #000; }
+    .yellow-card .badge { background: #0f172a; color: #facc15; }
+    .yellow-card .pill { background: #0f172a; color: #ffffff; }
   </style>
 </head>
 <body>
@@ -216,32 +201,30 @@
           <p>Prižgi tri reflektorje! Razišči mešanje RGB svetlobe in ustvarjaj barvne sence v 3D prostoru.</p>
           <span class="pill">Eksperimentiraj →</span>
         </a>
-		<a class="card yellow-card" href="odbojsvetlobebucike.html">
-		  <span class="badge">NOVO</span>
-		  <div class="icon" aria-hidden="true">📐</div>
-		  <h3>Odboj z bucikami</h3>
-		  <p>Digitalna verzija klasičnega poskusa! Postavi bucike, zadeni zrcalo in z geotrikotnikom preveri, ali res velja <strong>α = β</strong>.</p>
-		  <span class="pill">Izmeri kote →</span>
-		</a>
-		
+        <a class="card yellow-card" href="odbojsvetlobebucike.html">
+          <span class="badge">NOVO</span>
+          <div class="icon" aria-hidden="true">📐</div>
+          <h3>Odboj z bucikami</h3>
+          <p>Digitalna verzija klasičnega poskusa! Postavi bucike, zadeni zrcalo in z geotrikotnikom preveri, ali res velja <strong>α = β</strong>.</p>
+          <span class="pill">Izmeri kote →</span>
+        </a>
+        
         <a class="card yellow-card" href="lomsvetlobereality.html">
-		  <span class="badge">NOVO</span>
-		  <div class="icon" aria-hidden="true">🌊</div>
-		  <h3>Lom svetlobe – Realistična simulacija</h3>
-		  <p>Opazuj lom žarka pri prehodu med različnimi snovmi (voda, steklo, diamant) in preveri Snellov zakon. Preizkusi totalni odboj!</p>
-		  <span class="pill">Raziskuj →</span>
-		</a>
+          <span class="badge">NOVO</span>
+          <div class="icon" aria-hidden="true">🌊</div>
+          <h3>Lom svetlobe – Realistična simulacija</h3>
+          <p>Opazuj lom žarka pri prehodu med različnimi snovmi (voda, steklo, diamant) in preveri Snellov zakon. Preizkusi totalni odboj!</p>
+          <span class="pill">Raziskuj →</span>
+        </a>
         
         <a class="card yellow-card" href="lece.html">
-		  <span class="badge">NOVO</span>
-		  <div class="icon" aria-hidden="true">🔍</div>
-		  <h3>Leče – Interaktivna Optična Klop</h3>
-		  <p>Eksperimentiraj z zbiralnimi in razpršilnimi lečami! Spreminjaj ukrivljenost (R) in opazuj lom svetlobe.</p>
-		  <span class="pill">Razišči →</span>
-		</a>
-		
+          <span class="badge">NOVO</span>
+          <div class="icon" aria-hidden="true">🔍</div>
+          <h3>Leče – Interaktivna Optična Klop</h3>
+          <p>Eksperimentiraj z zbiralnimi in razpršilnimi lečami! Spreminjaj ukrivljenost (R) in opazuj lom svetlobe.</p>
+          <span class="pill">Razišči →</span>
+        </a>
       </div>
-
     </main>
 
     <footer>
