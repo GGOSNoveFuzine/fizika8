@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <title>Newtonov Top - Clean UI</title>
+    <style>
+        /* BASE STYLES - Dark mode on, vse centrirano */
+        body { 
+            background: #0b0d10; 
+            color: white; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            height: 100vh;
+        }
+
+        canvas { 
+            display: block; 
+            background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%); 
+        }
+
+        /* INFO PANEL - lebdeči status zgoraj */
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            text-align: center;
+            pointer-events: none; 
+            text-shadow: 0 0 10px black;
+            z-index: 10;
+        }
+
+        h1 { margin: 0; font-size: 2em; color: #44aaff; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .vacuum-warning {
+            color: #ffaa00;
+            font-weight: bold;
+            background: rgba(0,0,0,0.6);
+            padding: 5px 15px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-top: 5px;
+            border: 1px solid #ffaa00;
+            font-size: 0.9em;
+        }
+
+        .status { color: #aaa; font-size: 1.2em; margin-top: 10px; font-weight: 300; min-height: 1.5em; transition: color 0.3s; }
+
+        /* CONTROLS CONTAINER - Spodnji dashboard */
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            background: rgba(20, 20, 25, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px 30px;
+            border-radius: 20px;
+            border: 1px solid #444;
+            display: flex;
+            gap: 40px;
+            align-items: flex-end; /* Poravnava spodaj */
+            box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+            z-index: 10;
+        }
+
+        /* SKUPINE KONTROL */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+            min-width: 150px; /* Malo širine da je stabilno */
+        }
+
+        .label-title {
+            font-size: 0.9em;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+        
+        /* INPUT RANGE STYLING */
+        input[type=range] {
+            -webkit-appearance: none;
+            height: 8px;
+            background: #333;
+            border-radius: 5px;
+            outline: none;
+            cursor: pointer;
+            margin-top: 10px; /* Malo placa */
+        }
+
+        /* Modri slider (Launch Speed) */
+        #speedInput { width: 250px; }
+        #speedInput::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 25px; height: 25px;
+            background: #44aaff;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #44aaff;
+            transition: transform 0.1s;
+        }
+        #speedInput::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+        /* Zelen slider (Time Warp) */
+        #warpInput { width: 150px; }
+        #warpInput::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px; height: 20px;
+            background: #00ff00;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00ff00;
+            transition: transform 0.1s;
+        }
+        #warpInput::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+        .value-display { font-size: 1.3em; font-weight: bold; color: white; }
+
+        /* BIG RED BUTTON */
+        button#fireBtn {
+            background: linear-gradient(135deg, #ff3300, #cc0000);
+            color: white;
+            font-size: 1.4em;
+            font-weight: 900;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 20px rgba(255, 50, 0, 0.4);
+            transition: all 0.2s ease;
+            height: 60px;
+        }
+        button#fireBtn:active { transform: scale(0.95); }
+        button#fireBtn:hover { filter: brightness(1.2); }
+
+    </style>
+</head>
+<body>
+
+<div class="info-panel">
+    <h1>Newtonov Top</h1>
+    <div class="vacuum-warning">⚠ POGOJI: NI ATMOSFERE (Vacuum Mode)</div>
+    <div class="status" id="statusText">Ready for launch. Nastavi hitrost.</div>
+</div>
+
+<canvas id="simCanvas"></canvas>
+
+<div class="controls">
+    
+    <div class="control-group">
+        <div class="label-title">Launch Velocity</div>
+        <div class="value-display"><span id="speedVal">5.0</span> km/s</div>
+        <input type="range" id="speedInput" min="0" max="11" step="0.1" value="5.0">
+    </div>
+
+    <button id="fireBtn">STRELJAJ 💥</button>
+
+    <div class="control-group">
+        <div class="label-title">Time Warp (Sim Speed)</div>
+        <div class="value-display">x<span id="warpVal">1</span></div>
+        <input type="range" id="warpInput" min="1" max="20" step="1" value="1">
+    </div>
+
+</div>
+
+<script>
+// --- ELEMENTI ---
+const canvas = document.getElementById('simCanvas');
+const ctx = canvas.getContext('2d');
+const statusText = document.getElementById('statusText');
+
+// Inputs
+const speedInput = document.getElementById('speedInput');
+const speedVal = document.getElementById('speedVal');
+const warpInput = document.getElementById('warpInput');
+const warpVal = document.getElementById('warpVal');
+const fireBtn = document.getElementById('fireBtn');
+
+// Fullscreen logic
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+const center = { x: canvas.width / 2, y: canvas.height / 2 };
+
+// --- FIZIKA CONFIG ---
+const PLANET_RADIUS = 120;
+const MOUNTAIN_HEIGHT = 40;
+const GRAVITY_CONSTANT = 4000; // G * M
+const START_RADIUS = PLANET_RADIUS + MOUNTAIN_HEIGHT;
+
+// Koliko daleč dovolimo, preden rečemo "OK, zdej pa dost"?
+// Povečamo limit, da lahko elipsa gre fuuul daleč ven.
+const HARD_KILL_LIMIT = 50000; 
+
+// --- STATE ---
+let projectile = null;
+let trail = [];
+let isRunning = false;
+let simSpeed = 1; // Multiplier za hitrost simulacije
+
+// --- KLASA PROJEKTIL ---
+class Projectile {
+    constructor(speed) {
+        this.x = center.x;
+        this.y = center.y - START_RADIUS;
+        this.vx = speed; 
+        this.vy = 0;
+        this.crashed = false;
+        this.escaped = false;
+    }
+
+    update() {
+        if (this.crashed || this.escaped) return;
+
+        // 1. Distanca od centra
+        const dx = this.x - center.x;
+        const dy = this.y - center.y;
+        const dist = Math.sqrt(dx*dx + dy*dy); 
+
+        // 2. TRK (Ground Hit)
+        if (dist <= PLANET_RADIUS) {
+            this.crashed = true;
+            statusText.innerText = "💥 TRK! Gravitacija ne odpušča.";
+            statusText.style.color = "#ff4444";
+            isRunning = false;
+            return;
+        }
+
+        // 3. LOGIKA ZA "OFF SCREEN"
+        // Checkamo, če smo zunaj vidnega polja
+        const screenLimit = Math.max(canvas.width, canvas.height) * 0.6; // Malo čez rob
+
+        if (dist > screenLimit) {
+            
+            // MATH MAGIC: Izračunamo ubežno hitrost na tej točki
+            // Formula: v_escape = sqrt(2 * GM / r)
+            const escapeVelocityAtDistance = Math.sqrt((2 * GRAVITY_CONSTANT) / dist);
+            
+            // Trenutna hitrost projektila
+            const currentSpeed = Math.sqrt(this.vx*this.vx + this.vy*this.vy);
+
+            if (dist > HARD_KILL_LIMIT) {
+                // Če je pa res že predaleč (tehnični limit), ga ubijemo
+                this.escaped = true;
+                statusText.innerText = "🚀 POBEG! Adijo, vesolje!";
+                statusText.style.color = "#ffff00";
+                isRunning = false;
+                return;
+            }
+
+            if (currentSpeed >= escapeVelocityAtDistance) {
+                // Če je hitrejši od ubežne, se NE bo vrnil
+                // Lahko takoj rečemo bye bye
+                statusText.innerText = "🚀 POBEG! Hitrost je prevelika, ne bo ga nazaj.";
+                statusText.style.color = "#ffaa00";
+            } else {
+                // Če je počasnejši, je še vedno ujet v elipso!
+                // Tuki pride tvoj zahtevan tekst
+                statusText.innerText = "👀 ČAK ŠE MAL, LAHKO DA PRIDE NAZAJ!!! (Eliptična orbita)";
+                statusText.style.color = "#00ffcc"; // Cyan barva za upanje
+            }
+        } else {
+            // Če je na zaslonu, resetiramo tekst (če še nismo crashnili)
+            if (!this.crashed && isRunning && frames > 50) {
+                 statusText.innerText = "Simulacija teče...";
+                 statusText.style.color = "#aaa";
+            }
+        }
+
+        // 4. GRAVITACIJA
+        const force = GRAVITY_CONSTANT / (dist * dist);
+        const ax = -force * (dx / dist);
+        const ay = -force * (dy / dist);
+
+        this.vx += ax;
+        this.vy += ay;
+        this.x += this.vx;
+        this.y += this.vy;
+    }
+
+    addToTrail() {
+        // To kličemo ločeno, da ne spamamo trail arraya ko je Time Warp na max
+        trail.push({x: this.x, y: this.y});
+        if (trail.length > 800) trail.shift(); 
+    }
+}
+
+// --- MAIN LOOP ---
+let frames = 0;
+
+function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Risanje Planeta
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, PLANET_RADIUS, 0, Math.PI * 2);
+    const grad = ctx.createRadialGradient(center.x, center.y, 20, center.x, center.y, PLANET_RADIUS);
+    grad.addColorStop(0, "#2244aa");
+    grad.addColorStop(1, "#001133");
+    ctx.fillStyle = grad;
+    ctx.fill();
+    
+    // Risanje Hriba
+    ctx.beginPath();
+    ctx.moveTo(center.x, center.y - PLANET_RADIUS - MOUNTAIN_HEIGHT);
+    ctx.lineTo(center.x - 20, center.y - PLANET_RADIUS + 5);
+    ctx.lineTo(center.x + 20, center.y - PLANET_RADIUS + 5);
+    ctx.fillStyle = "#444";
+    ctx.fill();
+
+    // Risanje Topa
+    ctx.fillStyle = "#ff3300";
+    ctx.fillRect(center.x - 5, center.y - START_RADIUS, 10, 5);
+
+    // LOGIKA SIMULACIJE
+    if (projectile) {
+        if (isRunning) {
+            // TIME WARP: Če je simSpeed > 1, naredimo več physics korakov na en frame
+            // To je boljše kot povečevanje "dt", ker ohranja natančnost fizike
+            for(let i = 0; i < simSpeed; i++) {
+                projectile.update();
+                if(!isRunning) break; // Če vmes crashne, nehaj z loopom
+            }
+            frames++;
+            
+            // Trail dodamo samo enkrat na frame, drgač se array zabije v sekundi
+            projectile.addToTrail();
+        }
+        
+        // Risanje
+        drawTrail();
+        drawProjectile(projectile);
+
+        // Success check za krožno orbito (ko je v kadru)
+        // Če smo v kadru in laufa že dolgo in ni trka
+        const dx = projectile.x - center.x;
+        const dy = projectile.y - center.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        
+        if (isRunning && frames > 400 && dist < Math.max(canvas.width, canvas.height)) {
+             // Če ni glih "čak še mal" status, pol je verjetno stabilna
+             if(!statusText.innerText.includes("ČAK ŠE MAL")) {
+                 statusText.innerText = "STABILNA ORBITA! (Nice shot)";
+                 statusText.style.color = "#00ff00";
+             }
+        }
+    }
+
+    requestAnimationFrame(loop);
+}
+
+// Helpers za risanje
+function drawProjectile(p) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff";
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "white";
+    ctx.fill();
+    ctx.shadowBlur = 0;
+}
+
+function drawTrail() {
+    if (trail.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(trail[0].x, trail[0].y);
+    for (let point of trail) {
+        ctx.lineTo(point.x, point.y);
+    }
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+
+// --- EVENT HANDLERS ---
+
+// Speed slider input
+speedInput.addEventListener('input', (e) => {
+    speedVal.innerText = parseFloat(e.target.value).toFixed(1);
+});
+
+// Time Warp input
+warpInput.addEventListener('input', (e) => {
+    simSpeed = parseInt(e.target.value);
+    warpVal.innerText = simSpeed;
+});
+
+// FIRE BUTTON
+fireBtn.addEventListener('click', () => {
+    const speed = parseFloat(speedInput.value);
+    
+    // Reset vsega
+    trail = [];
+    frames = 0;
+    isRunning = true;
+    
+    // Nov launch
+    projectile = new Projectile(speed);
+    
+    // Začetni hype tekst
+    if (speed < 7) {
+        statusText.innerText = "Launch: Gremo!";
+        statusText.style.color = "white";
+    } else {
+        statusText.innerText = "Launch: Full power!";
+        statusText.style.color = "#44aaff";
+    }
+});
+
+// Window Resize
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    center.x = canvas.width / 2;
+    center.y = canvas.height / 2;
+});
+
+// Start engine
+loop();
+
+</script>
+</body>
+</html>

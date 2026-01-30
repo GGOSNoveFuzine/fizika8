@@ -27,7 +27,6 @@
     }
     *{box-sizing:border-box}
     
-    /* FIX: Changed height to min-height and adjusted flex alignment */
     html, body { min-height: 100%; }
     body {
       margin: 0; 
@@ -38,11 +37,10 @@
       display: flex; 
       flex-direction: column;
       align-items: center; 
-      justify-content: flex-start; /* Ensure content starts at the top */
+      justify-content: flex-start; 
       padding: 40px 20px;
     }
 
-    /* FIX: margin: auto on the wrapper allows centering without breaking scroll */
     .wrap {
       width: 100%; 
       max-width: 1100px;
@@ -100,6 +98,13 @@
     .yellow-card .icon { background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(255,255,255,0.6); color: #000; }
     .yellow-card .badge { background: #0f172a; color: #facc15; }
     .yellow-card .pill { background: #0f172a; color: #ffffff; }
+
+    .space-card {
+      background: linear-gradient(135deg, #4c1d95, #1e1b4b);
+      border: 1px solid #6d28d9;
+      box-shadow: 0 0 20px rgba(109, 40, 217, 0.4);
+    }
+    .space-card .icon { background: #2e1065; border-color: #4c1d95; }
   </style>
 </head>
 <body>
@@ -137,7 +142,6 @@
         </a>
 
         <a class="card" href="flappypredpona.html">
-          <span class="badge">PRENOVLJENO</span>
           <div class="icon">🐦</div>
           <h3>Flappy Bird – Predpone</h3>
           <p>Poleti čim dlje in zberi pravilne predpone, da napolniš gorivo.</p>
@@ -145,7 +149,6 @@
         </a>
 
         <a class="card ninja-card" href="ninjapredpone.html">
-          <span class="badge">NOVO</span>
           <div class="icon">🥷</div>
           <h3>Ninja – Predpone</h3>
           <p>Razsekaj napačne, ulovi pravilne predpone – treniraj reflekse in znanje!</p>
@@ -153,7 +156,6 @@
         </a>
 
         <a class="card yellow-card" href="shmup_prefix.html">
-          <span class="badge">NOVO</span>
           <div class="icon">🚀</div>
           <h3>Warzone</h3>
           <p>Postani vesoljski pilot! Streljaj na sovražnike, osvoji predpone in nadgradi orožje.</p>
@@ -187,7 +189,6 @@
       <h2 class="section-title" id="sek-svetloba">Svetloba</h2>
       <div class="grid" aria-labelledby="sek-svetloba">
         <a class="card yellow-card" href="sencamrk.html">
-          <span class="badge">NOVO</span>
           <div class="icon" aria-hidden="true">🌘</div>
           <h3>Sence in mrki</h3>
           <p>Postani mojster senc! Simuliraj sončev mrk, lovi umbro in razišči, zakaj včasih vidimo le obroč.</p>
@@ -195,14 +196,12 @@
         </a>
 
         <a class="card yellow-card" href="svetilkeinsence.html">
-          <span class="badge">NOVO</span>
           <div class="icon" aria-hidden="true">🔦</div>
           <h3>Laboratorij svetil in senc</h3>
           <p>Prižgi tri reflektorje! Razišči mešanje RGB svetlobe in ustvarjaj barvne sence v 3D prostoru.</p>
           <span class="pill">Eksperimentiraj →</span>
         </a>
         <a class="card yellow-card" href="odbojsvetlobebucike.html">
-          <span class="badge">NOVO</span>
           <div class="icon" aria-hidden="true">📐</div>
           <h3>Odboj z bucikami</h3>
           <p>Digitalna verzija klasičnega poskusa! Postavi bucike, zadeni zrcalo in z geotrikotnikom preveri, ali res velja <strong>α = β</strong>.</p>
@@ -210,7 +209,6 @@
         </a>
         
         <a class="card yellow-card" href="lomsvetlobereality.html">
-          <span class="badge">NOVO</span>
           <div class="icon" aria-hidden="true">🌊</div>
           <h3>Lom svetlobe – Realistična simulacija</h3>
           <p>Opazuj lom žarka pri prehodu med različnimi snovmi (voda, steklo, diamant) in preveri Snellov zakon. Preizkusi totalni odboj!</p>
@@ -218,11 +216,37 @@
         </a>
         
         <a class="card yellow-card" href="lece.html">
-          <span class="badge">NOVO</span>
           <div class="icon" aria-hidden="true">🔍</div>
           <h3>Leče – Interaktivna Optična Klop</h3>
           <p>Eksperimentiraj z zbiralnimi in razpršilnimi lečami! Spreminjaj ukrivljenost (R) in opazuj lom svetlobe.</p>
           <span class="pill">Razišči →</span>
+        </a>
+      </div>
+
+      <h2 class="section-title" id="sek-vesolje">Vesolje</h2>
+      <div class="grid" aria-labelledby="sek-vesolje">
+        <a class="card space-card" href="osoncje.html">
+          <span class="badge">NOVO</span>
+          <div class="icon" aria-hidden="true">🌌</div>
+          <h3>Interaktivno Osončje</h3>
+          <p>Razišči naše sosedstvo! Klikni na planete za podatke o hitrosti, razdalji in zanimivostih.</p>
+          <span class="pill">Vzlet →</span>
+        </a>
+
+        <a class="card space-card" href="opozicija.html">
+          <span class="badge">NOVO</span>
+          <div class="icon" aria-hidden="true">🪐</div>
+          <h3>Opozicija in konjunkcija</h3>
+          <p>Ujemi planete v vrsto! Opazuj, kdaj so planeti najbližje Zemlji in kdaj se skrijejo za Sonce.</p>
+          <span class="pill">V orbito →</span>
+        </a>
+
+        <a class="card space-card" href="newtnov_top.html">
+          <span class="badge">NOVO</span>
+          <div class="icon" aria-hidden="true">💣</div>
+          <h3>Newtonov top</h3>
+          <p>Izstreli kroglo tako močno, da bo sosedu podrla dimnik na drugi strani sveta (ali pač ostala v orbiti).</p>
+          <span class="pill">BUM! 💥 →</span>
         </a>
       </div>
     </main>

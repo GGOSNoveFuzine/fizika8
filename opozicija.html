@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <title>Astronomska Simulacija - Urban Style</title>
+    <style>
+        /* Setup za body - dark mode on, flexbox za centriranje vsega */
+        body { background: #050505; color: white; font-family: sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
+        
+        /* Canvas ima gradient, da zgleda bolj spacey */
+        canvas { background: radial-gradient(circle, #111 0%, #000 70%); }
+        
+        /* Panel levo zgoraj - info box */
+        .panel { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.9); padding: 20px; border-radius: 12px; border-left: 6px solid #00ff00; min-width: 300px; }
+        #event-name { font-size: 1.6em; color: #00ff00; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
+        .desc { color: #bbb; margin-bottom: 10px; font-style: italic; }
+        
+        /* Spodnji del za kontrole - sliderji in gumbi */
+        .controls { position: absolute; bottom: 30px; background: #1a1a1a; padding: 15px 30px; border-radius: 15px; display: flex; flex-direction: column; gap: 15px; align-items: center; border: 1px solid #333; }
+        .row { display: flex; gap: 20px; align-items: center; }
+        
+        /* Gumbek style */
+        button { padding: 10px 25px; background: #00ff00; border: none; border-radius: 20px; color: black; font-weight: bold; cursor: pointer; }
+        button:hover { background: #33ff33; }
+
+        /* Checkboxi - custom styling da zgleda clean */
+        .toggles label { cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em; user-select: none; }
+        input[type="checkbox"] { accent-color: #00ff00; transform: scale(1.2); }
+        .toggles { display: flex; gap: 15px; border-top: 1px solid #333; padding-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="panel">
+    <div id="event-name">SIMULACIJA TEČE</div>
+    <div id="event-desc" class="desc">Planeti krožijo...</div>
+    <div id="day-counter" style="font-family: monospace;">Dan: 0</div>
+</div>
+
+<canvas id="orbitCanvas"></canvas>
+
+<div class="controls">
+    <div class="row">
+        <label>Hitrost: <input type="range" id="speedRange" min="0.1" max="10" step="0.1" value="2"></label>
+        <button id="resumeBtn" style="display:none;">NADALJUJ ▶</button>
+    </div>
+    
+    <div class="toggles">
+        <span style="color:#888; font-size:0.8em; margin-right:5px;">ZAZNAVAJ:</span>
+        <label><input type="checkbox" id="checkMercury" checked> Merkur</label>
+        <label><input type="checkbox" id="checkMars" checked> Mars</label>
+        <label><input type="checkbox" id="checkJupiter" checked> Jupiter</label>
+    </div>
+</div>
+
+<script>
+// Grabamo elemente iz DOM-a, da jih lahko manipuliramo
+const canvas = document.getElementById('orbitCanvas');
+const ctx = canvas.getContext('2d');
+const speedInput = document.getElementById('speedRange');
+const resumeBtn = document.getElementById('resumeBtn');
+const eventName = document.getElementById('event-name');
+const eventDesc = document.getElementById('event-desc');
+const dayDisplay = document.getElementById('day-counter');
+
+// Checkboxi za user input
+const checkMercury = document.getElementById('checkMercury');
+const checkMars = document.getElementById('checkMars');
+const checkJupiter = document.getElementById('checkJupiter');
+
+// Fullscreen canvas setup
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+const center = { x: canvas.width / 2, y: canvas.height / 2 };
+
+// State variabli
+let isPaused = false;
+let days = 0;
+let frames = 0;
+
+// PLANET CONFIG
+// Tuki so vsi podatki. 'eventsEnabled' določa, če nas briga za evente tega planeta.
+const planets = {
+    mercury: { name: "Merkur", r: 85,  speed: 0.041,  angle: 1.2, color: "#A5A5A5", size: 5, lastSin: 0, eventsEnabled: true },
+    earth:   { name: "Zemlja", r: 190, speed: 0.010,  angle: 0,   color: "#2277ff", size: 8, lastSin: 0, eventsEnabled: false }, // Zemlja nima checkboxa, ker je referenca
+    mars:    { name: "Mars",   r: 260, speed: 0.0053, angle: 5.0, color: "#ff4422", size: 6, lastSin: 0, eventsEnabled: true },
+    jupiter: { name: "Jupiter", r: 340, speed: 0.0008, angle: 3.5, color: "#ffcc88", size: 15, lastSin: 0, eventsEnabled: true }
+};
+
+// Event listenerji: ko user klika checkboxe, updejtamo state v objektu
+checkMercury.addEventListener('change', (e) => planets.mercury.eventsEnabled = e.target.checked);
+checkMars.addEventListener('change', (e) => planets.mars.eventsEnabled = e.target.checked);
+checkJupiter.addEventListener('change', (e) => planets.jupiter.eventsEnabled = e.target.checked);
+
+// MAIN LOOP
+function update() {
+    if (!isPaused) {
+        const speed = parseFloat(speedInput.value);
+        frames += speed;
+        
+        // Štejemo dneve, vsakih 10 frame-ov je en dan (roughly)
+        if (frames >= 10) { days++; frames = 0; dayDisplay.innerText = "Dan: " + days; }
+
+        // Premikanje vseh planetov - to se dogaja skos, tud če so "ugasnjeni" na UI
+        planets.mercury.angle += planets.mercury.speed * speed;
+        planets.earth.angle += planets.earth.speed * speed;
+        planets.mars.angle += planets.mars.speed * speed;
+        planets.jupiter.angle += planets.jupiter.speed * speed;
+
+        // Checkiramo, če se je kaj zgodilo
+        checkEvents();
+    }
+    // Risanje scene
+    draw();
+    requestAnimationFrame(update);
+}
+
+// LOGIKA ZA EVENTE (The Brains)
+function checkEvents() {
+    // Kje je Zemlja? (koordinate)
+    const eX = Math.cos(planets.earth.angle) * planets.earth.r;
+    const eY = Math.sin(planets.earth.angle) * planets.earth.r;
+
+    // Loopamo čez ostale planete
+    [planets.mercury, planets.mars, planets.jupiter].forEach(p => {
+        let relAngle = p.angle - planets.earth.angle;
+        let currentSin = Math.sin(relAngle);
+
+        // ALIGNMENT DETECTED: Ko sinus zamenja predznak, smo prečkali linijo
+        if ((p.lastSin < 0 && currentSin >= 0) || (p.lastSin > 0 && currentSin <= 0)) {
+            
+            // KEY FEATURE: Ustavimo samo, če je user rekel "I want to see this planet"
+            if (p.eventsEnabled) {
+                const pX = Math.cos(p.angle) * p.r;
+                const pY = Math.sin(p.angle) * p.r;
+                // Pitagora za distanco
+                const distEarthPlanet = Math.sqrt((pX - eX)**2 + (pY - eY)**2);
+
+                if (p.name === "Merkur") {
+                    // Merkur je specifičen (notranji planet)
+                    if (distEarthPlanet < planets.earth.r) {
+                        trigger("SPODNJA KONJUNKCIJA", `Merkur je med Zemljo in Soncem.`);
+                    } else {
+                        trigger("ZGORNJA KONJUNKCIJA", `Sonce je med Zemljo in Merkurjem.`);
+                    }
+                } else { 
+                    // Zunanji planeti (Mars, Jupiter)
+                    if (distEarthPlanet < p.r) {
+                        // Bližje nam je -> Opozicija
+                        trigger("OPOZICIJA", `Zemlja je med Soncem in planetom ${p.name}.`);
+                    } else {
+                        // Dlji od nas -> Konjunkcija
+                        trigger("KONJUNKCIJA", `Sonce je med Zemljo in planetom ${p.name}.`);
+                    }
+                }
+            }
+        }
+        // Vedno updejtamo lastSin, da matematika ne "crkne", če user vklopi checkbox sredi orbite
+        p.lastSin = currentSin;
+    });
+}
+
+// Helper funkcija za pavzo in prikaz teksta
+function trigger(name, desc) {
+    isPaused = true;
+    eventName.innerText = name;
+    eventDesc.innerText = desc;
+    resumeBtn.style.display = 'block'; // Pokaži gumb za nadaljevanje
+}
+
+// Resume gumb logic
+resumeBtn.addEventListener('click', () => {
+    isPaused = false;
+    resumeBtn.style.display = 'none';
+    eventName.innerText = "SIMULACIJA TEČE";
+    
+    // Nudgamo planete malenkost naprej, da ne ostanemo "stuck" v eventu
+    planets.mercury.angle += 0.01;
+    planets.mars.angle += 0.01;
+    planets.jupiter.angle += 0.01;
+});
+
+function draw() {
+    // Spucamo canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Risanje orbit (tiste tanke črte)
+    ctx.strokeStyle = "rgba(255,255,255,0.1)";
+    Object.values(planets).forEach(p => {
+        ctx.beginPath(); ctx.arc(center.x, center.y, p.r, 0, Math.PI * 2); ctx.stroke();
+    });
+
+    // Zelena črta (alignment line), vidna samo ko je pavza
+    if (isPaused) {
+        ctx.beginPath();
+        // Narišemo dolgo črto skozi center
+        ctx.moveTo(center.x - Math.cos(planets.earth.angle)*600, center.y - Math.sin(planets.earth.angle)*600);
+        ctx.lineTo(center.x + Math.cos(planets.earth.angle)*600, center.y + Math.sin(planets.earth.angle)*600);
+        ctx.strokeStyle = "rgba(0, 255, 0, 0.3)";
+        ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    // Sonce (Centerpiece)
+    ctx.beginPath(); ctx.arc(center.x, center.y, 20, 0, Math.PI * 2);
+    ctx.fillStyle = "yellow"; ctx.shadowBlur = 30; ctx.shadowColor = "orange"; ctx.fill(); ctx.shadowBlur = 0;
+
+    // Risanje planetov
+    Object.values(planets).forEach(p => {
+        const x = center.x + Math.cos(p.angle) * p.r;
+        const y = center.y + Math.sin(p.angle) * p.r;
+        
+        ctx.beginPath(); ctx.arc(x, y, p.size, 0, Math.PI * 2);
+        
+        // VISUAL CUE: Če je planet unchecked, ga narišemo "ghosted" (prosojno)
+        if (p.eventsEnabled === false && p.name !== "Zemlja") {
+            ctx.globalAlpha = 0.4;
+        } else {
+            ctx.globalAlpha = 1.0;
+        }
+        
+        ctx.fillStyle = p.color; ctx.fill();
+        ctx.globalAlpha = 1.0; // Reset alpha, da tekst ni prosojen
+
+        ctx.fillStyle = "white"; ctx.font = "12px sans-serif"; ctx.fillText(p.name, x + 12, y + 5);
+    });
+}
+
+// Let's go! Startamo animacijo.
+update();
+
+// Če user risajza okno, moramo popravit canvas koordinate
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    center.x = canvas.width / 2;
+    center.y = canvas.height / 2;
+});
+</script>
+</body>
+</html>
