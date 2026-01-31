@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <title>Keplerjevi Zakoni - Master Edition</title>
+    <style>
+        /* --- BASE STYLE --- */
+        body {
+            background: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- HEADER & TIP --- */
+        .header-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        h1 { margin: 0; color: #38bdf8; font-size: 1.5rem; letter-spacing: 2px; text-transform: uppercase; }
+
+        .tip-box {
+            background: rgba(56, 189, 248, 0.15);
+            border-left: 4px solid #38bdf8;
+            padding: 10px 15px;
+            border-radius: 0 8px 8px 0;
+            color: #e2e8f0;
+            font-size: 0.9rem;
+            max-width: 400px;
+            line-height: 1.4;
+            text-shadow: 1px 1px 2px black;
+        }
+        .highlight { color: #fff; font-weight: bold; }
+
+        /* --- BIG STATS (HUD) --- */
+        .info-hud {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            text-align: right;
+            pointer-events: none;
+            background: rgba(15, 23, 42, 0.85);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            backdrop-filter: blur(5px);
+        }
+        .hud-label { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+        .hud-val { 
+            font-family: 'Courier New', monospace; 
+            font-size: 2.2rem; 
+            font-weight: bold; 
+            color: #4ade80; 
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(74, 222, 128, 0.3);
+        }
+        .hud-val.period { color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
+
+        /* --- LAW TEXT BOX --- */
+        .law-display {
+            position: absolute;
+            bottom: 200px; 
+            width: 80%;
+            max-width: 900px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 15px;
+            border-left: 5px solid #38bdf8;
+            color: white;
+            font-size: 1.1rem;
+            line-height: 1.5;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        /* --- CONTROLS PANEL --- */
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 15px 30px;
+            border-radius: 20px;
+            border: 1px solid #334155;
+            display: flex;
+            gap: 25px;
+            align-items: center; 
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            z-index: 20;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 130px;
+            position: relative;
+        }
+        
+        .divider { width: 1px; height: 50px; background: #475569; }
+
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #94a3b8;
+            font-weight: bold;
+        }
+        
+        .val-small { color: #38bdf8; font-weight: bold; }
+
+        /* SLIDERS */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #334155;
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px; height: 18px;
+            background: #38bdf8;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.1s;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+        #eccInput::-webkit-slider-thumb { background: #fbbf24; }
+        #areaTimeInput::-webkit-slider-thumb { background: #0ea5e9; }
+
+        /* TOGGLES */
+        .toggle-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 10px 14px;
+            background: #1e293b;
+            border-radius: 10px;
+            border: 1px solid #334155;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            font-weight: bold;
+            min-width: 110px;
+        }
+        .toggle-btn:hover { background: #334155; transform: translateY(-2px); }
+        .toggle-btn.active {
+            background: #0ea5e9;
+            color: white;
+            border-color: #0ea5e9;
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.4);
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="header-container">
+    <h1>Keplerjevi Zakoni</h1>
+    <div class="tip-box">
+        💡 <b>NAMIG:</b> Poigraj se z drsniki! Najprej naredi orbito <span class="highlight">zelo eliptično</span>, nato pa spreminjaj <span class="highlight">časovni interval</span> ploščin.<br><br>
+        Opazuj hitrost planeta – ko švigne mimo Sonca, mora "pica" pokriti ogromno razdaljo v kratkem času!
+    </div>
+</div>
+
+<div class="info-hud">
+    <div class="hud-label">Trenutna Hitrost</div>
+    <div class="hud-val" id="speedDisplay">0 km/s</div>
+    
+    <div class="hud-label">Obhodni čas (Leto)</div>
+    <div class="hud-val period" id="periodDisplay">0 dni</div>
+</div>
+
+<div class="law-display" id="lawText">
+    Premakni drsnike ali vklopi orodja, da vidiš zakone v akciji.
+</div>
+
+<canvas id="keplerCanvas"></canvas>
+
+<div class="controls">
+    
+    <div class="control-group">
+        <div class="label-row">
+            <span>Sploščenost (e)</span>
+            <span class="val-small" id="eccVal">0.0</span>
+        </div>
+        <input type="range" id="eccInput" min="0" max="0.85" step="0.01" value="0.0">
+    </div>
+
+    <div class="control-group">
+        <div class="label-row">
+            <span>Velikost Orbite</span>
+            <span class="val-small" id="semiVal">1.0 AU</span>
+        </div>
+        <input type="range" id="semiInput" min="100" max="250" step="10" value="150">
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+        <div class="label-row">
+            <span>Čas risanja (2.Z)</span>
+            <span class="val-small" id="areaTimeVal">Srednje</span>
+        </div>
+        <input type="range" id="areaTimeInput" min="0.2" max="3.0" step="0.1" value="1.0">
+    </div>
+
+    <div class="control-group" style="flex-direction: row; gap: 8px;">
+        <div class="toggle-btn" id="btnArea" onclick="toggleArea()">
+            <span>🍕</span> Ploščine
+        </div>
+        <div class="toggle-btn" id="btnFocus" onclick="toggleFocus()">
+            <span>❌</span> Gorišča
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+        <div class="label-row">
+            <span>Hitrost Simulacije</span>
+            <span class="val-small" id="simSpeedVal">1x</span>
+        </div>
+        <input type="range" id="simSpeedInput" min="0.1" max="3.0" step="0.1" value="0.5">
+    </div>
+
+</div>
+
+<script>
+// --- ELEMENTI ---
+const canvas = document.getElementById('keplerCanvas');
+const ctx = canvas.getContext('2d');
+
+const eccInput = document.getElementById('eccInput');
+const semiInput = document.getElementById('semiInput');
+const simSpeedInput = document.getElementById('simSpeedInput');
+const areaTimeInput = document.getElementById('areaTimeInput');
+
+const eccVal = document.getElementById('eccVal');
+const semiVal = document.getElementById('semiVal');
+const simSpeedVal = document.getElementById('simSpeedVal');
+const areaTimeVal = document.getElementById('areaTimeVal');
+
+const speedDisplay = document.getElementById('speedDisplay');
+const periodDisplay = document.getElementById('periodDisplay');
+const lawText = document.getElementById('lawText');
+
+const btnArea = document.getElementById('btnArea');
+const btnFocus = document.getElementById('btnFocus');
+
+// State
+let state = {
+    e: 0.0,
+    a: 150,
+    showArea: false,
+    showFocus: false,
+    areaScale: 1.0, 
+    M: 0,      
+    trail: [], 
+    savedSweeps: [],
+    sweepTimer: 0
+};
+
+const K_PHYSICS = 150; 
+
+// --- BESEDILA ZAKONOV ---
+const LAWS = {
+    intro: "Začni eksperiment! Povečaj sploščenost, da vidiš kako hitrost niha.",
+    law1: "1. ZAKON: Planeti krožijo po elipsah. (Elipsa ima dve gorišči; pri krogu sta v isti točki - centru). Sonce je v enem gorišču.",
+    law2: "2. ZAKON: V enakem času planet 'pomete' enako ploščino. Poglej trikotnike: blizu Sonca so debeli (hitri), daleč pa ozki (počasni).",
+    law3: "3. ZAKON: Večja kot je orbita, daljše je leto. (T² ∝ a³). Poglej 'Obhodni čas' zgoraj!"
+};
+
+// Setup
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+const center = { x: canvas.width / 2, y: canvas.height / 2 };
+
+function solveKepler(M, e) {
+    let E = M;
+    for (let i = 0; i < 5; i++) {
+        E = M + e * Math.sin(E);
+    }
+    return E;
+}
+
+function update() {
+    state.e = parseFloat(eccInput.value);
+    state.a = parseFloat(semiInput.value);
+    state.areaScale = parseFloat(areaTimeInput.value);
+    const simSpeedMult = parseFloat(simSpeedInput.value);
+
+    eccVal.innerText = state.e.toFixed(2);
+    const au = (state.a / 150).toFixed(1);
+    semiVal.innerText = au + " AU";
+    simSpeedVal.innerText = simSpeedMult.toFixed(1) + "x";
+    
+    if(state.areaScale < 0.6) areaTimeVal.innerText = "Zelo Kratko";
+    else if(state.areaScale < 1.0) areaTimeVal.innerText = "Kratko";
+    else if(state.areaScale > 2.0) areaTimeVal.innerText = "Dolgo";
+    else areaTimeVal.innerText = "Srednje";
+
+    if (state.showArea) {
+        lawText.innerText = LAWS.law2;
+        lawText.style.borderLeftColor = "#0ea5e9"; 
+    } else if (state.e > 0.1) {
+        lawText.innerText = LAWS.law1;
+        lawText.style.borderLeftColor = "#fbbf24"; 
+    } else if (state.a > 180 || state.a < 120) {
+        lawText.innerText = LAWS.law3;
+        lawText.style.borderLeftColor = "#4ade80"; 
+    } else {
+        lawText.innerText = LAWS.intro;
+        lawText.style.borderLeftColor = "#94a3b8"; 
+    }
+
+    const meanMotion = (K_PHYSICS / Math.pow(state.a, 1.5)) * simSpeedMult;
+    state.M += meanMotion; 
+    if (state.M > 2 * Math.PI) state.M -= 2 * Math.PI;
+
+    const E = solveKepler(state.M, state.e);
+    const b = state.a * Math.sqrt(1 - state.e * state.e);
+    let orbitX = state.a * (Math.cos(E) - state.e);
+    let orbitY = b * Math.sin(E);
+    const pX = center.x + orbitX;
+    const pY = center.y + orbitY;
+
+    const r = Math.sqrt(orbitX*orbitX + orbitY*orbitY);
+    const vel = Math.sqrt(2/r - 1/state.a) * 300; 
+    speedDisplay.innerText = vel.toFixed(0) + " km/s";
+    
+    const minV = Math.sqrt(1/state.a) * 300; 
+    const maxV = Math.sqrt(2/(state.a*(1-state.e)) - 1/state.a) * 300;
+    const ratio = (vel - minV) / (maxV - minV || 1); 
+    const hue = 120 - (ratio * 120); 
+    speedDisplay.style.color = `hsl(${hue}, 100%, 60%)`;
+
+    const period = Math.pow(au, 1.5) * 365;
+    periodDisplay.innerText = period.toFixed(0) + " dni";
+
+    if (state.showArea) {
+        state.sweepTimer++;
+        const baseDuration = 60; 
+        const sweepDuration = Math.floor((baseDuration * state.areaScale) / simSpeedMult);
+        
+        state.trail.push({x: pX, y: pY});
+
+        if (state.sweepTimer >= sweepDuration) {
+            state.savedSweeps.push([...state.trail]);
+            if (state.savedSweeps.length > 1) {
+                state.savedSweeps.shift(); 
+            }
+            state.trail = [];
+            state.sweepTimer = 0;
+            state.trail.push({x: pX, y: pY}); 
+        }
+    } else {
+        state.trail = [];
+        state.savedSweeps = [];
+    }
+
+    draw(pX, pY, orbitX, orbitY, b);
+    requestAnimationFrame(update);
+}
+
+function draw(pX, pY, relativeX, relativeY, semiMinor) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const ellipseCenterX = center.x - (state.a * state.e);
+    
+    ctx.beginPath();
+    ctx.ellipse(ellipseCenterX, center.y, state.a, semiMinor, 0, 0, 2 * Math.PI);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (state.showFocus || state.e > 0.1) {
+        const emptyFocusX = center.x - (2 * state.a * state.e);
+        ctx.beginPath();
+        const s = 6;
+        ctx.moveTo(emptyFocusX - s, center.y - s); ctx.lineTo(emptyFocusX + s, center.y + s);
+        ctx.moveTo(emptyFocusX + s, center.y - s); ctx.lineTo(emptyFocusX - s, center.y + s);
+        ctx.strokeStyle = "#475569"; ctx.lineWidth = 2; ctx.stroke();
+        
+        if (state.showFocus) {
+            ctx.fillStyle = "#64748b"; ctx.font = "12px monospace"; ctx.textAlign = "center";
+            ctx.fillText("PRAZNO GORIŠČE", emptyFocusX, center.y + 25);
+        }
+    }
+
+    if (state.showArea) {
+        state.savedSweeps.forEach(sector => {
+            if (sector.length < 2) return;
+            ctx.beginPath();
+            ctx.moveTo(center.x, center.y);
+            sector.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.lineTo(center.x, center.y);
+            ctx.fillStyle = "rgba(14, 165, 233, 0.4)"; 
+            ctx.fill();
+            ctx.strokeStyle = "rgba(14, 165, 233, 0.8)";
+            ctx.stroke();
+        });
+
+        if (state.trail.length > 0) {
+            ctx.beginPath();
+            ctx.moveTo(center.x, center.y);
+            state.trail.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.lineTo(pX, pY);
+            ctx.fillStyle = "rgba(14, 165, 233, 0.2)"; 
+            ctx.fill();
+            ctx.strokeStyle = "#0ea5e9";
+            ctx.stroke();
+        }
+    }
+
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, 20, 0, Math.PI * 2);
+    ctx.fillStyle = "#fbbf24";
+    ctx.shadowBlur = 40; ctx.shadowColor = "#f59e0b";
+    ctx.fill(); ctx.shadowBlur = 0;
+
+    ctx.beginPath();
+    ctx.arc(pX, pY, 12, 0, Math.PI * 2);
+    ctx.fillStyle = "#38bdf8";
+    ctx.shadowBlur = 10; ctx.shadowColor = "#38bdf8";
+    ctx.fill(); ctx.shadowBlur = 0;
+}
+
+function toggleArea() {
+    state.showArea = !state.showArea;
+    btnArea.classList.toggle('active');
+    state.trail = [];
+    state.savedSweeps = [];
+    state.sweepTimer = 0;
+}
+
+function toggleFocus() {
+    state.showFocus = !state.showFocus;
+    btnFocus.classList.toggle('active');
+}
+
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    center.x = canvas.width / 2;
+    center.y = canvas.height / 2;
+});
+
+update();
+
+</script>
+</body>
+</html>
