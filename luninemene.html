@@ -2,13 +2,13 @@
 <html lang="sl">
 <head>
     <meta charset="UTF-8">
-    <title>Sistem Sonce-Zemlja-Luna</title>
+    <title>Lunine Mene - View From Surface</title>
     <style>
-        /* --- BASE STYLES --- */
+        /* --- BASE STYLE --- */
         body {
             background: #0f172a;
             color: #e2e8f0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             margin: 0;
             display: flex;
             flex-direction: column;
@@ -17,376 +17,366 @@
             overflow: hidden;
         }
 
-        canvas {
-            display: block;
-            /* Nežno ozadje vesolja */
-            background: radial-gradient(circle at center, #1e293b 0%, #020617 80%);
+        /* --- HEADER --- */
+        .header {
+            text-align: center;
+            padding: 15px;
+            z-index: 10;
+            background: rgba(15, 23, 42, 0.95);
             width: 100%;
-            height: 100%;
+            border-bottom: 1px solid #334155;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+        }
+        h1 { margin: 0; color: #38bdf8; font-size: 1.6rem; letter-spacing: 2px; text-transform: uppercase; }
+        .subtitle { color: #94a3b8; font-size: 0.9rem; margin-top: 5px; }
+
+        /* --- SPLIT CONTAINER --- */
+        .split-container {
+            display: flex;
+            flex: 1;
+            width: 100%;
+            position: relative;
         }
 
-        /* --- UI OVERLAYS --- */
-        .header {
+        .view-panel {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            border-right: 1px solid #334155;
+        }
+        .view-panel:last-child { border-right: none; }
+
+        .panel-label {
             position: absolute;
             top: 20px;
-            text-align: center;
+            right: 20px; 
+            background: rgba(0,0,0,0.6);
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #38bdf8;
+            border-right: 4px solid #38bdf8;
             pointer-events: none;
-            z-index: 10;
         }
-        h1 { margin: 0; color: #38bdf8; font-size: 1.8rem; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
-        .subtitle { color: #94a3b8; font-size: 0.95rem; margin-top: 5px; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 10px; }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* LEVO OZADJE (Vesolje) */
+        #orbitCanvas { background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); }
+        /* DESNO OZADJE (Nebo) */
+        #phaseCanvas { background: radial-gradient(circle at bottom, #0f172a 0%, #000 100%); }
 
         /* --- CONTROLS --- */
         .controls {
-            position: absolute;
-            bottom: 30px;
-            background: rgba(15, 23, 42, 0.9);
-            padding: 15px 30px;
-            border-radius: 30px;
-            border: 1px solid #334155;
+            background: #1e293b;
+            width: 100%;
+            padding: 20px;
             display: flex;
-            gap: 25px;
+            justify-content: center;
             align-items: center;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-            z-index: 20;
+            gap: 40px;
+            border-top: 1px solid #334155;
+            z-index: 10;
         }
 
         .control-group {
             display: flex;
             flex-direction: column;
-            gap: 5px;
-            min-width: 140px;
             align-items: center;
+            gap: 8px;
+            min-width: 250px;
         }
 
-        label { font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: bold; letter-spacing: 1px; }
-        
-        /* Custom Slider */
+        label { font-size: 0.85rem; text-transform: uppercase; color: #64748b; font-weight: bold; letter-spacing: 1px; }
+        .val-display { font-size: 1.3rem; font-weight: bold; color: white; margin-bottom: 5px; }
+
         input[type=range] {
             -webkit-appearance: none;
             width: 100%;
-            height: 6px;
+            height: 8px;
             background: #334155;
-            border-radius: 3px;
+            border-radius: 4px;
             outline: none;
             cursor: pointer;
         }
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 20px; height: 20px;
+            width: 24px; height: 24px;
             background: #38bdf8;
             border-radius: 50%;
             cursor: pointer;
             transition: transform 0.1s;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
         }
-        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
 
-        /* Toggle Button */
-        .toggle-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            cursor: pointer;
-            padding: 12px 20px;
-            background: #1e293b;
-            border-radius: 20px;
-            border: 1px solid #334155;
-            transition: all 0.2s;
-            font-size: 0.9rem;
-            color: #cbd5e1;
+        .phase-name {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2rem;
+            font-weight: 800;
+            color: #fbbf24;
+            text-shadow: 0 4px 15px rgba(0,0,0,0.9);
+            pointer-events: none;
+            text-transform: uppercase;
+            text-align: center;
+            width: 100%;
+        }
+        
+        button#playBtn {
+            padding: 12px 30px;
+            background: #38bdf8;
+            border: none;
+            border-radius: 30px;
             font-weight: bold;
+            font-size: 1rem;
+            color: #0f172a;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
         }
-        .toggle-btn:hover { background: #334155; transform: translateY(-2px); }
-        .toggle-btn.active {
-            background: #0ea5e9;
-            color: white;
-            border-color: #0ea5e9;
-            box-shadow: 0 0 15px rgba(14, 165, 233, 0.4);
-        }
+        button#playBtn:hover { transform: scale(1.05); background: #7dd3fc; }
 
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1>Sistem Sonce-Zemlja-Luna</h1>
-    <div class="subtitle">Opazuj ples Lune in Zemlje okoli Sonca. Pazi na zastavico na Luni!</div>
+    <h1>Lunine Mene</h1>
+    <div class="subtitle">Opazuj, kako se spreminja videz Lune glede na njen položaj v orbiti</div>
 </div>
 
-<canvas id="simCanvas"></canvas>
+<div class="split-container">
+    <div class="view-panel">
+        <div class="panel-label">POGLED IZ VESOLJA</div>
+        <canvas id="orbitCanvas"></canvas>
+    </div>
+
+    <div class="view-panel">
+        <div class="panel-label">POGLED Z ZEMLJE</div>
+        <div class="phase-name" id="phaseName">MLAJ</div>
+        <canvas id="phaseCanvas"></canvas>
+    </div>
+</div>
 
 <div class="controls">
     <div class="control-group">
-        <label>Hitrost Simulacije</label>
-        <input type="range" id="speedInput" min="0" max="2" step="0.1" value="0.5">
+        <label>Položaj Lune (Dan)</label>
+        <div class="val-display" id="dayVal">Dan 0.0</div>
+        <input type="range" id="moonSlider" min="0" max="29.5" step="0.01" value="0">
     </div>
-
-    <div style="width: 1px; height: 40px; background: #475569;"></div>
-
-    <div class="toggle-btn" id="btnTrail" onclick="toggleTrail()">
-        <span>〰️</span> Riši Sled (Trail)
+    
+    <div class="control-group">
+        <label>Kontrola</label>
+        <button id="playBtn">▶ PREDVAJAJ</button>
     </div>
 </div>
 
 <script>
-// --- CONFIGURATION ---
-const canvas = document.getElementById('simCanvas');
-const ctx = canvas.getContext('2d');
-const speedInput = document.getElementById('speedInput');
-const btnTrail = document.getElementById('btnTrail');
+const orbitCanvas = document.getElementById('orbitCanvas');
+const phaseCanvas = document.getElementById('phaseCanvas');
+const ctxO = orbitCanvas.getContext('2d');
+const ctxP = phaseCanvas.getContext('2d');
 
-// Parametri simulacije
-const earthOrbitR = 280; // Radij tirnice Zemlje okoli centra
-const moonOrbitR = 50;   // Radij tirnice Lune okoli Zemlje
+const moonSlider = document.getElementById('moonSlider');
+const dayVal = document.getElementById('dayVal');
+const phaseName = document.getElementById('phaseName');
+const playBtn = document.getElementById('playBtn');
 
-// Hitrosti (Relativna razmerja)
-// Leto = 1 krog. 
-// Mesec = cca 12 krogov na leto.
-// Dan = 365 obratov na leto.
-const baseSpeed = 0.005; // Osnovna hitrost leta
+let currentDay = 0; 
+let isPlaying = false;
 
-let state = {
-    angleYear: 0,   // Kje je Zemlja okoli Sonca
-    angleMonth: 0,  // Kje je Luna okoli Zemlje
-    angleDay: 0,    // Vrtenje Zemlje okoli osi
-    showTrail: false,
-    trailEarth: [],
-    trailMoon: []
-};
+// Config
+const earthR = 65;   
+const moonR = 20;    
+const orbitR = 220;  
 
-// --- INITIAL RESIZE ---
-let center = { x: 0, y: 0 };
 function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    center.x = canvas.width / 2;
-    center.y = canvas.height / 2;
+    const container = document.querySelector('.split-container');
+    const w = container.clientWidth / 2;
+    const h = container.clientHeight;
+    
+    orbitCanvas.width = w; 
+    orbitCanvas.height = h;
+    phaseCanvas.width = w; 
+    phaseCanvas.height = h;
 }
 window.addEventListener('resize', resize);
-resize();
+setTimeout(resize, 100);
 
-// --- MAIN LOOP ---
+function getPhaseName(day) {
+    if(day < 1 || day > 28.5) return "MLAJ";
+    if(day >= 1 && day < 6.5) return "RASTOČI SRP";
+    if(day >= 6.5 && day < 8.5) return "PRVI KRAJEC";
+    if(day >= 8.5 && day < 14) return "RASTOČA LUNA";
+    if(day >= 14 && day < 15.5) return "POLNA LUNA (ŠČIP)";
+    if(day >= 15.5 && day < 21) return "UPADAJOČA LUNA";
+    if(day >= 21 && day < 23) return "ZADNJI KRAJEC";
+    return "UPADAJOČI SRP";
+}
+
 function update() {
-    // 1. Branje hitrosti
-    const speedMult = parseFloat(speedInput.value);
-
-    if (speedMult > 0) {
-        // --- POPRAVEK SMERI VRTENJA (V LEVO / COUNTER-CLOCKWISE) ---
-        
-        // Premik Zemlje okoli Sonca (Leto) - Zamenjano += v -=
-        state.angleYear -= baseSpeed * speedMult;
-        
-        // Premik Lune okoli Zemlje (Mesec) - Zamenjano += v -=
-        state.angleMonth -= (baseSpeed * 13) * speedMult;
-        
-        // Vrtenje Zemlje (Dan) - Zamenjano += v -=
-        state.angleDay -= (baseSpeed * 100) * speedMult; 
+    if(isPlaying) {
+        currentDay += 0.02;
+        if (currentDay > 29.5) currentDay = 0;
+        moonSlider.value = currentDay;
+    } else {
+        currentDay = parseFloat(moonSlider.value);
     }
 
-    // 2. Izračun Pozicij
-    // Zemlja
-    const earthX = center.x + Math.cos(state.angleYear) * earthOrbitR;
-    const earthY = center.y + Math.sin(state.angleYear) * earthOrbitR;
+    dayVal.innerText = "Dan " + currentDay.toFixed(1);
+    phaseName.innerText = getPhaseName(currentDay);
 
-    // Luna (relativno na Zemljo)
-    const moonX = earthX + Math.cos(state.angleMonth) * moonOrbitR;
-    const moonY = earthY + Math.sin(state.angleMonth) * moonOrbitR;
-
-    // 3. Trail Logic
-    if (state.showTrail && speedMult > 0) {
-        // Dodamo točke vsakih nekaj frameov
-        if (Math.random() > 0.5) { // Optimizacija, ne vsak frame
-            state.trailEarth.push({x: earthX, y: earthY});
-            state.trailMoon.push({x: moonX, y: moonY});
-            
-            // Omejimo dolžino sledi
-            if (state.trailEarth.length > 300) state.trailEarth.shift();
-            if (state.trailMoon.length > 300) state.trailMoon.shift();
-        }
-    } else if (!state.showTrail) {
-        state.trailEarth = [];
-        state.trailMoon = [];
-    }
-
-    draw(earthX, earthY, moonX, moonY);
+    drawOrbit();
+    drawPhase();
     requestAnimationFrame(update);
 }
 
-function draw(earthX, earthY, moonX, moonY) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+// 1. POGLED IZ VESOLJA
+function drawOrbit() {
+    const w = orbitCanvas.width;
+    const h = orbitCanvas.height;
+    const cx = w/2 + 30; 
+    const cy = h/2;
 
-    // --- 1. SLEDI (TRAILS) ---
-    if (state.showTrail) {
-        // Sled Lune
-        ctx.beginPath();
-        if (state.trailMoon.length > 0) ctx.moveTo(state.trailMoon[0].x, state.trailMoon[0].y);
-        state.trailMoon.forEach(p => ctx.lineTo(p.x, p.y));
-        ctx.strokeStyle = "rgba(148, 163, 184, 0.4)"; // Siva
-        ctx.lineWidth = 2;
-        ctx.stroke();
+    ctxO.clearRect(0,0,w,h);
 
-        // Sled Zemlje
-        ctx.beginPath();
-        if (state.trailEarth.length > 0) ctx.moveTo(state.trailEarth[0].x, state.trailEarth[0].y);
-        state.trailEarth.forEach(p => ctx.lineTo(p.x, p.y));
-        ctx.strokeStyle = "rgba(56, 189, 248, 0.3)"; // Modra
-        ctx.lineWidth = 4;
-        ctx.stroke();
+    // --- SONČNI ŽARKI ---
+    ctxO.beginPath();
+    for(let y = cy - 150; y < cy + 150; y += 25) {
+        ctxO.moveTo(0, y);
+        ctxO.lineTo(80, y); 
     }
+    ctxO.strokeStyle = "#fbbf24"; 
+    ctxO.lineWidth = 3;
+    ctxO.stroke();
 
-    // --- 2. ORBITA ZEMLJE (Referenčni krog) ---
-    ctx.beginPath();
-    ctx.arc(center.x, center.y, earthOrbitR, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([10, 10]);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    ctxO.fillStyle = "#fbbf24";
+    ctxO.font = "bold 16px 'Segoe UI', sans-serif";
+    ctxO.textAlign = "left";
+    ctxO.fillText("SONČNI ŽARKI", 10, cy - 160); 
 
-    // --- 3. CENTRALNI OKVIR (SONCE) ---
-    const boxSize = 140;
-    const boxX = center.x - boxSize/2;
-    const boxY = center.y - boxSize/2;
+    // --- ORBITA ---
+    ctxO.beginPath();
+    ctxO.arc(cx, cy, orbitR, 0, Math.PI*2);
+    ctxO.strokeStyle = "rgba(255, 255, 255, 0.15)";
+    ctxO.lineWidth = 2;
+    ctxO.setLineDash([8, 8]);
+    ctxO.stroke();
+    ctxO.setLineDash([]);
 
-    // Okvir
-    ctx.strokeStyle = "#64748b"; 
-    ctx.lineWidth = 2;
-    ctx.strokeRect(boxX, boxY, boxSize, boxSize);
+    // --- ZEMLJA ---
+    ctxO.beginPath(); ctxO.arc(cx, cy, earthR, 0, Math.PI*2);
+    ctxO.fillStyle = "#0f172a"; ctxO.fill(); 
 
-    // Sonce (Zoomed in)
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(boxX, boxY, boxSize, boxSize);
-    ctx.clip(); // Rišemo samo znotraj kvadrata
-
-    // Velika žareča krogla
-    ctx.beginPath();
-    ctx.arc(center.x, center.y, boxSize * 0.8, 0, Math.PI*2);
-    const sunGrad = ctx.createRadialGradient(center.x, center.y, 10, center.x, center.y, boxSize*0.8);
-    sunGrad.addColorStop(0, "#fff");
-    sunGrad.addColorStop(0.3, "#fbbf24");
-    sunGrad.addColorStop(1, "#f59e0b");
-    ctx.fillStyle = sunGrad;
-    ctx.fill();
-
-    // Napis
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.font = "bold 12px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("SONCE", center.x, center.y + 10);
-    ctx.font = "10px sans-serif";
-    ctx.fillText("(POVEČANO, ZOOM)", center.x, center.y + 22);
-
-    ctx.restore();
-
-    // --- 4. ZEMLJA ---
-    const rEarth = 25;
+    ctxO.beginPath(); ctxO.arc(cx, cy, earthR, -Math.PI/2, Math.PI/2, true);
+    ctxO.fillStyle = "#2277ff"; ctxO.fill();
     
-    ctx.save();
-    ctx.translate(earthX, earthY);
-    
-    // a) Vrtenje Zemlje (Rotacija kontinentov)
-    ctx.save();
-    ctx.rotate(state.angleDay); // Hitro vrtenje
-    
-    // Telo
-    ctx.beginPath(); ctx.arc(0, 0, rEarth, 0, Math.PI*2);
-    ctx.fillStyle = "#2563eb"; // Ocean
-    ctx.fill();
-    
-    // Kontinenti (Preprosti liki)
-    ctx.fillStyle = "#10b981"; // Zelena
-    ctx.beginPath(); ctx.arc(10, 5, 8, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(-8, -10, 6, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.rect(-15, 5, 10, 10); ctx.fill();
-    ctx.restore();
+    ctxO.beginPath(); ctxO.arc(cx, cy, earthR, -Math.PI/2, Math.PI/2, true);
+    ctxO.strokeStyle = "#60a5fa"; ctxO.lineWidth = 2; ctxO.stroke();
 
-    // b) Osvetlitev (Senca)
-    // Senca je vedno na nasprotni strani od Sonca (centra)
-    // Kot do Sonca je atan2(earthY - cy, earthX - cx).
-    // Ampak mi smo že v lokalnem sistemu. Sonce je na (-earthX, -earthY) glede na nas?
-    // Ne, najlažje: Kot do centra je (state.angleYear + PI).
-    
-    // Rotiramo kontekst tako, da X os kaže stran od Sonca
-    ctx.rotate(state.angleYear); 
-    
-    // Polovica v senci
-    ctx.beginPath();
-    ctx.arc(0, 0, rEarth, -Math.PI/2, Math.PI/2); // Desna polovica v lokalnem rotiranem sistemu
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fill();
-    
-    ctx.restore();
+    // --- LUNA ---
+    const angle = Math.PI - (currentDay / 29.5) * Math.PI * 2;
+    const mx = cx + Math.cos(angle) * orbitR;
+    const my = cy + Math.sin(angle) * orbitR;
 
-    // --- 5. LUNA ---
-    const rMoon = 10;
+    ctxO.beginPath(); ctxO.arc(mx, my, moonR, 0, Math.PI*2);
+    ctxO.fillStyle = "#1e293b"; ctxO.fill(); 
     
-    ctx.save();
-    ctx.translate(moonX, moonY);
+    ctxO.beginPath(); ctxO.arc(mx, my, moonR, -Math.PI/2, Math.PI/2, true);
+    ctxO.fillStyle = "#e2e8f0"; ctxO.fill();
 
-    // a) SINHRONA ROTACIJA (Zastavica proti Zemlji)
-    // Luna mora biti obrnjena proti Zemlji.
-    // Kot od Lune do Zemlje je (state.angleMonth + PI).
-    ctx.save();
-    ctx.rotate(state.angleMonth + Math.PI); // Pazi, tole rotira celo luno
+    // --- ČRTA POGLEDA (IZ POVRŠJA ZEMLJE) ---
+    // 1. Izračunamo točko na površju zemlje, ki gleda proti Luni
+    // To je enostavno: ista logika kot za pozicijo lune, ampak krajši radij (earthR)
+    const surfaceX = cx + Math.cos(angle) * earthR;
+    const surfaceY = cy + Math.sin(angle) * earthR;
 
-    // Telo Lune
-    ctx.beginPath(); ctx.arc(0, 0, rMoon, 0, Math.PI*2);
-    ctx.fillStyle = "#94a3b8"; // Siva
-    ctx.fill();
-    
-    // Kraterji (za občutek rotacije)
-    ctx.fillStyle = "#64748b";
-    ctx.beginPath(); ctx.arc(4, -3, 2, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(-2, 5, 1.5, 0, Math.PI*2); ctx.fill();
+    // Narišemo črto od površja do lune
+    ctxO.beginPath(); 
+    ctxO.moveTo(surfaceX, surfaceY); 
+    ctxO.lineTo(mx, my);
+    ctxO.strokeStyle = "rgba(74, 222, 128, 0.6)"; // Svetlo zelena, da se loči
+    ctxO.lineWidth = 2;
+    ctxO.setLineDash([4, 4]); // Črtkana za "pogled"
+    ctxO.stroke();
+    ctxO.setLineDash([]);
 
-    // ZASTAVICA 🚩
-    // Mora kazati proti Zemlji. Ker smo rotirali kontekst proti Zemlji,
-    // mora zastavica kazati v desno (0 stopinj) ali v center?
-    // Rotacija (angleMonth + PI) pomeni, da lokalna X os kaže PROTI Zemlji.
-    
-    // Palica
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(18, 0); 
-    ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 1; ctx.stroke();
-    
-    // Zastava
-    ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(26, -5); ctx.lineTo(26, 5); ctx.closePath();
-    ctx.fillStyle = "#ef4444"; ctx.fill(); // Rdeča
-
-    ctx.restore();
-
-    // b) Osvetlitev Lune (Faze)
-    // Senca je odvisna od Sonca (Centra), ne od Zemlje!
-    // Kot do Sonca = kot pozicije Lune okoli centra.
-    // To je približno angleYear (ker je Luna blizu Zemlje).
-    // Za natančnost: atan2(moonY - center.y, moonX - center.x)
-    const angleToSun = Math.atan2(moonY - center.y, moonX - center.x);
-    
-    ctx.rotate(angleToSun);
-    
-    // Polovica v senci (stran od sonca)
-    ctx.beginPath();
-    // Narišemo polkrog sence
-    ctx.arc(0, 0, rMoon, -Math.PI/2, Math.PI/2);
-    ctx.fillStyle = "rgba(0,0,0,0.7)";
-    ctx.fill();
-
-    ctx.restore();
+    // --- OPAZOVALEC (PIKA NA ZEMLJI) ---
+    // Da bo jasno, da nekdo tam stoji
+    ctxO.beginPath();
+    ctxO.arc(surfaceX, surfaceY, 5, 0, Math.PI*2);
+    ctxO.fillStyle = "#4ade80"; // Zelena pika
+    ctxO.shadowBlur = 10;
+    ctxO.shadowColor = "#4ade80";
+    ctxO.fill();
+    ctxO.shadowBlur = 0;
 }
 
-// UI Handlers
-function toggleTrail() {
-    state.showTrail = !state.showTrail;
-    btnTrail.classList.toggle('active');
-    state.trailEarth = [];
-    state.trailMoon = [];
+// 2. POGLED Z ZEMLJE
+function drawPhase() {
+    const w = phaseCanvas.width;
+    const h = phaseCanvas.height;
+    const cx = w/2;
+    const cy = h/2;
+    const R = 100; 
+
+    ctxP.clearRect(0,0,w,h);
+
+    ctxP.beginPath(); ctxP.arc(cx, cy, R, 0, Math.PI*2);
+    ctxP.fillStyle = "#0f172a"; ctxP.fill(); 
+
+    const isWaxing = currentDay < 14.7; 
+    
+    ctxP.beginPath();
+    ctxP.arc(cx, cy, R, -Math.PI/2, Math.PI/2, !isWaxing);
+    ctxP.fillStyle = "#e2e8f0"; ctxP.fill();
+
+    const phaseAngle = (currentDay / 29.5) * 2 * Math.PI;
+    const ellWidth = Math.abs(Math.cos(phaseAngle) * R);
+    
+    ctxP.beginPath();
+    ctxP.ellipse(cx, cy, ellWidth, R, 0, 0, Math.PI*2);
+    
+    if (currentDay < 7.4) ctxP.fillStyle = "#0f172a"; 
+    else if (currentDay < 14.7) ctxP.fillStyle = "#e2e8f0"; 
+    else if (currentDay < 22.1) ctxP.fillStyle = "#e2e8f0"; 
+    else ctxP.fillStyle = "#0f172a"; 
+    
+    ctxP.fill();
+    
+    if (currentDay > 13.5 && currentDay < 16) {
+        ctxP.shadowBlur = 50;
+        ctxP.shadowColor = "rgba(255, 255, 255, 0.5)";
+        ctxP.beginPath(); ctxP.arc(cx, cy, R, 0, Math.PI*2);
+        ctxP.fillStyle = "rgba(255,255,255,0.01)"; ctxP.fill();
+        ctxP.shadowBlur = 0;
+    }
 }
 
-// Start
+moonSlider.addEventListener('input', () => {
+    isPlaying = false;
+    playBtn.innerText = "▶ PREDVAJAJ";
+    playBtn.style.background = "#38bdf8";
+});
+
+playBtn.addEventListener('click', () => {
+    isPlaying = !isPlaying;
+    if(isPlaying) {
+        playBtn.innerText = "⏸ PAVZA";
+        playBtn.style.background = "#fbbf24"; 
+        playBtn.style.color = "#000";
+    } else {
+        playBtn.innerText = "▶ PREDVAJAJ";
+        playBtn.style.background = "#38bdf8";
+        playBtn.style.color = "#0f172a";
+    }
+});
+
 update();
-
 </script>
 </body>
 </html>
