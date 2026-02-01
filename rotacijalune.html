@@ -173,15 +173,16 @@ function update() {
     const speedMult = parseFloat(speedInput.value);
 
     if (speedMult > 0) {
-        // Premik Zemlje okoli Sonca (Leto)
-        state.angleYear += baseSpeed * speedMult;
+        // --- POPRAVEK SMERI VRTENJA (V LEVO / COUNTER-CLOCKWISE) ---
         
-        // Premik Lune okoli Zemlje (Mesec - cca 13x hitreje od leta)
-        state.angleMonth += (baseSpeed * 13) * speedMult;
+        // Premik Zemlje okoli Sonca (Leto) - Zamenjano += v -=
+        state.angleYear -= baseSpeed * speedMult;
         
-        // Vrtenje Zemlje (Dan - cca 30x hitreje od meseca, oz 365x od leta)
-        // Malo upočasnimo za vizualni efekt, da ni samo blur
-        state.angleDay += (baseSpeed * 100) * speedMult; 
+        // Premik Lune okoli Zemlje (Mesec) - Zamenjano += v -=
+        state.angleMonth -= (baseSpeed * 13) * speedMult;
+        
+        // Vrtenje Zemlje (Dan) - Zamenjano += v -=
+        state.angleDay -= (baseSpeed * 100) * speedMult; 
     }
 
     // 2. Izračun Pozicij
