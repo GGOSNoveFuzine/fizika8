@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Mrki - Finalna Verzija</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', sans-serif; }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            pointer-events: none; 
+            user-select: none;
+            text-shadow: 0 0 5px black;
+        }
+        h1 { margin: 0; color: #38bdf8; text-transform: uppercase; letter-spacing: 2px; font-size: 1.5rem; }
+        p { color: #94a3b8; margin-top: 5px; max-width: 400px; line-height: 1.4; }
+
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            background: rgba(15, 23, 42, 0.9);
+            padding: 15px 25px;
+            border-radius: 30px;
+            border: 1px solid #334155;
+            pointer-events: auto;
+        }
+
+        button {
+            background: #1e293b;
+            color: #e2e8f0;
+            border: 1px solid #475569;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        button:hover { background: #38bdf8; color: #000; }
+        
+        .toggle-group { display: flex; align-items: center; gap: 10px; color: #cbd5e1; font-weight: bold; font-size: 0.9rem; }
+        
+        #eclipseStatus {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            text-align: right;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #4ade80;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+        }
+        
+        .info-pill {
+            background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; color: #aaa; margin-top: 5px;
+        }
+    </style>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="ui">
+        <h1>Lovilec Mrkov (3D)</h1>
+        <p>
+            Opazuj tirnico Lune (oranžna). Večino časa Luna potuje <b>nad</b> ali <b>pod</b> Zemljino senco.<br>
+            Tirnica se počasi vrti (precesija), zato se mrk zgodi le redko!
+        </p>
+        <div class="info-pill">Namig: Izklopi naklon, če želiš videti senco takoj!</div>
+    </div>
+
+    <div id="eclipseStatus">NI MRKA</div>
+
+    <div id="controls">
+        <div class="toggle-group">
+            <input type="checkbox" id="tiltCheck" checked style="width: 20px; height: 20px; cursor: pointer;">
+            <label for="tiltCheck" style="cursor: pointer;">Realni Naklon (5°)</label>
+        </div>
+        <div style="width: 1px; height: 30px; background: #475569;"></div>
+        <button id="btnTop">Pogled Zgoraj</button>
+        <button id="btnSide">Pogled S Strani</button>
+        <button id="btnEarth">Pogled z Zemlje</button>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- 1. SETUP SCENE ---
+        const scene = new THREE.Scene();
+        
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 30, 60); 
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; 
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Mehke sence
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        // --- 2. OBJEKTI ---
+
+        // A) SONCE
+        // Sonce je daleč levo (-100, 0, 0)
+        const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
+        sunLight.position.set(-100, 0, 0); 
+        sunLight.castShadow = true;
+        
+        // Nastavitve senčne kamere za ostrino
+        const d = 20;
+        sunLight.shadow.camera.left = -d;
+        sunLight.shadow.camera.right = d;
+        sunLight.shadow.camera.top = d;
+        sunLight.shadow.camera.bottom = -d;
+        sunLight.shadow.camera.near = 50;  
+        sunLight.shadow.camera.far = 150;
+        sunLight.shadow.bias = -0.0001; 
+        sunLight.shadow.mapSize.width = 4096; 
+        sunLight.shadow.mapSize.height = 4096;
+        scene.add(sunLight);
+
+        // Ambient svetloba (da ni trda tema)
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.15); 
+        scene.add(ambientLight);
+
+        // Vizualizacija sonca
+        const sunMesh = new THREE.Mesh(
+            new THREE.SphereGeometry(2, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0xffff00 })
+        );
+        sunMesh.position.set(-80, 0, 0);
+        scene.add(sunMesh);
+
+        // B) ZEMLJA
+        const earthGroup = new THREE.Group();
+        scene.add(earthGroup);
+
+        const earthGeo = new THREE.SphereGeometry(3, 64, 64);
+        const earthMat = new THREE.MeshPhongMaterial({ 
+            color: 0x2233ff, 
+            shininess: 10,
+            emissive: 0x000022
+        });
+        const earth = new THREE.Mesh(earthGeo, earthMat);
+        earth.castShadow = true;
+        earth.receiveShadow = true; 
+        earthGroup.add(earth);
+
+        // C) LUNA & SISTEM
+        const precessionGroup = new THREE.Group();
+        earthGroup.add(precessionGroup);
+
+        const tiltGroup = new THREE.Group();
+        precessionGroup.add(tiltGroup);
+
+        const moonOrbitRadius = 15;
+        
+        // Tirnica (vizualizacija)
+        const orbitCurve = new THREE.EllipseCurve(0, 0, moonOrbitRadius, moonOrbitRadius, 0, 2 * Math.PI);
+        const orbitPoints = orbitCurve.getPoints(128);
+        const orbitGeo = new THREE.BufferGeometry().setFromPoints(orbitPoints);
+        orbitGeo.rotateX(Math.PI / 2); 
+        const orbitMat = new THREE.LineBasicMaterial({ color: 0xffaa00 });
+        const orbitLine = new THREE.Line(orbitGeo, orbitMat);
+        tiltGroup.add(orbitLine);
+
+        // Luna
+        const moonGeo = new THREE.SphereGeometry(0.8, 32, 32);
+        const moonMat = new THREE.MeshPhongMaterial({ color: 0xdddddd });
+        const moon = new THREE.Mesh(moonGeo, moonMat);
+        moon.castShadow = true; 
+        moon.receiveShadow = true;
+        tiltGroup.add(moon);
+
+        // --- 3. LOGIKA ---
+        
+        const tiltCheck = document.getElementById('tiltCheck');
+        const statusDiv = document.getElementById('eclipseStatus');
+        
+        let moonAngle = 0;
+        const moonSpeed = 0.01; 
+
+        function updateTilt() {
+            if (tiltCheck.checked) {
+                // Realni naklon (povečan za efekt vizualizacije)
+                tiltGroup.rotation.z = 0.35; 
+                orbitMat.color.setHex(0xffaa00); 
+            } else {
+                tiltGroup.rotation.z = 0; 
+                orbitMat.color.setHex(0x888888); 
+            }
+        }
+
+        tiltCheck.addEventListener('change', updateTilt);
+        updateTilt();
+
+        // Gumbi
+        document.getElementById('btnTop').addEventListener('click', () => {
+            controls.reset(); camera.position.set(0, 50, 0); camera.lookAt(0,0,0);
+        });
+        document.getElementById('btnSide').addEventListener('click', () => {
+            controls.reset(); camera.position.set(0, 0, 50); camera.lookAt(0,0,0);
+        });
+        document.getElementById('btnEarth').addEventListener('click', () => {
+            controls.reset(); camera.position.set(10, 2, 0); camera.lookAt(-50,0,0);
+        });
+
+        function checkEclipse() {
+            const moonPos = new THREE.Vector3();
+            moon.getWorldPosition(moonPos);
+            
+            // Višina od ekliptike (Y=0)
+            const heightDiff = Math.abs(moonPos.y);
+            
+            // Faza (kot okoli Y)
+            let angle = moonAngle % (2 * Math.PI);
+            if(angle < 0) angle += 2*Math.PI;
+
+            let status = "";
+            let color = "#cbd5e1";
+
+            // Reset material (da je naraven)
+            moonMat.color.setHex(0xdddddd);
+            moonMat.emissive.setHex(0x000000);
+
+            // --- LUNIN MRK (Luna desno - stran od Sonca) ---
+            // Kot okoli 0 ali 2PI
+            if (angle < 0.2 || angle > 2*Math.PI - 0.2) {
+                if (heightDiff < 1.0) { // Zadel senco
+                    status = "LUNIN MRK! (Luna v senci)";
+                    color = "#ef4444";
+                    moonMat.color.setHex(0x330000); // Rdečkasta tema
+                    moonMat.emissive.setHex(0x110000);
+                } else {
+                    status = "POLNA LUNA (Ni mrka - zgrešila senco)";
+                }
+            }
+            // --- SONČEV MRK / MLAJ (Luna levo - proti Soncu) ---
+            // Kot okoli PI
+            else if (angle > Math.PI - 0.2 && angle < Math.PI + 0.2) {
+                // TUKAJ SEM ODSTRANIL KODO ZA UMETNO TEMNENJE.
+                // Luna je temna naravno, ker sonce sveti na hrbet.
+                
+                if (heightDiff < 1.0) { // Zadel Zemljo
+                    status = "SONČEV MRK! (Glej senco na Zemlji!)";
+                    color = "#fbbf24";
+                } else {
+                    status = "MLAJ (Ni mrka - senca šla mimo)";
+                }
+            }
+
+            statusDiv.innerText = status;
+            statusDiv.style.color = color;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 1. POPRAVEK SMERI VRTENJA (V LEVO / CCW)
+            // moonAngle -= moonSpeed; // To bi bilo pravilno v canvasu, v Three.js je += pravilno za CCW?
+            // Preverimo: X = cos(t), Z = sin(t).
+            // t=0 -> (1,0) (Desno). t=0.1 -> (0.9, 0.1) (Desno in k nam). 
+            // V pogledu od zgoraj (Y+) je Z "dol". X desno. 
+            // Torej (1,0) -> (0.9, 0.1) je vrtenje v smeri X -> Z. To je URA (CW).
+            // ČE ŽELIMO CCW (X -> -Z), moramo kot ZMANJŠEVATI.
+            moonAngle -= moonSpeed; 
+
+            moon.position.x = Math.cos(moonAngle) * moonOrbitRadius;
+            moon.position.z = Math.sin(moonAngle) * moonOrbitRadius;
+
+            // 2. Precesija vozlov (CCW)
+            if (tiltCheck.checked) {
+                precessionGroup.rotation.y += 0.001; 
+            } else {
+                precessionGroup.rotation.y = 0; 
+            }
+
+            // 3. Vrtenje Zemlje (CCW)
+            earth.rotation.y += 0.005;
+
+            checkEclipse();
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
