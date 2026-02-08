@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <title>Galactic Galileo Lab v10.0 - Bulletproof</title>
+    <style>
+        /* --- URBAN DARK MODE --- */
+        body {
+            background-color: #050505;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* --- NAVIGATION --- */
+        .nav-wrapper {
+            width: 100%;
+            background: #0a0a0a;
+            border-bottom: 1px solid #333;
+            padding: 10px 0;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.8);
+            z-index: 100;
+        }
+
+        .planet-nav {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 5px 20px;
+            scrollbar-width: thin;
+            scrollbar-color: #333 #111;
+        }
+        
+        .planet-nav::-webkit-scrollbar { height: 4px; }
+        .planet-nav::-webkit-scrollbar-track { background: #111; }
+        .planet-nav::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+
+        .planet-btn {
+            background: #151515;
+            color: #777;
+            border: 1px solid #333;
+            padding: 8px 14px;
+            cursor: pointer;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .planet-btn:hover { background: #222; color: #fff; border-color: #666; }
+        .planet-btn.active {
+            background: #222;
+            color: var(--planet-color);
+            border-color: var(--planet-color);
+            box-shadow: 0 0 15px var(--planet-glow);
+            transform: scale(1.05);
+        }
+
+        /* --- MAIN STAGE --- */
+        .lab-container {
+            position: relative;
+            width: 100%;
+            flex-grow: 1; 
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* Ruler Area */
+        .ruler-area {
+            width: 60px;
+            background: rgba(255,255,255,0.02);
+            border-right: 1px solid #333;
+            position: relative;
+            height: 100%;
+        }
+        
+        canvas { display: block; width: 100%; height: 100%; flex-grow: 1; }
+
+        /* --- HUD --- */
+        .hud-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(5, 5, 5, 0.9);
+            border: 1px solid #444;
+            padding: 15px;
+            width: 280px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            backdrop-filter: blur(4px);
+            border-left: 4px solid var(--planet-color);
+            transition: border-color 0.3s;
+            pointer-events: none;
+        }
+
+        .hud-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 0.8rem; }
+        .hud-label { color: #888; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 1px; }
+        .hud-value { font-weight: bold; color: #eee; }
+        .hud-highlight { color: var(--planet-color); font-size: 1.2rem; }
+        .hud-sub { font-size: 0.7rem; color: #aaa; font-style: italic; margin-top: 5px; text-align: center; }
+
+        /* --- CONTROLS --- */
+        .controls-bar {
+            width: 100%;
+            background: #0f0f0f;
+            padding: 15px 40px;
+            border-top: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 50px;
+            z-index: 50;
+        }
+
+        .toggle-wrapper { display: flex; align-items: center; gap: 10px; color: #aaa; font-size: 0.9rem; font-weight: bold; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 24px; border: 1px solid #555; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #00ff00; border-color: #00ff00; }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        .speed-control { display: flex; flex-direction: column; width: 180px; gap: 5px; }
+        input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; background: #333; border-radius: 2px; outline: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: #00ffff; border-radius: 50%; cursor: pointer; transition: transform 0.1s; }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+        .drop-btn {
+            background: #222; color: #fff; border: 1px solid #555;
+            padding: 12px 40px; border-radius: 4px; cursor: pointer;
+            font-weight: 800; font-size: 1.2rem; letter-spacing: 2px;
+            text-transform: uppercase; transition: all 0.2s;
+            box-shadow: 0 4px 0 #000;
+        }
+        .drop-btn:hover { background: #333; border-color: #00ff00; color: #00ff00; transform: translateY(-2px); box-shadow: 0 6px 0 #000; }
+        .drop-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
+
+        .hint-text {
+            position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%);
+            color: rgba(255,255,255,0.2); font-size: 0.75rem; pointer-events: none; text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="nav-wrapper">
+        <div class="planet-nav" id="planetNav"></div>
+    </div>
+
+    <div class="lab-container" id="labContainer">
+        <div class="ruler-area" id="rulerArea"></div>
+        <canvas id="simCanvas"></canvas>
+        
+        <div class="hud-panel" id="hudPanel">
+            <div class="hud-row">
+                <span class="hud-label">PLANET</span>
+                <span class="hud-value hud-highlight" id="dispPlanet">ZEMLJA</span>
+            </div>
+            <div class="hud-row">
+                <span class="hud-label">GRAVITACIJA (g)</span>
+                <span class="hud-value" id="dispG">9.81 m/s²</span>
+            </div>
+            <div style="border-top:1px dashed #333; margin:8px 0;"></div>
+            
+            <div class="hud-row">
+                <span class="hud-label">GOSTOTA ZRAKA ($\rho$)</span>
+                <span class="hud-value" id="dispRho">1.225 kg/m³</span>
+            </div>
+            <div class="hud-row">
+                <span class="hud-label">RELATIVNO (vs ZEMLJA)</span>
+                <span class="hud-value" id="dispRel">1.0x</span>
+            </div>
+            <div style="border-top:1px dashed #333; margin:8px 0;"></div>
+            <div class="hud-sub">* Predmeti so vizualno povečani (50x) za lažje opazovanje.</div>
+        </div>
+        
+        <div class="hint-text">Če je ATMOSFERA OFF, upor zraka ne deluje (vsi padejo hkrati).</div>
+    </div>
+
+    <div class="controls-bar">
+        <div class="toggle-wrapper">
+            <span style="color:#fff">VAKUUM</span>
+            <label class="switch">
+                <input type="checkbox" id="atmoToggle"> <span class="slider"></span>
+            </label>
+            <span>ATMOSFERA</span>
+        </div>
+
+        <button class="drop-btn" onclick="resetAndDrop()">SPUSTI!</button>
+
+        <div class="speed-control">
+            <div style="display:flex; justify-content:space-between; color:#888; font-size:0.7rem; font-weight:bold;">
+                <span>HITROST SIMULACIJE</span>
+                <span id="speedVal" style="color:#00ffff">1.0x</span>
+            </div>
+            <input type="range" id="simSpeed" min="0.1" max="10.0" step="0.1" value="1.0">
+        </div>
+    </div>
+
+<script>
+    /**
+     * GALILEO LAB v10.0 - BULLETPROOF EDITION
+     * Features: Sub-stepping physics, Force Clamping, Impact Damping.
+     */
+
+    // --- CONFIG ---
+    const system = [
+        { name: "CERES", g: 0.27, rho: 0, color: "#AAAAAA", glow: "rgba(200,200,200,0.4)" },
+        { name: "PLUTON", g: 0.62, rho: 0.001, color: "#D1C6AD", glow: "rgba(209,198,173,0.4)" },
+        { name: "LUNA", g: 1.62, rho: 0, color: "#DDDDDD", glow: "rgba(255,255,255,0.5)" },
+        { name: "MERKUR", g: 3.7, rho: 0, color: "#A5A5A5", glow: "rgba(165,165,165,0.4)" },
+        { name: "MARS", g: 3.71, rho: 0.020, color: "#FF4500", glow: "rgba(255,69,0,0.6)" },
+        { name: "URAN", g: 8.69, rho: 10.0, color: "#ADD8E6", glow: "rgba(173,216,230,0.5)" }, 
+        { name: "VENERA", g: 8.87, rho: 65.0, color: "#E3BB76", glow: "rgba(227,187,118,0.6)" },
+        { name: "ZEMLJA", g: 9.81, rho: 1.225, color: "#00FF00", glow: "rgba(0,255,0,0.8)" },
+        { name: "SATURN", g: 10.44, rho: 10.0, color: "#F4D03F", glow: "rgba(244,208,63,0.6)" },
+        { name: "NEPTUN", g: 11.15, rho: 10.0, color: "#5DADE2", glow: "rgba(93,173,226,0.6)" },
+        { name: "JUPITER", g: 24.79, rho: 12.0, color: "#E67E22", glow: "rgba(230,126,34,0.7)" },
+        { name: "SONCE", g: 274, rho: 0.0, color: "#FFFF00", glow: "rgba(255,255,0,0.9)" } 
+    ];
+
+    let currentPlanet = system[7]; 
+    let atmosphereOn = false; 
+    let simSpeedMultiplier = 1.0;
+    let isRunning = false;
+    
+    const REAL_HEIGHT_M = 20; 
+    let pixelsPerMeter = 30; 
+
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const hudPanel = document.getElementById('hudPanel');
+    
+    // --- OBJECTS ---
+    let objects = [
+        { 
+            name: "JEKLO", type: "ball", 
+            mass: 10.0, realMass: 10.0,
+            dragScale: 0.001, radius: 20, restitution: 0.5, color: "#00ffff", 
+            x: 0, y: 0, vy: 0, scaleY: 1, time: 0, finished: false, isResting: false 
+        },
+        { 
+            name: "BASKET", type: "ball", 
+            mass: 0.6, realMass: 0.6,
+            dragScale: 0.02, radius: 20, restitution: 0.85, color: "#ff8800", 
+            x: 0, y: 0, vy: 0, scaleY: 1, time: 0, finished: false, isResting: false  
+        },
+        { 
+            name: "PERESCE", type: "feather", 
+            mass: 1.0, realMass: 0.002, 
+            dragScale: 5.0, 
+            radius: 20, restitution: 0.1, color: "#FF69B4", 
+            x: 0, y: 0, vy: 0, scaleY: 1, time: 0, finished: false, isResting: false  
+        },
+        { 
+            name: "PLASTELIN", type: "playdoh", 
+            mass: 1.0, realMass: 1.0,
+            dragScale: 0.02, radius: 20, restitution: 0.0, color: "#FFD700", 
+            x: 0, y: 0, vy: 0, scaleY: 1, time: 0, finished: false, isResting: false  
+        }
+    ];
+
+    let groundY = 0;
+    let laneWidth = 0;
+
+    // --- INIT ---
+    function init() {
+        const nav = document.getElementById('planetNav');
+        system.forEach((p, idx) => {
+            const btn = document.createElement('button');
+            btn.className = `planet-btn ${p.name === 'ZEMLJA' ? 'active' : ''}`;
+            btn.innerText = p.name;
+            btn.style.setProperty('--planet-color', p.color);
+            btn.style.setProperty('--planet-glow', p.glow);
+            btn.onclick = () => switchPlanet(idx, btn);
+            nav.appendChild(btn);
+        });
+
+        const toggle = document.getElementById('atmoToggle');
+        toggle.checked = false; 
+        toggle.addEventListener('change', (e) => {
+            atmosphereOn = e.target.checked;
+            updateHUD();
+            resetAndDrop();
+        });
+
+        document.getElementById('simSpeed').addEventListener('input', (e) => {
+            simSpeedMultiplier = parseFloat(e.target.value);
+            document.getElementById('speedVal').innerText = simSpeedMultiplier.toFixed(1) + "x";
+        });
+
+        window.addEventListener('resize', handleResize);
+        handleResize(); 
+        
+        requestAnimationFrame(loop);
+    }
+
+    function handleResize() {
+        const container = document.getElementById('labContainer');
+        canvas.width = container.clientWidth - 60; 
+        canvas.height = container.clientHeight;
+        
+        groundY = canvas.height - 40;
+        laneWidth = canvas.width / 4;
+        
+        let dropHeightPx = groundY - 50;
+        pixelsPerMeter = dropHeightPx / REAL_HEIGHT_M;
+
+        drawRuler();
+        resetObjects(); 
+    }
+
+    function drawRuler() {
+        const rDiv = document.getElementById('rulerArea');
+        rDiv.innerHTML = ""; 
+        for (let m = 0; m <= REAL_HEIGHT_M; m += 5) {
+            let pxFromBottom = (m * pixelsPerMeter) + 40;
+            let tick = document.createElement('div');
+            tick.style.position = "absolute";
+            tick.style.bottom = pxFromBottom + "px";
+            tick.style.right = "0";
+            tick.style.width = "100%";
+            tick.style.borderTop = "1px solid #555";
+            tick.style.textAlign = "right";
+            tick.style.paddingRight = "5px";
+            tick.style.fontSize = "0.7rem";
+            tick.style.color = "#888";
+            tick.innerText = m + "m";
+            rDiv.appendChild(tick);
+        }
+    }
+
+    function switchPlanet(idx, btn) {
+        currentPlanet = system[idx];
+        document.querySelectorAll('.planet-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        btn.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+        hudPanel.style.setProperty('--planet-color', currentPlanet.color);
+        resetAndDrop(); 
+        updateHUD();
+    }
+
+    function resetObjects() {
+        isRunning = false;
+        objects.forEach((obj, i) => {
+            obj.y = groundY - (REAL_HEIGHT_M * pixelsPerMeter); 
+            obj.vy = 0;
+            obj.scaleY = 1; 
+            obj.scaleX = 1; 
+            obj.time = 0;
+            obj.finished = false;
+            obj.isResting = false; 
+            obj.x = (laneWidth * i) + (laneWidth / 2); 
+        });
+    }
+
+    function resetAndDrop() {
+        resetObjects();
+        setTimeout(() => { isRunning = true; }, 50);
+    }
+
+    // --- PHYSICS ENGINE ---
+    let lastTime = performance.now();
+
+    function loop(now) {
+        let deltaTime = (now - lastTime) / 1000;
+        lastTime = now;
+        if (deltaTime > 0.1) deltaTime = 0.1; 
+
+        // Total time step
+        let frameTimeStep = deltaTime * simSpeedMultiplier;
+
+        // --- SUB-STEPPING (THE FIX) ---
+        // Run physics 8 times per frame to prevent "tunneling" on high speed/gravity
+        const SUB_STEPS = 8;
+        let dt = frameTimeStep / SUB_STEPS;
+
+        // Render Background
+        drawBackground();
+
+        // Run Physics
+        if (isRunning) {
+            for (let step = 0; step < SUB_STEPS; step++) {
+                updatePhysics(dt);
+            }
+        }
+
+        // Render Objects
+        objects.forEach(obj => drawObject(obj));
+        requestAnimationFrame(loop);
+    }
+
+    function drawBackground() {
+        ctx.fillStyle = "#050505";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.strokeStyle = "rgba(255,255,255,0.03)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 10]);
+        for(let i=1; i<4; i++) {
+            ctx.beginPath(); ctx.moveTo(laneWidth*i, 0); ctx.lineTo(laneWidth*i, canvas.height); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        let grad = ctx.createLinearGradient(0, groundY, 0, canvas.height);
+        grad.addColorStop(0, currentPlanet.color);
+        grad.addColorStop(1, "#000");
+        ctx.fillStyle = grad;
+        ctx.globalAlpha = 0.3;
+        ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = currentPlanet.color;
+        ctx.fillRect(0, groundY, canvas.width, 3);
+    }
+
+    function updatePhysics(dt) {
+        let rho = atmosphereOn ? currentPlanet.rho : 0;
+        let g_px = currentPlanet.g * pixelsPerMeter; 
+
+        objects.forEach(obj => {
+            if (obj.isResting) return; 
+
+            // --- IN AIR ---
+            if (obj.y < groundY - (obj.radius * obj.scaleY)) {
+                
+                let v = obj.vy; 
+                let dragAccel = 0;
+
+                if (atmosphereOn && rho > 0) {
+                    // Drag calculation
+                    let dragForce = 0.5 * rho * (v * v) * obj.dragScale;
+                    
+                    // --- SAFETY LIMITER (THE FEATHER FIX) ---
+                    // Prevent drag from reversing velocity in a single step (explosion fix)
+                    // Max deceleration allowed is v / dt
+                    let maxForce = (Math.abs(v) / dt) * obj.mass;
+                    if (dragForce > maxForce) dragForce = maxForce;
+
+                    if (v > 0) dragForce = -dragForce;
+                    dragAccel = dragForce / obj.mass;
+                }
+
+                let a_total = g_px + dragAccel;
+                obj.vy += a_total * dt;
+                obj.y += obj.vy * dt;
+                
+                // Only count time if moving reasonably (stops floating point timer drift)
+                if(!obj.finished) obj.time += dt;
+
+            } else {
+                // --- COLLISION ---
+                if (!obj.finished && obj.type !== 'ball') obj.finished = true; 
+                // For balls, we stop timer only when they stop bouncing.
+                
+                obj.y = groundY - (obj.radius * obj.scaleY);
+
+                // Check speed for Stop Logic
+                // Threshold scaled by gravity (higher G needs higher threshold to stop shaking)
+                let stopThreshold = g_px * 0.15; 
+                // Cap threshold for low G planets so stuff doesn't stick too early
+                if(stopThreshold < 10) stopThreshold = 10;
+
+                if (Math.abs(obj.vy) > stopThreshold) { 
+                    if (obj.type === 'playdoh') {
+                        // Splat
+                        let impact = Math.abs(obj.vy);
+                        let squash = Math.min(0.6, impact * 0.001); 
+                        obj.scaleY = 1 - squash;
+                        obj.scaleX = 1 + squash;
+                        obj.vy = 0; 
+                        obj.isResting = true; 
+                    } else {
+                        // Bounce
+                        let e = obj.restitution;
+                        
+                        // --- IMPACT DAMPING (THE SUN FIX) ---
+                        // If impact is supersonic (visually > 2000px/s), reduce bounciness
+                        // This simulates material stress/failure on extreme planets
+                        if (Math.abs(obj.vy) > 2000) {
+                            e *= 0.7; 
+                        }
+
+                        obj.vy *= -e;
+                    }
+                } else {
+                    // STOP
+                    obj.vy = 0; 
+                    obj.isResting = true; 
+                    obj.finished = true; // Timer stops for balls now
+                }
+            }
+        });
+    }
+
+    function drawObject(obj) {
+        ctx.save();
+        ctx.translate(obj.x, obj.y);
+        ctx.scale(obj.scaleX, obj.scaleY); 
+
+        if (obj.type === 'feather') {
+            ctx.fillStyle = obj.color;
+            ctx.beginPath(); ctx.ellipse(0, 0, 8, 22, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(0, -22); ctx.lineTo(0, 22); ctx.stroke();
+        } 
+        else if (obj.name === 'BASKET') {
+            ctx.beginPath(); ctx.arc(0, 0, obj.radius, 0, Math.PI*2);
+            ctx.fillStyle = obj.color; ctx.fill();
+            ctx.strokeStyle = "#8B4513"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(-20,0); ctx.lineTo(20,0); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0,-20); ctx.lineTo(0,20); ctx.stroke();
+            let g = ctx.createRadialGradient(-5, -5, 2, 0, 0, 20);
+            g.addColorStop(0, "rgba(255,255,255,0.3)"); g.addColorStop(1, "rgba(0,0,0,0.1)");
+            ctx.fillStyle = g; ctx.fill();
+        }
+        else {
+            ctx.beginPath(); ctx.arc(0, 0, obj.radius, 0, Math.PI*2);
+            ctx.fillStyle = obj.color;
+            let g = ctx.createRadialGradient(-5, -5, 2, 0, 0, 20);
+            g.addColorStop(0, "#fff"); g.addColorStop(1, obj.color);
+            ctx.fillStyle = g; ctx.fill();
+        }
+        ctx.restore();
+
+        // Label
+        ctx.fillStyle = "#aaa";
+        ctx.font = "bold 12px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(obj.name, obj.x, obj.y - 35); 
+
+        // Data Display
+        let v_real = Math.abs(obj.vy / pixelsPerMeter); 
+        if(obj.isResting) v_real = 0.0; 
+
+        let F_weight = obj.realMass * currentPlanet.g;  
+
+        ctx.font = "bold 14px 'Courier New', monospace"; 
+        let lineHeight = 18;
+        let startTextY = obj.y + 45;
+
+        ctx.fillStyle = "#00ffff"; 
+        ctx.fillText(`m = ${obj.realMass} kg`, obj.x, startTextY);
+        
+        ctx.fillStyle = "#ff00ff"; 
+        ctx.fillText(`F = ${F_weight.toFixed(2)} N`, obj.x, startTextY + lineHeight);
+        
+        ctx.fillStyle = "#00ff00"; 
+        ctx.fillText(`v = ${v_real.toFixed(1)} m/s`, obj.x, startTextY + lineHeight * 2);
+
+        ctx.fillStyle = obj.finished ? "#888" : "#eee";
+        ctx.font = "12px sans-serif";
+        ctx.fillText(`t: ${obj.time.toFixed(2)} s`, obj.x, startTextY + lineHeight * 3 + 8);
+    }
+
+    function updateHUD() {
+        document.getElementById('dispPlanet').innerText = currentPlanet.name;
+        document.getElementById('dispG').innerText = currentPlanet.g.toFixed(2) + " m/s²";
+        
+        let rhoText = atmosphereOn ? currentPlanet.rho.toFixed(3) : "0.000";
+        document.getElementById('dispRho').innerText = rhoText + " kg/m³";
+
+        let relText = "0.0x (Vakuum)";
+        if (atmosphereOn) {
+            let ratio = currentPlanet.rho / 1.225;
+            relText = ratio.toFixed(2) + "x";
+        }
+        document.getElementById('dispRel').innerText = relText;
+    }
+
+    init();
+    updateHUD();
+
+</script>
+</body>
+</html>

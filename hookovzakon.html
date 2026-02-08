@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hookov zakon - Interaktivna vaja</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #e67e22;
+            --bg-color: #f4f6f7;
+            --wire-color: #555;
+            --wire-thickness: 3px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            color: #333;
+        }
+
+        /* Top Control Panel */
+        header {
+            background-color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 { margin: 0; font-size: 1.4rem; color: var(--primary-color); }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label { font-size: 0.85rem; font-weight: 600; color: #666; }
+
+        input[type="range"] { cursor: pointer; }
+        
+        button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn-check { background-color: var(--success-color); color: white; }
+        .btn-reset { background-color: var(--warning-color); color: white; }
+
+        /* Main Workspace */
+        #workspace {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            background-image: radial-gradient(#ddd 1px, transparent 1px);
+            background-size: 20px 20px; /* Graph paper effect */
+        }
+
+        /* The Apparatus */
+        .apparatus {
+            position: relative;
+            width: 300px;
+            height: 100%;
+            border-top: 8px solid #444; /* Ceiling */
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Spring SVG */
+        #spring-svg {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            overflow: visible;
+            width: 60px; /* Width of the coil */
+            pointer-events: none;
+        }
+
+        path.spring-wire {
+            stroke: var(--wire-color);
+            stroke-width: var(--wire-thickness);
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            /* Key fix: prevent line thickness from stretching */
+            vector-effect: non-scaling-stroke; 
+        }
+
+        /* The Mass */
+        #mass-block {
+            width: 60px;
+            height: 60px;
+            background-color: #c0392b;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%); /* Center horizontally */
+            border-radius: 4px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9rem;
+            /* Smooth physics movement */
+            transition: top 0.3s cubic-bezier(0.3, 1.5, 0.5, 1); 
+            z-index: 2;
+        }
+
+        /* Hook on the mass */
+        #mass-hook {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 10px;
+            border: 3px solid #333;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+        }
+
+        /* Draggable Ruler */
+        #ruler {
+            position: absolute;
+            right: 50px;
+            top: 50px;
+            width: 60px;
+            height: 500px;
+            background-color: rgba(255, 255, 240, 0.95);
+            border: 1px solid #999;
+            cursor: grab;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+            user-select: none;
+        }
+
+        #ruler:active { cursor: grabbing; }
+
+        .tick {
+            width: 100%;
+            border-bottom: 1px solid #333;
+            position: absolute;
+        }
+        .tick.major { width: 100%; border-bottom: 2px solid black; }
+        .tick.minor { width: 50%; right: 0; border-bottom: 1px solid #777; }
+        .tick-label {
+            position: absolute;
+            left: 5px;
+            font-size: 11px;
+            font-weight: bold;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
+        /* Reference Line (Scaffolding) */
+        #ref-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 0;
+            border-bottom: 2px dashed red;
+            display: none;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .ref-marker-btn {
+            position: absolute;
+            left: -140px;
+            top: -10px;
+            background: #e74c3c;
+            color: white;
+            font-size: 0.8rem;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        /* Challenge Panel */
+        #challenge-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            width: 280px;
+            border-left: 5px solid var(--accent-color);
+            display: none; 
+            z-index: 20;
+        }
+
+        #feedback {
+            margin-top: 10px;
+            font-weight: bold;
+            min-height: 20px;
+        }
+
+        .helper-text {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+
+        /* Toggle Switch */
+        .mode-toggle {
+            display: flex;
+            background: #e0e0e0;
+            border-radius: 20px;
+            padding: 3px;
+        }
+        .mode-toggle button {
+            background: transparent;
+            color: #555;
+            border-radius: 17px;
+            padding: 5px 15px;
+            font-size: 0.9rem;
+            box-shadow: none;
+        }
+        .mode-toggle button.active {
+            background: var(--primary-color);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="display:flex; flex-direction:column; gap:5px;">
+        <h1>Hookov zakon</h1>
+        <div class="mode-toggle" id="modeSwitch">
+            <button class="active" onclick="setMode('explore')">Raziskovanje</button>
+            <button onclick="setMode('challenge')">Izziv: Skrivnostna vzmet</button>
+        </div>
+    </div>
+
+    <div class="controls" id="explore-controls">
+        <div class="control-group">
+            <label>Trdota vzmeti (k)</label>
+            <input type="range" id="k-slider" min="10" max="100" value="30">
+            <span id="k-display" style="font-size:0.8rem">30 N/m</span>
+        </div>
+        <div class="control-group">
+            <label>Masa uteži (m)</label>
+            <input type="range" id="m-slider" min="0" max="1000" step="50" value="0">
+            <span id="m-display" style="font-size:0.8rem">0 g</span>
+        </div>
+    </div>
+
+    <div class="controls" id="challenge-controls" style="display:none;">
+        <div class="control-group">
+            <label>Izberi utež:</label>
+            <select id="challenge-mass-select" style="padding:5px; border-radius:4px;">
+                <option value="0">Brez uteži</option>
+                <option value="100">100 g (pribl. 1 N)</option>
+                <option value="250">250 g (pribl. 2.5 N)</option>
+                <option value="500">500 g (pribl. 5 N)</option>
+            </select>
+        </div>
+        <button class="btn-reset" onclick="newMysterySpring()">Nova vzmet</button>
+    </div>
+</header>
+
+<div id="workspace">
+    
+    <div class="apparatus">
+        <div id="ref-line">
+            <div class="ref-marker-btn" onclick="toggleRefLine()">Odstrani oznako</div>
+            <span style="position: absolute; right: 5px; top: -20px; color: red; font-size: 0.8rem;">Začetna lega (l₀)</span>
+        </div>
+
+        <svg id="spring-svg" height="600">
+            <path id="spring-path" class="spring-wire" d="" />
+        </svg>
+
+        <div id="mass-block" style="top: 150px;">
+            <div id="mass-hook"></div>
+            <span id="mass-label">0 g</span>
+        </div>
+
+        <button id="set-ref-btn" 
+                style="position:absolute; top: 150px; left: -140px; font-size:0.8rem; background:#333; color:white;"
+                onclick="setRefLine()">
+            Označi začetno lego
+        </button>
+    </div>
+
+    <div id="ruler" onmousedown="startDrag(event, this)">
+        </div>
+
+    <div id="challenge-panel">
+        <h3>Izziv: Izračunaj k</h3>
+        <p class="helper-text">1. Označi začetno lego vzmeti.<br>2. Obesi utež.<br>3. Izmeri raztezek.<br>4. Izračunaj k.</p>
+        
+        <div style="margin-bottom: 10px;">
+            <label>Izmerjen raztezek ($\Delta l$):</label><br>
+            <div style="display:flex; align-items:center; gap:5px;">
+                <input type="number" id="input-x" placeholder="npr. 15" style="width: 70px; padding:5px;"> 
+                <span>cm</span>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 10px;">
+            <label>Izračunan koeficient ($k$):</label><br>
+            <div style="display:flex; align-items:center; gap:5px;">
+                <input type="number" id="input-k" placeholder="?" style="width: 70px; padding:5px;"> 
+                <span>N/m</span>
+            </div>
+        </div>
+        
+        <button class="btn-check" onclick="checkAnswer()">Preveri odgovor</button>
+        <div id="feedback"></div>
+    </div>
+
+</div>
+
+<script>
+    // Physics Constants
+    const g = 10; // 8th grade simplification
+    let currentK = 30; // N/m
+    let currentMass = 0; // kg
+    
+    // Spring Visualization Constants
+    const naturalPixels = 120; // Length in px when Force = 0
+    const pixelsPerMeter = 1000; // Scale: 100px = 10cm = 0.1m
+    const springWidth = 40; // Width of coil in px
+    const coils = 12; // Number of coils
+    
+    // State
+    let isChallengeMode = false;
+    let mysteryK = 0;
+    
+    // --- DRAWING THE SPRING (The Key Fix) ---
+    function drawSpring(length) {
+        // This generates a realistic zigzag/coil path
+        // length: total vertical length in pixels
+        // width: springWidth
+        // coils: number of turns
+        
+        const startX = 30; // Center of SVG (which is 60px wide)
+        const startY = 0;
+        
+        // Header loop (connection to ceiling)
+        let d = `M ${startX} ${startY} L ${startX} 10 `; 
+        
+        const activeLength = length - 20; // Subtract top/bottom connections
+        const stepY = activeLength / coils;
+        
+        let currentY = 10;
+        
+        // Draw coils
+        for (let i = 0; i < coils; i++) {
+            // Zig-zag pattern
+            // Down-Left
+            d += `L ${startX - springWidth/2} ${currentY + stepY * 0.25} `;
+            // Down-Right
+            d += `L ${startX + springWidth/2} ${currentY + stepY * 0.75} `;
+            
+            currentY += stepY;
+        }
+        
+        // Re-center for final loop
+        d += `L ${startX} ${currentY} `;
+        
+        // Footer loop (connection to mass)
+        d += `L ${startX} ${length}`;
+        
+        document.getElementById('spring-path').setAttribute('d', d);
+    }
+
+    // --- PHYSICS ENGINE ---
+    function updatePhysics() {
+        let k = isChallengeMode ? mysteryK : currentK;
+        if (k < 5) k = 5;
+
+        // Hooke's Law: x = F / k
+        const Force = currentMass * g; // N
+        const extensionMeters = Force / k; // m
+        const extensionPixels = extensionMeters * pixelsPerMeter;
+        
+        // Total visual length
+        const totalLengthPixels = naturalPixels + extensionPixels;
+
+        // 1. Draw the spring with new length
+        drawSpring(totalLengthPixels);
+
+        // 2. Move the mass
+        // The mass hangs at the end of the spring
+        const massBlock = document.getElementById('mass-block');
+        massBlock.style.top = totalLengthPixels + 'px'; 
+        
+        // 3. Move the helper button
+        const setRefBtn = document.getElementById('set-ref-btn');
+        if(currentMass === 0) {
+            setRefBtn.style.top = totalLengthPixels + 'px';
+            setRefBtn.style.display = 'block';
+        } else {
+            setRefBtn.style.display = 'none';
+        }
+    }
+
+    // --- RULER GENERATION ---
+    const ruler = document.getElementById('ruler');
+    for(let i=0; i<=50; i++) {
+        const tick = document.createElement('div');
+        tick.className = i % 5 === 0 ? 'tick major' : 'tick minor';
+        tick.style.top = (i * 10) + 'px'; // 10px per cm
+        
+        if (i % 5 === 0) {
+            const label = document.createElement('span');
+            label.className = 'tick-label';
+            label.innerText = i; 
+            tick.appendChild(label);
+        }
+        ruler.appendChild(tick);
+    }
+
+    // --- CONTROLS LISTENERS ---
+    document.getElementById('k-slider').addEventListener('input', (e) => {
+        currentK = parseInt(e.target.value);
+        document.getElementById('k-display').innerText = currentK + " N/m";
+        updatePhysics();
+    });
+
+    document.getElementById('m-slider').addEventListener('input', (e) => {
+        const massGrams = parseInt(e.target.value);
+        currentMass = massGrams / 1000;
+        document.getElementById('m-display').innerText = massGrams + " g";
+        document.getElementById('mass-label').innerText = massGrams > 0 ? massGrams + " g" : "";
+        updatePhysics();
+    });
+
+    document.getElementById('challenge-mass-select').addEventListener('change', (e) => {
+        const massGrams = parseInt(e.target.value);
+        currentMass = massGrams / 1000;
+        document.getElementById('mass-label').innerText = massGrams > 0 ? massGrams + " g" : "";
+        updatePhysics();
+    });
+
+    // --- LOGIC: MODES ---
+    function setMode(mode) {
+        const exploreControls = document.getElementById('explore-controls');
+        const challengeControls = document.getElementById('challenge-controls');
+        const challengePanel = document.getElementById('challenge-panel');
+        const btns = document.querySelectorAll('.mode-toggle button');
+        
+        isChallengeMode = (mode === 'challenge');
+
+        if(isChallengeMode) {
+            exploreControls.style.display = 'none';
+            challengeControls.style.display = 'flex';
+            challengePanel.style.display = 'block';
+            btns[0].classList.remove('active');
+            btns[1].classList.add('active');
+            newMysterySpring();
+        } else {
+            exploreControls.style.display = 'flex';
+            challengeControls.style.display = 'none';
+            challengePanel.style.display = 'none';
+            btns[0].classList.add('active');
+            btns[1].classList.remove('active');
+            
+            // Reset to explore defaults
+            currentMass = 0;
+            document.getElementById('m-slider').value = 0;
+            document.getElementById('m-display').innerText = "0 g";
+            document.getElementById('mass-label').innerText = "";
+            document.getElementById('k-slider').value = 30;
+            currentK = 30;
+            document.getElementById('k-display').innerText = "30 N/m";
+            
+            updatePhysics();
+        }
+    }
+
+    function newMysterySpring() {
+        // Random K between 15 and 85
+        mysteryK = Math.floor(Math.random() * 70) + 15;
+        currentMass = 0;
+        document.getElementById('challenge-mass-select').value = 0;
+        document.getElementById('mass-label').innerText = "";
+        
+        // Reset inputs
+        document.getElementById('input-x').value = "";
+        document.getElementById('input-k').value = "";
+        document.getElementById('feedback').innerHTML = "";
+        
+        document.getElementById('ref-line').style.display = 'none';
+        
+        updatePhysics();
+    }
+
+    function checkAnswer() {
+        const userK = parseFloat(document.getElementById('input-k').value);
+        const feedback = document.getElementById('feedback');
+
+        if(isNaN(userK)) {
+            feedback.innerText = "Prosim, vnesi rezultat.";
+            feedback.style.color = "orange";
+            return;
+        }
+
+        const errorMargin = 3; 
+        
+        if (Math.abs(userK - mysteryK) <= errorMargin) {
+            feedback.innerHTML = `<span style="color:green; font-size:1.2rem;">&#10004;</span> Odlično! Pravilno.<br>($k$ je bil ${mysteryK} N/m)`;
+        } else {
+            feedback.innerHTML = `<span style="color:red; font-size:1.2rem;">&#10008;</span> Napačno. Poskusi znova.<br><small>Pazi na pretvorbo enot (cm &rarr; m)!</small>`;
+        }
+    }
+
+    // --- TOOLS ---
+    function setRefLine() {
+        const massBlock = document.getElementById('mass-block');
+        const refLine = document.getElementById('ref-line');
+        const workspaceRect = document.getElementById('workspace').getBoundingClientRect();
+        
+        // We want the line at the BOTTOM of the spring, which is the TOP of the mass block
+        // massBlock.style.top is relative to workspace container
+        const springBottom = massBlock.offsetTop; 
+        
+        refLine.style.top = springBottom + 'px';
+        refLine.style.display = 'block';
+    }
+
+    function toggleRefLine() {
+        document.getElementById('ref-line').style.display = 'none';
+    }
+
+    // --- DRAG RULER ---
+    let activeDrag = null;
+    let initialX, initialY;
+
+    function startDrag(e, item) {
+        activeDrag = item;
+        initialX = e.clientX - item.offsetLeft;
+        initialY = e.clientY - item.offsetTop;
+        document.addEventListener('mouseup', closeDragElement);
+        document.addEventListener('mousemove', elementDrag);
+    }
+
+    function elementDrag(e) {
+        if(!activeDrag) return;
+        e.preventDefault();
+        
+        const newX = e.clientX - initialX;
+        const newY = e.clientY - initialY;
+        
+        activeDrag.style.top = newY + "px";
+        activeDrag.style.left = newX + "px";
+        activeDrag.style.right = "auto";
+    }
+
+    function closeDragElement() {
+        activeDrag = null;
+        document.removeEventListener('mouseup', closeDragElement);
+        document.removeEventListener('mousemove', elementDrag);
+    }
+
+    // Initialize
+    updatePhysics();
+
+</script>
+</body>
+</html>
