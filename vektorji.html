@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sile in Vektorji - Master PAN PRO (8. razred)</title>
+    <style>
+        /* Profesionalni setup in layout z uporabo Flexbox-a */
+        body {
+            margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex; flex-direction: column; height: 100vh; background-color: #f4f6f9;
+            overflow: hidden; /* Preprečimo scrollbarje na celem oknu */
+        }
+        
+        /* Orodna vrstica styling */
+        .toolbar {
+            background-color: #ffffff; padding: 10px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex; gap: 15px; align-items: center; z-index: 10; flex-wrap: wrap;
+        }
+        
+        .tool-group {
+            display: flex; gap: 8px; align-items: center; 
+            border-right: 2px solid #eee; padding-right: 15px;
+        }
+        .tool-group:last-child { border-right: none; }
+
+        button {
+            padding: 8px 12px; font-size: 13px; cursor: pointer; border: none;
+            border-radius: 5px; background-color: #e4e6eb; color: #050505; font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        button:hover { background-color: #d8dadf; }
+        
+        .btn-primary { background-color: #1877f2; color: white; }
+        .btn-primary:hover { background-color: #166fe5; }
+        .btn-success { background-color: #31a24c; color: white; }
+        .btn-success:hover { background-color: #2b9244; }
+        .btn-magic { background-color: #9c27b0; color: white; } 
+        .btn-magic:hover { background-color: #7b1fa2; }
+        .btn-danger { background-color: #e41e3f; color: white; }
+        .btn-danger:hover { background-color: #c91835; }
+        
+        .mode-btn.active { background-color: #333; color: white; }
+
+        input[type="number"] { width: 55px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; }
+        input[type="color"] { border: none; width: 30px; height: 30px; border-radius: 5px; cursor: pointer; padding: 0;}
+        select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-weight: bold; }
+
+        /* SPLIT SCREEN LAYOUT CONTAINER */
+        #main-area {
+            display: flex; flex-grow: 1; position: relative; overflow: hidden;
+        }
+
+        /* Workspace (leva stran) */
+        #canvas-container { 
+            flex-grow: 1; position: relative; transition: width 0.3s ease-in-out;
+            border-right: 2px solid #ccc; background-color: white;
+            cursor: grab; /* Default cursor za premikanje pogleda */
+        }
+        #canvas-container:active { cursor: grabbing; }
+        
+        /* Solution panel (desna stran) */
+        #solution-container {
+            width: 0; display: none; background-color: #fafafa; position: relative;
+            flex-direction: column; border-left: 2px solid #333; box-shadow: -5px 0 15px rgba(0,0,0,0.05);
+            transition: width 0.3s ease-in-out;
+            cursor: grab;
+        }
+        #solution-container:active { cursor: grabbing; }
+
+        svg { width: 100%; height: 100%; display: block; user-select: none; }
+        
+        /* Navodila v kotu */
+        .instruction {
+            position: absolute; bottom: 20px; left: 20px; background: rgba(255,255,255,0.95);
+            padding: 15px; border-radius: 8px; font-size: 13px; color: #333; pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-left: 4px solid #1877f2;
+        }
+
+        .solution-title {
+            position: absolute; top: 20px; left: 20px; font-size: 15px; font-weight: bold; color: #9c27b0;
+            background: rgba(255,255,255,0.9); padding: 10px 15px; border-radius: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <div class="tool-group">
+            <button id="btn-mode-daljica" class="mode-btn" onclick="setMode('daljica')">Daljica</button>
+            <button id="btn-mode-vektor" class="mode-btn active" onclick="setMode('vektor')">Vektor (Sila)</button>
+        </div>
+
+        <div class="tool-group">
+            <label>Telo:</label>
+            <select id="bodyType" onchange="changeBody()">
+                <option value="brez">Brez</option>
+                <option value="tocka">Točka</option>
+                <option value="krog">Krog</option>
+                <option value="klada">Klada</option>
+            </select>
+            <button id="btn-toggle-grid" onclick="toggleGrid()">Mreža: ON</button>
+        </div>
+        
+        <div class="tool-group">
+            <label>1 cm =</label>
+            <input type="number" id="scaleInput" value="10" onchange="updateScale()"> N
+            <button id="btn-toggle-values" onclick="toggleValues()">Vrednosti: OFF</button>
+        </div>
+
+        <div class="tool-group">
+            <input type="number" id="customN" placeholder="N"> N
+            <input type="number" id="customKot" placeholder="°"> ° (0°=GOR)
+            <input type="color" id="lineColor" value="#1877f2">
+            <button class="btn-primary" onclick="addCustomLine()">Nariši</button>
+        </div>
+
+        <div class="tool-group">
+            <button class="btn-success" onclick="addResultant()">+ Ročna (F_R)</button>
+            <button class="btn-magic" id="btn-solution" onclick="toggleSolution()">Pokaži rešitev (Split)</button>
+            <button class="btn-danger" onclick="clearAll()">Počisti vse</button>
+        </div>
+    </div>
+
+    <div id="main-area">
+        <div id="canvas-container">
+            <svg id="svg-canvas">
+                <defs>
+                    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e0e0e0" stroke-width="0.5"/>
+                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ccc" stroke-width="1"/>
+                    </pattern>
+                </defs>
+                
+                <g id="transform-layer" transform="translate(0,0)">
+                    <rect id="grid-rect" x="-50000" y="-50000" width="100000" height="100000" fill="url(#grid)" />
+                    <g id="body-layer"></g>
+                    <g id="lines-layer"></g>
+                </g>
+            </svg>
+            <div class="instruction">
+                <strong>Premik pogleda:</strong> Primi prazno platno in vleci.<br>
+                <strong>Telo:</strong> Sile se prilepijo nanj!
+            </div>
+        </div>
+
+        <div id="solution-container">
+            <svg id="svg-solution">
+                <g id="sol-transform-layer" transform="translate(0,0)">
+                    <g id="solution-lines-layer"></g>
+                </g>
+            </svg>
+            <div class="solution-title" id="solution-text">Računam...</div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const canvas = document.getElementById('svg-canvas');
+        const linesLayer = document.getElementById('lines-layer');
+        const bodyLayer = document.getElementById('body-layer');
+        const transformLayer = document.getElementById('transform-layer'); 
+        const colorInput = document.getElementById('lineColor');
+        const customNInput = document.getElementById('customN');
+        const customKotInput = document.getElementById('customKot');
+        
+        const solutionContainer = document.getElementById('solution-container');
+        const svgSolution = document.getElementById('svg-solution');
+        const solTransformLayer = document.getElementById('sol-transform-layer');
+        const solLinesLayer = document.getElementById('solution-lines-layer');
+        const solutionText = document.getElementById('solution-text');
+
+        // --- APP STATE ---
+        let mode = 'vektor'; 
+        let showValues = false;
+        let showGrid = true;
+        let isSplitScreen = false;
+        let scaleN = 10; 
+        let lines = [];
+        let nextIndex = 1; 
+        let selectedId = null;
+        let dragState = null; // Lahko je null, 'pan', 'sol-pan', 'body', 'start', 'end', 'line'
+        
+        // --- PANNING STATE (Kamere) ---
+        let mainPanX = 0; let mainPanY = 0;
+        let solPanX = 0; let solPanY = 0;
+
+        let physBody = { type: 'brez', x: 0, y: 0 };
+        const PX_PER_CM = 40; 
+
+        // Initial setup
+        function initApp() {
+            // Postavimo telo v center ekrana ob prvem zagonu
+            const rect = canvas.getBoundingClientRect();
+            physBody.x = rect.width / 2;
+            physBody.y = rect.height / 2;
+            render();
+        }
+
+        // --- MATH HELPERS ---
+        function pxToCm(px) { return px / PX_PER_CM; }
+        function cmToN(cm) { return cm * scaleN; }
+        function pxToN(px) { return cmToN(pxToCm(px)); }
+        function nToPx(n) { return (n / scaleN) * PX_PER_CM; }
+        function distance(x1, y1, x2, y2) { return Math.hypot(x2 - x1, y2 - y1); }
+        
+        function pointToLineDistance(px, py, x1, y1, x2, y2) {
+            const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+            if (l2 === 0) return distance(px, py, x1, y1);
+            let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return distance(px, py, x1 + t * (x2 - x1), y1 + t * (y2 - y1));
+        }
+
+        // --- UI TOGGLES ---
+        function setMode(newMode) {
+            mode = newMode;
+            document.getElementById('btn-mode-daljica').classList.toggle('active', mode === 'daljica');
+            document.getElementById('btn-mode-vektor').classList.toggle('active', mode === 'vektor');
+            render(); if(isSplitScreen) calculateAndDrawSolution(); 
+        }
+
+        function toggleGrid() {
+            showGrid = !showGrid;
+            document.getElementById('btn-toggle-grid').textContent = showGrid ? "Mreža: ON" : "Mreža: OFF";
+            document.getElementById('grid-rect').style.display = showGrid ? 'block' : 'none';
+        }
+
+        function toggleValues() {
+            showValues = !showValues;
+            const btn = document.getElementById('btn-toggle-values');
+            btn.textContent = showValues ? "Vrednosti: ON" : "Vrednosti: OFF";
+            btn.style.backgroundColor = showValues ? "#31a24c" : "#e4e6eb";
+            btn.style.color = showValues ? "white" : "black";
+            render();
+        }
+
+        function updateScale() {
+            const val = parseFloat(document.getElementById('scaleInput').value);
+            if (!isNaN(val) && val > 0) { scaleN = val; render(); if(isSplitScreen) calculateAndDrawSolution(); }
+        }
+
+        function changeBody() {
+            physBody.type = document.getElementById('bodyType').value;
+            // Postavimo telo nekam vidno v trenutni kameri
+            const rect = canvas.getBoundingClientRect();
+            physBody.x = (rect.width / 2) - mainPanX;
+            physBody.y = (rect.height / 2) - mainPanY;
+            render();
+        }
+
+        function getLabels(index) {
+            let letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            let idx1 = ((index - 1) * 2) % 26; let idx2 = ((index - 1) * 2 + 1) % 26;
+            return [letters[idx1], letters[idx2]];
+        }
+
+        // --- DODAJANJE SIL ---
+        function addCustomLine() {
+            const valN = parseFloat(customNInput.value);
+            const valKot = parseFloat(customKotInput.value);
+            if (isNaN(valN) || isNaN(valKot)) { alert("Vnesi številke za N in Kot!"); return; }
+
+            const lenPx = nToPx(valN);
+            const rad = valKot * (Math.PI / 180);
+            const dx = lenPx * Math.sin(rad);
+            const dy = -lenPx * Math.cos(rad); 
+
+            let startX = physBody.type !== 'brez' ? physBody.x : (canvas.getBoundingClientRect().width/2) - mainPanX;
+            let startY = physBody.type !== 'brez' ? physBody.y : (canvas.getBoundingClientRect().height/2) - mainPanY;
+
+            lines.push({
+                id: Date.now() + Math.random(), x1: startX, y1: startY, x2: startX + dx, y2: startY + dy,
+                index: nextIndex++, color: colorInput.value, isManualResultant: false
+            });
+            render(); if(isSplitScreen) calculateAndDrawSolution();
+        }
+
+        function addResultant() {
+            let startX = physBody.type !== 'brez' ? physBody.x : (canvas.getBoundingClientRect().width/2) - mainPanX;
+            let startY = physBody.type !== 'brez' ? physBody.y : (canvas.getBoundingClientRect().height/2) - mainPanY;
+            
+            lines.push({
+                id: Date.now(), x1: startX - 30, y1: startY + 30, x2: startX + 50, y2: startY - 50,
+                index: 'R', color: '#31a24c', isManualResultant: true
+            });
+            setMode('vektor'); 
+        }
+
+        function clearAll() {
+            lines = []; selectedId = null; nextIndex = 1; 
+            mainPanX = 0; mainPanY = 0; // Reset kamere
+            applyMainTransform();
+            render();
+            if(isSplitScreen) toggleSolution(); 
+        }
+
+        // --- SPLIT SCREEN IN SMART CENTRIRANJE ---
+        function toggleSolution() {
+            isSplitScreen = !isSplitScreen;
+            const btn = document.getElementById('btn-solution');
+            
+            if (isSplitScreen) {
+                btn.textContent = "Zapri rešitev";
+                btn.style.backgroundColor = "#7b1fa2";
+                solutionContainer.style.display = "flex";
+                
+                // Animacija in izračun
+                setTimeout(() => {
+                    solutionContainer.style.width = "50%";
+                    // Pustimo main platno pri miru, samo izračunamo desno
+                    calculateAndDrawSolution();
+                }, 10);
+            } else {
+                btn.textContent = "Pokaži rešitev (Split)";
+                btn.style.backgroundColor = "#9c27b0";
+                solutionContainer.style.width = "0";
+                setTimeout(() => { solutionContainer.style.display = "none"; }, 300);
+            }
+        }
+
+        function calculateAndDrawSolution() {
+            solLinesLayer.innerHTML = ''; 
+            const validForces = lines.filter(l => !l.isManualResultant); 
+            
+            if (validForces.length === 0) {
+                solutionText.innerHTML = "Ni dodanih sil za izračun."; 
+                solPanX = 0; solPanY = 0; applySolTransform();
+                return;
+            }
+
+            // 1. Izračunamo koordinate rešitve "v vakuumu" (od točke 0,0)
+            let rawData = [];
+            let currentX = 0; let currentY = 0;
+            let totalDx = 0; let totalDy = 0;
+
+            validForces.forEach(l => {
+                const dx = l.x2 - l.x1; const dy = l.y2 - l.y1;
+                totalDx += dx; totalDy += dy;
+                const nextX = currentX + dx; const nextY = currentY + dy;
+                
+                rawData.push({ x1: currentX, y1: currentY, x2: nextX, y2: nextY, color: l.color, index: l.index });
+                currentX = nextX; currentY = nextY;
+            });
+
+            // 2. Narišemo vse elemente na solution layer
+            rawData.forEach(d => {
+                drawVectorToLayer(solLinesLayer, d.x1, d.y1, d.x2, d.y2, d.color, d.index, false);
+            });
+
+            // Rezultanta
+            const resLenPx = Math.hypot(totalDx, totalDy);
+            const resForceN = Math.round(pxToN(resLenPx));
+
+            if (resLenPx > 1) { 
+                drawVectorToLayer(solLinesLayer, 0, 0, currentX, currentY, '#e41e3f', 'R', true);
+            }
+
+            // 3. PAMETNO CENTRIRANJE (Smart Bounding Box kamere)
+            // Poiščemo min in max točke vseh narisanih vektorjev
+            let pointsX = [0, currentX, ...rawData.map(d=>d.x1), ...rawData.map(d=>d.x2)];
+            let pointsY = [0, currentY, ...rawData.map(d=>d.y1), ...rawData.map(d=>d.y2)];
+            
+            let minX = Math.min(...pointsX); let maxX = Math.max(...pointsX);
+            let minY = Math.min(...pointsY); let maxY = Math.max(...pointsY);
+            
+            let contentCenterX = (minX + maxX) / 2;
+            let contentCenterY = (minY + maxY) / 2;
+
+            // Kamera naj se postavi tako, da bo ta content center na sredini ekrana
+            const solRect = solutionContainer.getBoundingClientRect();
+            solPanX = (solRect.width / 2) - contentCenterX;
+            solPanY = (solRect.height / 2) - contentCenterY;
+            
+            applySolTransform();
+
+            // 4. Izpis teksta
+            let angleRad = Math.atan2(totalDx, -totalDy);
+            let angleDeg = angleRad * (180 / Math.PI);
+            if (angleDeg < 0) angleDeg += 360; 
+
+            if (resLenPx > 1) {
+                solutionText.innerHTML = `Rezultanta: <strong style="color:#e41e3f">${resForceN} N</strong> <br> Kot: <strong>${Math.round(angleDeg)}°</strong>`;
+            } else {
+                solutionText.innerHTML = `Telo je v <strong>RAVNOVESJU</strong> (0 N).`;
+            }
+        }
+
+        // --- UPRAVLJANJE POGLEDA IN MIŠKE (Pan & Drag) ---
+        function applyMainTransform() {
+            transformLayer.setAttribute('transform', `translate(${mainPanX}, ${mainPanY})`);
+        }
+        function applySolTransform() {
+            solTransformLayer.setAttribute('transform', `translate(${solPanX}, ${solPanY})`);
+        }
+
+        // Dogodki za GLAVNO PLATNO (Workspace)
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            // Izračunamo točko znotraj navideznega premaknjenega prostora
+            const mx = (e.clientX - rect.left) - mainPanX; 
+            const my = (e.clientY - rect.top) - mainPanY;
+            let hit = false;
+
+            // 1. Telo
+            if (physBody.type !== 'brez') {
+                let hitBody = false;
+                if (physBody.type === 'tocka' || physBody.type === 'krog') {
+                    const radius = physBody.type === 'tocka' ? 10 : 30; 
+                    if (distance(mx, my, physBody.x, physBody.y) < radius + 10) hitBody = true;
+                } else if (physBody.type === 'klada') {
+                    if (mx > physBody.x - 50 && mx < physBody.x + 50 && my > physBody.y - 30 && my < physBody.y + 30) hitBody = true;
+                }
+                if (hitBody) {
+                    const attached = lines.filter(l => distance(l.x1, l.y1, physBody.x, physBody.y) < 60 || distance(l.x2, l.y2, physBody.x, physBody.y) < 60);
+                    dragState = { type: 'body', offsetX: mx - physBody.x, offsetY: my - physBody.y, attached, startX: physBody.x, startY: physBody.y };
+                    return; 
+                }
+            }
+
+            // 2. Linije
+            for (let i = lines.length - 1; i >= 0; i--) {
+                const l = lines[i];
+                if (distance(mx, my, l.x1, l.y1) < 20) { dragState = { type: 'start', id: l.id }; hit = true; break; }
+                else if (distance(mx, my, l.x2, l.y2) < 20) { dragState = { type: 'end', id: l.id }; hit = true; break; }
+                else if (pointToLineDistance(mx, my, l.x1, l.y1, l.x2, l.y2) < 10) { dragState = { type: 'line', id: l.id, ox: mx, oy: my }; hit = true; break; }
+            }
+            
+            // 3. PANNING (Če nismo kliknili ničesar, premikamo pogled)
+            if(!hit) {
+                selectedId = null;
+                dragState = { type: 'pan', sMouseX: e.clientX, sMouseY: e.clientY, sPanX: mainPanX, sPanY: mainPanY };
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!dragState) return;
+            
+            if (dragState.type === 'pan') {
+                // PANNING ACTION
+                mainPanX = dragState.sPanX + (e.clientX - dragState.sMouseX);
+                mainPanY = dragState.sPanY + (e.clientY - dragState.sMouseY);
+                applyMainTransform();
+                return;
+            }
+
+            // DRAGGING OBJECTS
+            const rect = canvas.getBoundingClientRect();
+            const mx = (e.clientX - rect.left) - mainPanX;
+            const my = (e.clientY - rect.top) - mainPanY;
+
+            if (dragState.type === 'body') {
+                physBody.x = mx - dragState.offsetX;
+                physBody.y = my - dragState.offsetY;
+                const dx = physBody.x - dragState.startX;
+                const dy = physBody.y - dragState.startY;
+                dragState.attached.forEach(l => { l.x1 += dx; l.y1 += dy; l.x2 += dx; l.y2 += dy; });
+                dragState.startX = physBody.x; dragState.startY = physBody.y;
+            } else {
+                const l = lines.find(line => line.id === dragState.id);
+                if (!l) return;
+                if (dragState.type === 'start') { l.x1 = mx; l.y1 = my; }
+                else if (dragState.type === 'end') { l.x2 = mx; l.y2 = my; }
+                else if (dragState.type === 'line') {
+                    const dx = mx - dragState.ox; const dy = my - dragState.oy;
+                    l.x1 += dx; l.y1 += dy; l.x2 += dx; l.y2 += dy;
+                    dragState.ox = mx; dragState.oy = my;
+                }
+            }
+            render();
+            if (isSplitScreen) calculateAndDrawSolution(); 
+        });
+
+        canvas.addEventListener('mouseup', () => { dragState = null; });
+        canvas.addEventListener('mouseleave', () => { dragState = null; });
+
+        // Dogodki za REŠEVALNO PLATNO (Solution Pan)
+        svgSolution.addEventListener('mousedown', (e) => {
+            dragState = { type: 'sol-pan', sMouseX: e.clientX, sMouseY: e.clientY, sPanX: solPanX, sPanY: solPanY };
+        });
+        window.addEventListener('mousemove', (e) => { // window catcha tudi izven meja
+            if (dragState && dragState.type === 'sol-pan') {
+                solPanX = dragState.sPanX + (e.clientX - dragState.sMouseX);
+                solPanY = dragState.sPanY + (e.clientY - dragState.sMouseY);
+                applySolTransform();
+            }
+        });
+        window.addEventListener('mouseup', () => { if(dragState && dragState.type === 'sol-pan') dragState = null; });
+
+        // --- RISANJE VEKTORJEV IN SVG FIX ---
+        function drawVectorToLayer(layer, x1, y1, x2, y2, color, index, isRes) {
+            const lineNode = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            lineNode.setAttribute('x1', x1); lineNode.setAttribute('y1', y1);
+            lineNode.setAttribute('x2', x2); lineNode.setAttribute('y2', y2);
+            lineNode.setAttribute('stroke', color); 
+            lineNode.setAttribute('stroke-width', isRes ? '5' : '3'); 
+            if(isRes) lineNode.setAttribute('stroke-dasharray', '8,4');
+            lineNode.setAttribute('stroke-linecap', 'round');
+            layer.appendChild(lineNode);
+
+            const dx = x2 - x1; const dy = y2 - y1;
+            const len = Math.hypot(dx, dy);
+            
+            if (len > 5) { // Puščica rišemo samo za dovolj dolge vektorje
+                const angle = Math.atan2(dy, dx);
+                const arrowLen = isRes ? 22 : 16; 
+                const offset = Math.PI / 6; 
+
+                const p1x = x2; const p1y = y2;
+                const p2x = x2 - arrowLen * Math.cos(angle - offset);
+                const p2y = y2 - arrowLen * Math.sin(angle - offset);
+                const p3x = x2 - arrowLen * Math.cos(angle + offset);
+                const p3y = y2 - arrowLen * Math.sin(angle + offset);
+                
+                const arrow = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+                arrow.setAttribute('points', `${p1x},${p1y} ${p2x},${p2y} ${p3x},${p3y}`);
+                arrow.setAttribute('fill', color);
+                layer.appendChild(arrow);
+            }
+
+            if (index !== null) {
+                const textGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                const mx = (x1 + x2) / 2; const my = (y1 + y2) / 2;
+                let nx = 0, ny = -20; if (len > 0) { nx = -dy / len * 25; ny = dx / len * 25; }
+
+                const textF = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                textF.setAttribute('x', mx + nx - 5); textF.setAttribute('y', my + ny);
+                textF.setAttribute('fill', color); textF.setAttribute('font-weight', 'bold');
+                textF.setAttribute('font-size', '16px'); textF.textContent = 'F';
+                textGroup.appendChild(textF);
+
+                const textSub = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                textSub.setAttribute('x', mx + nx + 3); textSub.setAttribute('y', my + ny + 5);
+                textSub.setAttribute('fill', color); textSub.setAttribute('font-weight', 'bold');
+                textSub.setAttribute('font-size', '12px'); textSub.textContent = index;
+                textGroup.appendChild(textSub);
+
+                // Fizikalna puščica nad F
+                const fArrowLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                fArrowLine.setAttribute('x1', mx + nx - 12); fArrowLine.setAttribute('y1', my + ny - 16);
+                fArrowLine.setAttribute('x2', mx + nx - 1); fArrowLine.setAttribute('y2', my + ny - 16);
+                fArrowLine.setAttribute('stroke', color); fArrowLine.setAttribute('stroke-width', '1.5');
+                textGroup.appendChild(fArrowLine);
+                
+                const fArrowPolygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+                fArrowPolygon.setAttribute('points', `${mx+nx-1},${my+ny-19} ${mx+nx+4},${my+ny-16} ${mx+nx-1},${my+ny-13}`);
+                fArrowPolygon.setAttribute('fill', color);
+                textGroup.appendChild(fArrowPolygon);
+
+                layer.appendChild(textGroup);
+            }
+        }
+
+        // --- MAIN RENDER LOOP ---
+        function render() {
+            bodyLayer.innerHTML = ''; linesLayer.innerHTML = '';
+
+            if (physBody.type !== 'brez') {
+                const gBody = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                gBody.setAttribute('cursor', 'pointer');
+                if (physBody.type === 'tocka') {
+                    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    dot.setAttribute('cx', physBody.x); dot.setAttribute('cy', physBody.y);
+                    dot.setAttribute('r', '6'); dot.setAttribute('fill', '#333'); gBody.appendChild(dot);
+                } else if (physBody.type === 'krog') {
+                    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    circle.setAttribute('cx', physBody.x); circle.setAttribute('cy', physBody.y);
+                    circle.setAttribute('r', '30'); circle.setAttribute('fill', '#ff9800'); circle.setAttribute('stroke', '#e65100'); circle.setAttribute('stroke-width', '3'); gBody.appendChild(circle);
+                } else if (physBody.type === 'klada') {
+                    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    rect.setAttribute('x', physBody.x - 50); rect.setAttribute('y', physBody.y - 30);
+                    rect.setAttribute('width', 100); rect.setAttribute('height', 60);
+                    rect.setAttribute('fill', '#8d6e63'); gBody.appendChild(rect);
+                }
+                bodyLayer.appendChild(gBody);
+            }
+            
+            lines.forEach(l => {
+                const isVector = mode === 'vektor' || l.isManualResultant; 
+                
+                if(isVector) {
+                    drawVectorToLayer(linesLayer, l.x1, l.y1, l.x2, l.y2, l.color, l.index, l.isManualResultant);
+                } else {
+                    const lineNode = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                    lineNode.setAttribute('x1', l.x1); lineNode.setAttribute('y1', l.y1);
+                    lineNode.setAttribute('x2', l.x2); lineNode.setAttribute('y2', l.y2);
+                    lineNode.setAttribute('stroke', l.color); lineNode.setAttribute('stroke-width', '3');
+                    linesLayer.appendChild(lineNode);
+
+                    const c1 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    c1.setAttribute('cx', l.x1); c1.setAttribute('cy', l.y1); c1.setAttribute('r', '5'); c1.setAttribute('fill', l.color); linesLayer.appendChild(c1);
+                    const c2 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    c2.setAttribute('cx', l.x2); c2.setAttribute('cy', l.y2); c2.setAttribute('r', '5'); c2.setAttribute('fill', l.color); linesLayer.appendChild(c2);
+
+                    const labels = getLabels(l.index);
+                    const t1 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    t1.setAttribute('x', l.x1 - 15); t1.setAttribute('y', l.y1 - 15);
+                    t1.setAttribute('fill', l.color); t1.setAttribute('font-weight', 'bold'); t1.textContent = labels[0]; linesLayer.appendChild(t1);
+                    const t2 = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    t2.setAttribute('x', l.x2 + 15); t2.setAttribute('y', l.y2 + 20);
+                    t2.setAttribute('fill', l.color); t2.setAttribute('font-weight', 'bold'); t2.textContent = labels[1]; linesLayer.appendChild(t2);
+                }
+
+                if (showValues) {
+                    const mx = (l.x1 + l.x2) / 2; const my = (l.y1 + l.y2) / 2;
+                    const lenPx = distance(l.x1, l.y1, l.x2, l.y2);
+                    const valText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    valText.setAttribute('x', mx); valText.setAttribute('y', my + 30);
+                    valText.setAttribute('fill', '#555'); valText.setAttribute('font-weight', 'bold'); valText.setAttribute('text-anchor', 'middle');
+                    valText.textContent = isVector ? `(${Math.round(pxToN(lenPx))} N)` : `(${pxToCm(lenPx).toFixed(1)} cm)`;
+                    linesLayer.appendChild(valText);
+                }
+            });
+        }
+        
+        // Zagon!
+        initApp();
+    </script>
+</body>
+</html>
