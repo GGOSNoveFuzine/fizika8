@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Razstavi silo - Vagonček</title>
+    <style>
+        :root {
+            --primary: #2b6cb0;
+            --primary-light: #ebf8ff;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --bg-page: #f7fafc;
+            --bg-panel: #ffffff;
+            --border: #e2e8f0;
+            --success: #38a169;
+            --danger: #e53e3e;
+            --resultant-color: #e53e3e;
+            --left-color: #3182ce;
+            --right-color: #38a169;
+            --hint-bg: #fffaf0;
+            --hint-border: #f6e05e;
+            --track-color: #a0aec0;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body {
+            margin: 0; padding: 0; background-color: var(--bg-page); color: var(--text-main);
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+        }
+
+        header { background: white; padding: 10px 20px; border-bottom: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        h1 { margin: 0; font-size: 1.5rem; color: var(--primary); }
+
+        #app-container { display: flex; flex: 1; overflow: hidden; }
+
+        .panel { padding: 20px; overflow-y: auto; background: var(--bg-panel); }
+        
+        #left-panel { width: 340px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 20px; }
+        #center-panel { flex: 1; display: flex; justify-content: center; align-items: center; background: #edf2f7; position: relative; }
+        #right-panel { width: 300px; border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 20px; }
+
+        #drawing-area {
+            background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            width: 100%; max-width: 600px; height: 600px; cursor: crosshair; touch-action: none;
+        }
+
+        .step-card {
+            border: 1px solid var(--border); border-radius: 8px; padding: 15px; opacity: 0.5;
+            transition: all 0.3s; pointer-events: none; position: relative;
+            margin-bottom: 10px;
+        }
+        .step-card.active { opacity: 1; pointer-events: auto; border-color: var(--primary); background: var(--primary-light); }
+        .step-card.done { opacity: 0.8; border-color: var(--success); }
+        
+        .step-title { font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; }
+        .step-status { font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; }
+        .active .step-status { background: var(--primary); color: white; }
+        .done .step-status { background: var(--success); color: white; }
+
+        input[type="text"] {
+            width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 10px;
+        }
+        
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+        button {
+            padding: 8px 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-hint { background: #ecc94b; color: #744210; }
+        .btn-reset { background: var(--border); color: var(--text-main); margin-top: 10px; width: 100%; }
+
+        .data-box { background: var(--bg-page); padding: 15px; border-radius: 6px; font-size: 1rem; border: 1px solid var(--border); }
+        .hint-box { background: var(--hint-bg); border-left: 4px solid var(--hint-border); padding: 10px; font-size: 0.9rem; margin-top: 10px; display: none; }
+        .feedback { font-size: 0.85rem; margin-top: 5px; font-weight: bold; }
+        .feedback.success { color: var(--success); }
+        .feedback.error { color: var(--danger); }
+
+        .drag-handle { fill: #f6e05e; stroke: #d69e2e; stroke-width: 2; cursor: grab; }
+        .drag-handle:hover { fill: #ecc94b; }
+        .drag-handle:active { cursor: grabbing; }
+
+        @media (max-width: 900px) {
+            #app-container { flex-direction: column; overflow-y: auto; }
+            .panel { width: 100% !important; border: none; border-bottom: 1px solid var(--border); }
+            #center-panel { min-height: 500px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Razstavljanje vlečne sile vagončka</h1>
+    </header>
+
+    <div id="app-container">
+        
+        <div id="left-panel" class="panel">
+            <div class="data-box" id="task-data">
+                </div>
+
+            <div id="steps-container">
+                <div class="step-card active" id="step-1">
+                    <div class="step-title">1. Velikost rezultante <span class="step-status">Aktivno</span></div>
+                    <p style="font-size: 0.85rem;">Vagonček vlečeta dve vrvi, zato se premika vzdolž tirov. Na sliki je narisana <b>rezultanta (Fr)</b>. Preštej kvadratke in izračunaj, kolikšna je ta sila v Newtonih.</p>
+                    
+                    <label>Rezultanta (Fr) v N:</label>
+                    <input type="text" id="input-fr" placeholder="Vpiši rezultanto v N">
+
+                    <div class="btn-group">
+                        <button class="btn-primary" onclick="checkStep1()">Preveri korak 1</button>
+                        <button class="btn-hint" onclick="showHint(1)">Namig</button>
+                    </div>
+                    <div id="fb-1" class="feedback"></div>
+                    <div id="hint-1" class="hint-box">Poglej rdečo puščico na tirih. Preštej, koliko kvadratkov (cm) je dolga, nato to število pomnoži z merilom.</div>
+                </div>
+
+                <div class="step-card" id="step-2">
+                    <div class="step-title">2. Načrtovanje vzporednic <span class="step-status">Čaka</span></div>
+                    <p style="font-size: 0.85rem;">Vzporednici z obema vrvma (črtkani črti) s pomočjo rumenih ročic premakni tako, da se bosta križali <b>na konici rezultante</b>.</p>
+                    <div class="btn-group">
+                        <button class="btn-primary" onclick="checkStep2()">Preveri vzporednice</button>
+                        <button class="btn-hint" onclick="showHint(2)">Namig</button>
+                    </div>
+                    <div id="fb-2" class="feedback"></div>
+                    <div id="hint-2" class="hint-box">Središči obeh črtkanih črt natančno postavi na puščico rdečega vektorja Fr.</div>
+                </div>
+
+                <div class="step-card" id="step-3">
+                    <div class="step-title">3. Risanje sil v vrveh <span class="step-status">Čaka</span></div>
+                    <p style="font-size: 0.85rem;">Od sprednjega dela vagončka potegni modro (F1) in zeleno (F2) puščico vzdolž vrvi, da se dotakneta roba paralelograma.</p>
+                    <div class="btn-group">
+                        <button class="btn-primary" onclick="checkStep3()">Preveri sile</button>
+                    </div>
+                    <div id="fb-3" class="feedback"></div>
+                </div>
+
+                <div class="step-card" id="step-4">
+                    <div class="step-title">4. Izračun komponent <span class="step-status">Čaka</span></div>
+                    <p style="font-size: 0.85rem;">Uporabi izmerjeni dolžini na sliki in izračunaj, s kakšno silo vleče posamezna vrv.</p>
+                    
+                    <div id="measured-lengths" style="background: #e2e8f0; padding: 8px; border-radius: 4px; margin-bottom: 10px; font-family: monospace; display: none;">
+                        </div>
+
+                    <label>Leva sila (F1) v N:</label>
+                    <input type="text" id="input-f1" placeholder="npr. 150,5">
+                    <label>Desna sila (F2) v N:</label>
+                    <input type="text" id="input-f2" placeholder="npr. 200">
+                    <div class="btn-group">
+                        <button class="btn-primary" onclick="checkStep4()">Zaključi nalogo</button>
+                    </div>
+                    <div id="fb-4" class="feedback"></div>
+                </div>
+            </div>
+
+            <button class="btn-reset" onclick="initRandomTask()">Nova naključna naloga</button>
+        </div>
+
+        <div id="center-panel" class="panel">
+            <svg id="drawing-area" viewBox="0 0 600 600">
+                <defs>
+                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                        <rect width="40" height="40" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+                        <path d="M 10 0 L 10 40 M 20 0 L 20 40 M 30 0 L 30 40 M 0 10 L 40 10 M 0 20 L 40 20 M 0 30 L 40 30" fill="none" stroke="#f7fafc" stroke-width="0.5"/>
+                    </pattern>
+                    <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--resultant-color)" />
+                    </marker>
+                    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--left-color)" />
+                    </marker>
+                    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--right-color)" />
+                    </marker>
+                </defs>
+
+                <rect width="100%" height="100%" fill="url(#grid)" />
+
+                <line x1="260" y1="40" x2="340" y2="40" stroke="#cbd5e1" stroke-width="8"/>
+                <line x1="260" y1="120" x2="340" y2="120" stroke="#cbd5e1" stroke-width="8"/>
+                <line x1="260" y1="200" x2="340" y2="200" stroke="#cbd5e1" stroke-width="8"/>
+                <line x1="260" y1="280" x2="340" y2="280" stroke="#cbd5e1" stroke-width="8"/>
+                <line x1="260" y1="360" x2="340" y2="360" stroke="#cbd5e1" stroke-width="8"/>
+                <line x1="260" y1="440" x2="340" y2="440" stroke="#cbd5e1" stroke-width="8"/>
+                <line x1="260" y1="520" x2="340" y2="520" stroke="#cbd5e1" stroke-width="8"/>
+                <line x1="260" y1="600" x2="340" y2="600" stroke="#cbd5e1" stroke-width="8"/>
+                
+                <line x1="275" y1="0" x2="275" y2="600" stroke="var(--track-color)" stroke-width="6" />
+                <line x1="325" y1="0" x2="325" y2="600" stroke="var(--track-color)" stroke-width="6" />
+
+                <line id="rope-left" x1="100" y1="50" x2="300" y2="480" stroke="#718096" stroke-width="4"/>
+                <line id="rope-right" x1="500" y1="50" x2="300" y2="480" stroke="#718096" stroke-width="4"/>
+
+                <rect x="270" y="480" width="60" height="90" rx="6" fill="#ed8936" stroke="#c05621" stroke-width="3" />
+                <circle cx="300" cy="480" r="6" fill="#2d3748" /> 
+
+                <line id="vec-fr" x1="300" y1="480" x2="300" y2="280" stroke="var(--resultant-color)" stroke-width="4" marker-end="url(#arrow-red)" />
+
+                <g id="svg-step-2" style="display: none;">
+                    <line id="line-par-left" x1="100" y1="600" x2="500" y2="-200" stroke="var(--left-color)" stroke-width="2" stroke-dasharray="8,5" opacity="0.7"/>
+                    <circle id="handle-par-left" class="drag-handle" cx="200" cy="200" r="8" />
+                    
+                    <line id="line-par-right" x1="500" y1="600" x2="100" y2="-200" stroke="var(--right-color)" stroke-width="2" stroke-dasharray="8,5" opacity="0.7"/>
+                    <circle id="handle-par-right" class="drag-handle" cx="400" cy="200" r="8" />
+                </g>
+
+                <g id="svg-step-3" style="display: none;">
+                    <line id="vec-f1" x1="300" y1="480" x2="300" y2="480" stroke="var(--left-color)" stroke-width="5" marker-end="url(#arrow-blue)" />
+                    <line id="vec-f2" x1="300" y1="480" x2="300" y2="480" stroke="var(--right-color)" stroke-width="5" marker-end="url(#arrow-green)" />
+                    <circle id="handle-f1" class="drag-handle" cx="300" cy="480" r="8" />
+                    <circle id="handle-f2" class="drag-handle" cx="300" cy="480" r="8" />
+                </g>
+            </svg>
+        </div>
+
+        <div id="right-panel" class="panel">
+            <h2>Preglednica</h2>
+            <div id="checklist">
+                <p>❌ 1. Velikost rezultante</p>
+                <p>❌ 2. Risanje vzporednic</p>
+                <p>❌ 3. Risanje sil v vrveh</p>
+                <p>❌ 4. Izračun sil</p>
+            </div>
+            <hr style="border: 0; border-top: 1px solid var(--border); width: 100%;">
+            <div id="summary-box" style="display: none; background: #c6f6d5; padding: 15px; border-radius: 8px;">
+                <h3 style="color: #22543d; margin-top: 0;">Odlično opravljeno!</h3>
+                <p style="font-size: 0.9rem; color: #276749;">Ugotovil si, kako morata delavca ali stroja vleči vsak po svoji vrvi, da bo vagonček potoval točno po tirih.</p>
+                <p style="font-size: 0.9rem; color: #276749;">Če vrvi nista pod enakim kotom, sta tudi sili različni!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // FIZIKALNA LOGIKA IN STANJE
+        const GRID_UNIT = 40; // 1 cm = 40 px
+        const CART_Y = 480;
+        const ORIGIN_X = 300; 
+        
+        let state = {
+            scale: 50, // N na cm
+            fr_length_units: 5,
+            fr_newtons: 250,
+            anchorLeftX: 140,
+            anchorRightX: 460,
+            step: 1,
+            targetF1N: 0,
+            targetF2N: 0
+        };
+
+        let activeHandle = null;
+
+        function initRandomTask() {
+            state.step = 1;
+            
+            // Ponastavi UI korake
+            document.querySelectorAll('.step-card').forEach(c => {
+                c.className = 'step-card';
+                c.querySelector('.step-status').innerText = 'Čaka';
+            });
+            document.getElementById('step-1').classList.add('active');
+            document.getElementById('step-1').querySelector('.step-status').innerText = 'Aktivno';
+            
+            document.querySelectorAll('.feedback').forEach(f => f.innerText = '');
+            document.querySelectorAll('.hint-box').forEach(h => h.style.display = 'none');
+            
+            document.getElementById('svg-step-2').style.display = 'none';
+            document.getElementById('svg-step-3').style.display = 'none';
+            document.getElementById('summary-box').style.display = 'none';
+            document.getElementById('measured-lengths').style.display = 'none';
+
+            document.getElementById('input-fr').value = '';
+            document.getElementById('input-f1').value = '';
+            document.getElementById('input-f2').value = '';
+
+            const clItems = document.getElementById('checklist').getElementsByTagName('p');
+            for(let i=0; i<4; i++) {
+                clItems[i].innerText = clItems[i].innerText.replace('✅', '❌');
+            }
+
+            // Naključna generacija
+            const lengthOptions = [4, 5, 6, 7]; // dolžina rezultante v kvadratkih
+            const scaleOptions = [50, 100, 200, 500]; // N na cm
+            
+            state.fr_length_units = lengthOptions[Math.floor(Math.random() * lengthOptions.length)];
+            state.scale = scaleOptions[Math.floor(Math.random() * scaleOptions.length)];
+            state.fr_newtons = state.fr_length_units * state.scale;
+            
+            // Naključna asimetrija vrvi. Pazimo, da gredo ven in naprej.
+            // Leva stran gre levo od sredine, desna pa desno.
+            state.anchorLeftX = 40 + Math.floor(Math.random() * 4) * 40;   // 40, 80, 120, 160
+            state.anchorRightX = 440 + Math.floor(Math.random() * 4) * 40; // 440, 480, 520, 560
+
+            // Posodobi podatke na levi
+            document.getElementById('task-data').innerHTML = `
+                <b>Podatki o nalogi:</b><br><br>
+                Merilo (slika je v pogledu od zgoraj):<br>
+                <b>1 cm = ${state.scale} N</b><br>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">(1 cm ustreza 1 mrežnemu kvadratku)</span>
+            `;
+
+            // Nariši rezultanto
+            let fr_tip_y = CART_Y - (state.fr_length_units * GRID_UNIT);
+            document.getElementById('vec-fr').setAttribute('y2', fr_tip_y);
+
+            // Nariši vrvi
+            document.getElementById('rope-left').setAttribute('x1', state.anchorLeftX);
+            document.getElementById('rope-right').setAttribute('x1', state.anchorRightX);
+
+            // Pripravi SVG elemente (vzporednice)
+            document.getElementById('handle-par-left').setAttribute('cx', 100);
+            document.getElementById('handle-par-left').setAttribute('cy', 300);
+            document.getElementById('handle-par-right').setAttribute('cx', 500);
+            document.getElementById('handle-par-right').setAttribute('cy', 300);
+            document.getElementById('handle-par-left').style.display = 'inline';
+            document.getElementById('handle-par-right').style.display = 'inline';
+
+            document.getElementById('handle-f1').setAttribute('cx', ORIGIN_X);
+            document.getElementById('handle-f1').setAttribute('cy', CART_Y);
+            document.getElementById('vec-f1').setAttribute('x2', ORIGIN_X);
+            document.getElementById('vec-f1').setAttribute('y2', CART_Y);
+            
+            document.getElementById('handle-f2').setAttribute('cx', ORIGIN_X);
+            document.getElementById('handle-f2').setAttribute('cy', CART_Y);
+            document.getElementById('vec-f2').setAttribute('x2', ORIGIN_X);
+            document.getElementById('vec-f2').setAttribute('y2', CART_Y);
+            document.getElementById('handle-f1').style.display = 'inline';
+            document.getElementById('handle-f2').style.display = 'inline';
+
+            updateParallelLine('left', 100, 300);
+            updateParallelLine('right', 500, 300);
+
+            // Preračunaj rešitve
+            calculateExactForces();
+        }
+
+        function calculateExactForces() {
+            // Smeri vrvi (od kavlja do konca na y=50)
+            let dx1 = state.anchorLeftX - ORIGIN_X;
+            let dy1 = 50 - CART_Y;
+            
+            let dx2 = state.anchorRightX - ORIGIN_X;
+            let dy2 = 50 - CART_Y;
+
+            // Enotski vektorji
+            let U1x = dx1 / Math.hypot(dx1, dy1);
+            let U1y = dy1 / Math.hypot(dx1, dy1);
+            
+            let U2x = dx2 / Math.hypot(dx2, dy2);
+            let U2y = dy2 / Math.hypot(dx2, dy2);
+
+            // Rezultanta je usmerjena točno navzgor: Fr_x = 0, Fr_y = -Fr
+            // F1*U1x + F2*U2x = 0  => F1 = - F2*(U2x/U1x)
+            // F1*U1y + F2*U2y = -Fr
+            let Fr = state.fr_newtons;
+            
+            let denom = U2y - (U2x * U1y / U1x);
+            state.targetF2N = -Fr / denom; 
+            state.targetF1N = - (U2x * state.targetF2N) / U1x;
+        }
+
+        // --- SVG VLEČENJE ---
+        const svg = document.getElementById('drawing-area');
+        
+        function getMousePos(evt) {
+            const rect = svg.getBoundingClientRect();
+            const scaleX = 600 / rect.width;
+            const scaleY = 600 / rect.height;
+            return { x: (evt.clientX - rect.left) * scaleX, y: (evt.clientY - rect.top) * scaleY };
+        }
+
+        function updateParallelLine(side, px, py) {
+            let dx = side === 'left' ? state.anchorLeftX - ORIGIN_X : state.anchorRightX - ORIGIN_X;
+            let dy = 50 - CART_Y;
+            let slope = dy / dx;
+            
+            let y1 = 600; let x1 = (y1 - py)/slope + px;
+            let y2 = -200; let x2 = (y2 - py)/slope + px;
+            
+            const line = document.getElementById(`line-par-${side}`);
+            line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+        }
+
+        svg.addEventListener('pointerdown', (e) => {
+            if (e.target.classList.contains('drag-handle')) {
+                activeHandle = e.target;
+                svg.style.cursor = 'grabbing';
+                e.target.setPointerCapture(e.pointerId);
+            }
+        });
+
+        svg.addEventListener('pointermove', (e) => {
+            if (!activeHandle) return;
+            const pos = getMousePos(e);
+            const id = activeHandle.id;
+
+            if (id === 'handle-par-left') {
+                activeHandle.setAttribute('cx', pos.x); activeHandle.setAttribute('cy', pos.y);
+                updateParallelLine('left', pos.x, pos.y);
+            }
+            else if (id === 'handle-par-right') {
+                activeHandle.setAttribute('cx', pos.x); activeHandle.setAttribute('cy', pos.y);
+                updateParallelLine('right', pos.x, pos.y);
+            }
+            else if (id === 'handle-f1' || id === 'handle-f2') {
+                let dx = id === 'handle-f1' ? state.anchorLeftX - ORIGIN_X : state.anchorRightX - ORIGIN_X;
+                let dy = 50 - CART_Y;
+                const rx = pos.x - ORIGIN_X; const ry = pos.y - CART_Y;
+                const dot = rx * dx + ry * dy;
+                const lenSq = dx*dx + dy*dy;
+                // Omejitev vlečenja samo v pozitivno smer vektorja
+                const t = Math.max(0, dot / lenSq);
+                const nx = ORIGIN_X + t * dx;
+                const ny = CART_Y + t * dy;
+                
+                activeHandle.setAttribute('cx', nx); activeHandle.setAttribute('cy', ny);
+                document.getElementById(id.replace('handle', 'vec')).setAttribute('x2', nx);
+                document.getElementById(id.replace('handle', 'vec')).setAttribute('y2', ny);
+            }
+        });
+
+        svg.addEventListener('pointerup', (e) => {
+            if (activeHandle) {
+                activeHandle.releasePointerCapture(e.pointerId);
+                activeHandle = null;
+                svg.style.cursor = 'crosshair';
+            }
+        });
+
+        // --- PREVERJANJE KORAKOV ---
+
+        function advanceStep(toStep) {
+            document.getElementById(`step-${state.step}`).classList.replace('active', 'done');
+            document.getElementById(`step-${state.step}`).querySelector('.step-status').innerText = 'Opravljeno';
+            
+            const clItems = document.getElementById('checklist').getElementsByTagName('p');
+            clItems[state.step - 1].innerText = clItems[state.step - 1].innerText.replace('❌', '✅');
+
+            state.step = toStep;
+            
+            if(state.step <= 4) {
+                document.getElementById(`step-${state.step}`).classList.add('active');
+                document.getElementById(`step-${state.step}`).querySelector('.step-status').innerText = 'Aktivno';
+            }
+
+            if(state.step === 2) document.getElementById('svg-step-2').style.display = 'inline';
+            if(state.step === 3) document.getElementById('svg-step-3').style.display = 'inline';
+            if(state.step === 5) document.getElementById('summary-box').style.display = 'block';
+        }
+
+        function feedback(step, isSuccess, msg) {
+            const el = document.getElementById(`fb-${step}`);
+            el.className = 'feedback ' + (isSuccess ? 'success' : 'error');
+            el.innerText = msg;
+        }
+
+        function showHint(step) { document.getElementById(`hint-${step}`).style.display = 'block'; }
+
+        // Korak 1: Velikost rezultante
+        function checkStep1() {
+            let val = document.getElementById('input-fr').value.replace(',', '.');
+            const inputFr = parseFloat(val);
+            
+            if (isNaN(inputFr) || inputFr !== state.fr_newtons) {
+                feedback(1, false, `Napaka. Preštej mrežne kvadratke ob rdeči puščici in jih pomnoži z merilom (${state.scale} N).`);
+                return;
+            }
+            feedback(1, true, `Pravilno! Rezultanta meri natanko ${state.fr_newtons} N.`);
+            advanceStep(2);
+        }
+
+        // Korak 2: Vzporednice
+        function checkStep2() {
+            let fr_tip_y = CART_Y - (state.fr_length_units * GRID_UNIT);
+            const tipX = ORIGIN_X;
+            const tipY = fr_tip_y;
+
+            const hLeftX = parseFloat(document.getElementById('handle-par-left').getAttribute('cx'));
+            const hLeftY = parseFloat(document.getElementById('handle-par-left').getAttribute('cy'));
+            const hRightX = parseFloat(document.getElementById('handle-par-right').getAttribute('cx'));
+            const hRightY = parseFloat(document.getElementById('handle-par-right').getAttribute('cy'));
+
+            let mLeft = (50 - CART_Y) / (state.anchorLeftX - ORIGIN_X);
+            let mRight = (50 - CART_Y) / (state.anchorRightX - ORIGIN_X);
+
+            const errLeft = Math.abs(tipY - (mLeft * (tipX - hLeftX) + hLeftY));
+            const errRight = Math.abs(tipY - (mRight * (tipX - hRightX) + hRightY));
+
+            if (errLeft < 20 && errRight < 20) {
+                updateParallelLine('left', tipX, tipY);
+                updateParallelLine('right', tipX, tipY);
+                document.getElementById('handle-par-left').style.display = 'none';
+                document.getElementById('handle-par-right').style.display = 'none';
+                feedback(2, true, "Zelo dobro! Vzporednice so sedaj na konici rezultante.");
+                advanceStep(3);
+            } else {
+                feedback(2, false, "Premakni črtkani črti tako, da se bosta križali točno na konici rdeče puščice.");
+            }
+        }
+
+        // Korak 3: Risanje sil v vrveh
+        function checkStep3() {
+            let fr_tip_y = CART_Y - (state.fr_length_units * GRID_UNIT);
+            const tipX = ORIGIN_X;
+            const tipY = fr_tip_y;
+
+            let m1 = (50 - CART_Y) / (state.anchorLeftX - ORIGIN_X);
+            let m2 = (50 - CART_Y) / (state.anchorRightX - ORIGIN_X);
+
+            // Presečišča
+            let intersect1X = (tipY - CART_Y + m1*ORIGIN_X - m2*tipX) / (m1 - m2);
+            let intersect1Y = m1 * (intersect1X - ORIGIN_X) + CART_Y;
+
+            let intersect2X = (tipY - CART_Y + m2*ORIGIN_X - m1*tipX) / (m2 - m1);
+            let intersect2Y = m2 * (intersect2X - ORIGIN_X) + CART_Y;
+
+            const h1x = parseFloat(document.getElementById('handle-f1').getAttribute('cx'));
+            const h1y = parseFloat(document.getElementById('handle-f1').getAttribute('cy'));
+            const h2x = parseFloat(document.getElementById('handle-f2').getAttribute('cx'));
+            const h2y = parseFloat(document.getElementById('handle-f2').getAttribute('cy'));
+
+            if (Math.hypot(h1x - intersect1X, h1y - intersect1Y) < 15 && Math.hypot(h2x - intersect2X, h2y - intersect2Y) < 15) {
+                document.getElementById('vec-f1').setAttribute('x2', intersect1X);
+                document.getElementById('vec-f1').setAttribute('y2', intersect1Y);
+                document.getElementById('vec-f2').setAttribute('x2', intersect2X);
+                document.getElementById('vec-f2').setAttribute('y2', intersect2Y);
+                document.getElementById('handle-f1').style.display = 'none';
+                document.getElementById('handle-f2').style.display = 'none';
+                
+                feedback(3, true, "Paralelogram je uspešno zaključen!");
+                
+                let l1_cm = Math.hypot(intersect1X - ORIGIN_X, intersect1Y - CART_Y) / GRID_UNIT;
+                let l2_cm = Math.hypot(intersect2X - ORIGIN_X, intersect2Y - CART_Y) / GRID_UNIT;
+                
+                let l1_str = l1_cm.toFixed(1).replace('.', ',');
+                let l2_str = l2_cm.toFixed(1).replace('.', ',');
+
+                document.getElementById('measured-lengths').innerHTML = `
+                    Z digitalnim ravnilom smo izmerili narisani sili:<br>
+                    Dolžina leva (l1): <b>${l1_str} cm</b><br>
+                    Dolžina desna (l2): <b>${l2_str} cm</b>
+                `;
+                document.getElementById('measured-lengths').style.display = 'block';
+
+                advanceStep(4);
+            } else {
+                feedback(3, false, "Puščici morata segati natanko do presečišča z vzporednicami.");
+            }
+        }
+
+        // Korak 4: Izračun
+        function checkStep4() {
+            let f1_val = document.getElementById('input-f1').value.replace(',', '.');
+            let f2_val = document.getElementById('input-f2').value.replace(',', '.');
+            
+            const f1 = parseFloat(f1_val) || 0;
+            const f2 = parseFloat(f2_val) || 0;
+            
+            let err1 = Math.abs(f1 - state.targetF1N) / state.targetF1N;
+            let err2 = Math.abs(f2 - state.targetF2N) / state.targetF2N;
+
+            if (err1 < 0.08 && err2 < 0.08) {
+                feedback(4, true, "Odlično! Pravilno izračunano.");
+                advanceStep(5);
+            } else {
+                feedback(4, false, "Napačno. Pomnoži izmerjeno dolžino (v cm) z merilom (" + state.scale + " N/cm). Upoštevaj decimalke!");
+            }
+        }
+
+        // Zagon
+        initRandomTask();
+    </script>
+</body>
+</html>
