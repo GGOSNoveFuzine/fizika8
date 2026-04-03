@@ -15,6 +15,7 @@
             --weight-color: #e53e3e; /* Rdeča za tezo */
             --fd-color: #3182ce;     /* Modra za dinamicno */
             --fs-color: #38a169;     /* Zelena za staticno */
+            --fp-color: #8b5cf6;     /* Vijolična za silo podlage */
             --ramp-color: #cbd5e1;
         }
 
@@ -47,8 +48,8 @@
         
         input[type="range"] { width: 100%; cursor: pointer; }
 
-        /* Gumb za prikaz/skrivanje sil */
-        #btn-toggle-forces {
+        /* Gumbi za prikaz/skrivanje sil */
+        .btn-toggle {
             width: 100%;
             padding: 10px;
             background-color: var(--primary);
@@ -58,11 +59,13 @@
             font-weight: bold;
             font-size: 1rem;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, opacity 0.2s;
+            margin-bottom: 8px;
         }
-        #btn-toggle-forces:hover {
-            background-color: #1a4a7a;
-        }
+        .btn-toggle:hover { background-color: #1a4a7a; }
+        
+        .btn-fp { background-color: var(--fp-color); }
+        .btn-fp:hover { background-color: #6d28d9; }
 
         /* Prikaz podatkov */
         .data-display { display: flex; flex-direction: column; gap: 10px; }
@@ -70,6 +73,7 @@
         .data-row.fg { background: #fed7d7; color: #9b2c2c; }
         .data-row.fd { background: #bee3f8; color: #2c5282; }
         .data-row.fs { background: #c6f6d5; color: #22543d; }
+        .data-row.fp { background: #ede9fe; color: #4c1d95; display: none; } /* Skrito na začetku */
 
         .observation-box { background: #fffaf0; border-left: 4px solid #f6e05e; padding: 15px; border-radius: 0 6px 6px 0; font-size: 0.95rem; line-height: 1.5; }
 
@@ -95,7 +99,10 @@
                 <input type="range" id="slider-angle" min="0" max="90" step="1" value="30">
             </div>
 
-            <button id="btn-toggle-forces">Skrij sile</button>
+            <div>
+                <button id="btn-toggle-forces" class="btn-toggle">Skrij razstavljanje teže</button>
+                <button id="btn-toggle-fp" class="btn-toggle btn-fp">Prikaži silo podlage</button>
+            </div>
 
             <div class="control-group data-display">
                 <div class="data-row fg">
@@ -109,6 +116,10 @@
                 <div class="data-row fs">
                     <span>Statična komp. (Fs):</span>
                     <span id="val-fs">86,6 N</span>
+                </div>
+                <div class="data-row fp" id="row-fp">
+                    <span>Sila podlage (Fp):</span>
+                    <span id="val-fp">86,6 N</span>
                 </div>
             </div>
 
@@ -132,6 +143,9 @@
                     <marker id="arrow-fs" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
                         <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--fs-color)" />
                     </marker>
+                    <marker id="arrow-fp" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--fp-color)" />
+                    </marker>
                 </defs>
 
                 <rect width="100%" height="100%" fill="url(#grid)" />
@@ -139,7 +153,7 @@
                 <line x1="0" y1="500" x2="700" y2="500" stroke="#94a3b8" stroke-width="4" />
 
                 <g id="sim-group">
-                    <polygon id="poly-ramp" points="" fill="var(--ramp-color)" fill-opacity="0.55" stroke="#64748b" stroke-width="2" />
+                    <polygon id="poly-ramp" points="" fill="var(--ramp-color)" fill-opacity="0.85" stroke="#64748b" stroke-width="2" />
                     
                     <path id="arc-angle" d="" fill="rgba(43, 108, 176, 0.2)" stroke="var(--primary)" stroke-width="2" />
                     <text id="text-angle" x="0" y="0" font-weight="bold" fill="var(--primary)"></text>
@@ -154,9 +168,12 @@
                     <line id="vec-fs" x1="0" y1="0" x2="0" y2="0" stroke="var(--fs-color)" stroke-width="4" marker-end="url(#arrow-fs)" />
                     <line id="vec-fd" x1="0" y1="0" x2="0" y2="0" stroke="var(--fd-color)" stroke-width="4" marker-end="url(#arrow-fd)" />
                     
+                    <line id="vec-fp" x1="0" y1="0" x2="0" y2="0" stroke="var(--fp-color)" stroke-width="4" marker-end="url(#arrow-fp)" style="display:none;" />
+                    
                     <text id="label-fg" font-weight="bold" font-size="14" fill="var(--weight-color)">Fg</text>
                     <text id="label-fd" font-weight="bold" font-size="14" fill="var(--fd-color)">Fd</text>
                     <text id="label-fs" font-weight="bold" font-size="14" fill="var(--fs-color)">Fs</text>
+                    <text id="label-fp" font-weight="bold" font-size="14" fill="var(--fp-color)" style="display:none;">Fp</text>
                 </g>
             </svg>
         </div>
@@ -180,15 +197,28 @@
         const valAngle = document.getElementById('val-angle');
         const valFd = document.getElementById('val-fd');
         const valFs = document.getElementById('val-fs');
+        const valFp = document.getElementById('val-fp');
         const obsText = document.getElementById('observation-text');
+        const rowFp = document.getElementById('row-fp');
         
         const btnToggleForces = document.getElementById('btn-toggle-forces');
+        const btnToggleFp = document.getElementById('btn-toggle-fp');
+        
         let showForces = true;
+        let showFp = false;
 
-        // Upravljanje gumba za prikaz sil
+        // Upravljanje gumba za prikaz razstavljene teže
         btnToggleForces.addEventListener('click', () => {
             showForces = !showForces;
-            btnToggleForces.innerText = showForces ? "Skrij sile" : "Prikaži sile";
+            btnToggleForces.innerText = showForces ? "Skrij razstavljanje teže" : "Prikaži razstavljanje teže";
+            updateSimulation();
+        });
+
+        // Upravljanje gumba za prikaz sile podlage
+        btnToggleFp.addEventListener('click', () => {
+            showFp = !showFp;
+            btnToggleFp.innerText = showFp ? "Skrij silo podlage" : "Prikaži silo podlage";
+            rowFp.style.display = showFp ? "flex" : "none"; // Prikaže ali skrije vrstico v tabeli
             updateSimulation();
         });
 
@@ -204,6 +234,7 @@
             valAngle.innerText = angleDeg + "°";
             valFd.innerText = fd.toFixed(1).replace('.', ',') + " N";
             valFs.innerText = fs.toFixed(1).replace('.', ',') + " N";
+            valFp.innerText = fs.toFixed(1).replace('.', ',') + " N"; // Sila podlage je enaka statični komponenti
 
             // Ugotovitve (Pedagoški namig)
             if (angleDeg === 0) {
@@ -219,9 +250,6 @@
             }
 
             // GEOMETRIJSKI IZRAČUNI ZA SVG
-            // Smeri: 
-            // Vektor vzdolž klanca navzgor: (cos(a), -sin(a))
-            // Vektor pravokotno na klanec navzgor: (-sin(a), -cos(a))
             let dirUpRampX = Math.cos(angleRad);
             let dirUpRampY = -Math.sin(angleRad);
             
@@ -238,7 +266,6 @@
                 let r = 50;
                 let arcX = PIVOT_X + r * Math.cos(angleRad);
                 let arcY = PIVOT_Y - r * Math.sin(angleRad);
-                // SVG arc path
                 let path = `M ${PIVOT_X + r} ${PIVOT_Y} A ${r} ${r} 0 0 0 ${arcX} ${arcY} L ${PIVOT_X} ${PIVOT_Y} Z`;
                 document.getElementById('arc-angle').setAttribute('d', path);
                 document.getElementById('text-angle').setAttribute('x', PIVOT_X + 60);
@@ -250,11 +277,9 @@
             }
 
             // 3. KLADA IN TEŽIŠČE
-            // Center dna klade
             let bottomCenterX = PIVOT_X + BLOCK_POS * dirUpRampX;
             let bottomCenterY = PIVOT_Y + BLOCK_POS * dirUpRampY;
             
-            // Težišče (zamik za polovico višine v smeri normale)
             let cmX = bottomCenterX + (BLOCK_HEIGHT/2) * dirNormalX;
             let cmY = bottomCenterY + (BLOCK_HEIGHT/2) * dirNormalY;
             
@@ -262,7 +287,7 @@
             document.getElementById('center-mass').setAttribute('cy', cmY);
 
             // Točke klade
-            let hw = BLOCK_WIDTH / 2; // half width
+            let hw = BLOCK_WIDTH / 2;
             let p1x = bottomCenterX - hw * dirUpRampX;
             let p1y = bottomCenterY - hw * dirUpRampY;
             let p2x = bottomCenterX + hw * dirUpRampX;
@@ -277,6 +302,7 @@
             let fgLen = FG_NEWTONS * SCALE_PX_PER_N;
             let fdLen = fd * SCALE_PX_PER_N;
             let fsLen = fs * SCALE_PX_PER_N;
+            let fpLen = fs * SCALE_PX_PER_N; // Dolžina sile podlage je ista kot Fs
 
             // Fg kaže strogo navzdol
             let tipFgX = cmX;
@@ -284,19 +310,25 @@
             document.getElementById('vec-fg').setAttribute('x1', cmX); document.getElementById('vec-fg').setAttribute('y1', cmY);
             document.getElementById('vec-fg').setAttribute('x2', tipFgX); document.getElementById('vec-fg').setAttribute('y2', tipFgY);
 
-            // Fd kaže vzdolž klanca NAVZDOL (obratno od dirUpRamp)
+            // Fd kaže vzdolž klanca NAVZDOL
             let tipFdX = cmX - fdLen * dirUpRampX;
             let tipFdY = cmY - fdLen * dirUpRampY;
             document.getElementById('vec-fd').setAttribute('x1', cmX); document.getElementById('vec-fd').setAttribute('y1', cmY);
             document.getElementById('vec-fd').setAttribute('x2', tipFdX); document.getElementById('vec-fd').setAttribute('y2', tipFdY);
 
-            // Fs kaže pravokotno V KLANEC (obratno od dirNormal)
+            // Fs kaže pravokotno V KLANEC
             let tipFsX = cmX - fsLen * dirNormalX;
             let tipFsY = cmY - fsLen * dirNormalY;
             document.getElementById('vec-fs').setAttribute('x1', cmX); document.getElementById('vec-fs').setAttribute('y1', cmY);
             document.getElementById('vec-fs').setAttribute('x2', tipFsX); document.getElementById('vec-fs').setAttribute('y2', tipFsY);
 
-            // Pomožne črtkane črte (od Fd in Fs do Fg)
+            // Fp kaže pravokotno IZ KLANCA (obratno od Fs)
+            let tipFpX = cmX + fpLen * dirNormalX;
+            let tipFpY = cmY + fpLen * dirNormalY;
+            document.getElementById('vec-fp').setAttribute('x1', cmX); document.getElementById('vec-fp').setAttribute('y1', cmY);
+            document.getElementById('vec-fp').setAttribute('x2', tipFpX); document.getElementById('vec-fp').setAttribute('y2', tipFpY);
+
+            // Pomožne črtkane črte
             document.getElementById('line-proj-d').setAttribute('x1', tipFdX); document.getElementById('line-proj-d').setAttribute('y1', tipFdY);
             document.getElementById('line-proj-d').setAttribute('x2', tipFgX); document.getElementById('line-proj-d').setAttribute('y2', tipFgY);
             
@@ -307,10 +339,11 @@
             document.getElementById('label-fg').setAttribute('x', tipFgX + 10); document.getElementById('label-fg').setAttribute('y', tipFgY - 10);
             document.getElementById('label-fd').setAttribute('x', tipFdX - 25); document.getElementById('label-fd').setAttribute('y', tipFdY - 10);
             document.getElementById('label-fs').setAttribute('x', tipFsX + 15); document.getElementById('label-fs').setAttribute('y', tipFsY + 15);
+            
+            document.getElementById('label-fp').setAttribute('x', tipFpX + 15); document.getElementById('label-fp').setAttribute('y', tipFpY - 15);
 
-            // Skrij/prikaži sile glede na gumb in velikost komponente
+            // LOGIKA ZA VIDNOST SIL (Težišče, Fg, Fd, Fs)
             if (showForces) {
-                document.getElementById('center-mass').style.display = 'inline';
                 document.getElementById('vec-fg').style.display = 'inline';
                 document.getElementById('vec-fd').style.display = fdLen > 2 ? 'inline' : 'none';
                 document.getElementById('vec-fs').style.display = fsLen > 2 ? 'inline' : 'none';
@@ -322,10 +355,25 @@
                 document.getElementById('label-fd').style.display = fdLen > 2 ? 'inline' : 'none';
                 document.getElementById('label-fs').style.display = fsLen > 2 ? 'inline' : 'none';
             } else {
-                // Če so sile skrite, skrijemo vse vektorje, oznake IN težišče
-                ['vec-fg', 'vec-fd', 'vec-fs', 'line-proj-d', 'line-proj-s', 'label-fg', 'label-fd', 'label-fs', 'center-mass'].forEach(id => {
+                ['vec-fg', 'vec-fd', 'vec-fs', 'line-proj-d', 'line-proj-s', 'label-fg', 'label-fd', 'label-fs'].forEach(id => {
                     document.getElementById(id).style.display = 'none';
                 });
+            }
+
+            // LOGIKA ZA VIDNOST SILE PODLAGE (Fp)
+            if (showFp && fpLen > 2) {
+                document.getElementById('vec-fp').style.display = 'inline';
+                document.getElementById('label-fp').style.display = 'inline';
+            } else {
+                document.getElementById('vec-fp').style.display = 'none';
+                document.getElementById('label-fp').style.display = 'none';
+            }
+
+            // LOGIKA ZA TEŽIŠČE (vidno, če je vklopljen vsaj en gumb)
+            if (showForces || showFp) {
+                document.getElementById('center-mass').style.display = 'inline';
+            } else {
+                document.getElementById('center-mass').style.display = 'none';
             }
         }
 
