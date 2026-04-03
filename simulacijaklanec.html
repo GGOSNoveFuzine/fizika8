@@ -47,6 +47,23 @@
         
         input[type="range"] { width: 100%; cursor: pointer; }
 
+        /* Gumb za prikaz/skrivanje sil */
+        #btn-toggle-forces {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #btn-toggle-forces:hover {
+            background-color: #1a4a7a;
+        }
+
         /* Prikaz podatkov */
         .data-display { display: flex; flex-direction: column; gap: 10px; }
         .data-row { display: flex; justify-content: space-between; padding: 8px; border-radius: 4px; font-weight: 600; font-size: 1.05rem; }
@@ -77,6 +94,8 @@
                 <label>Naklon klanca: <span id="val-angle">30°</span></label>
                 <input type="range" id="slider-angle" min="0" max="90" step="1" value="30">
             </div>
+
+            <button id="btn-toggle-forces">Skrij sile</button>
 
             <div class="control-group data-display">
                 <div class="data-row fg">
@@ -120,7 +139,7 @@
                 <line x1="0" y1="500" x2="700" y2="500" stroke="#94a3b8" stroke-width="4" />
 
                 <g id="sim-group">
-                    <polygon id="poly-ramp" points="" fill="var(--ramp-color)" stroke="#64748b" stroke-width="2" />
+                    <polygon id="poly-ramp" points="" fill="var(--ramp-color)" fill-opacity="0.55" stroke="#64748b" stroke-width="2" />
                     
                     <path id="arc-angle" d="" fill="rgba(43, 108, 176, 0.2)" stroke="var(--primary)" stroke-width="2" />
                     <text id="text-angle" x="0" y="0" font-weight="bold" fill="var(--primary)"></text>
@@ -156,12 +175,22 @@
         const BLOCK_HEIGHT = 40;
         const BLOCK_POS = 250; // Oddaljenost klade od pivota po klancu navzgor
 
-        // DOM Elementi
+        // DOM Elementi in stanje
         const sliderAngle = document.getElementById('slider-angle');
         const valAngle = document.getElementById('val-angle');
         const valFd = document.getElementById('val-fd');
         const valFs = document.getElementById('val-fs');
         const obsText = document.getElementById('observation-text');
+        
+        const btnToggleForces = document.getElementById('btn-toggle-forces');
+        let showForces = true;
+
+        // Upravljanje gumba za prikaz sil
+        btnToggleForces.addEventListener('click', () => {
+            showForces = !showForces;
+            btnToggleForces.innerText = showForces ? "Skrij sile" : "Prikaži sile";
+            updateSimulation();
+        });
 
         function updateSimulation() {
             let angleDeg = parseInt(sliderAngle.value);
@@ -279,9 +308,25 @@
             document.getElementById('label-fd').setAttribute('x', tipFdX - 25); document.getElementById('label-fd').setAttribute('y', tipFdY - 10);
             document.getElementById('label-fs').setAttribute('x', tipFsX + 15); document.getElementById('label-fs').setAttribute('y', tipFsY + 15);
 
-            // Skrij Fs ali Fd ce sta nic (da se ne vidi glava puscice na mestu)
-            document.getElementById('vec-fd').style.display = fdLen > 2 ? 'inline' : 'none';
-            document.getElementById('vec-fs').style.display = fsLen > 2 ? 'inline' : 'none';
+            // Skrij/prikaži sile glede na gumb in velikost komponente
+            if (showForces) {
+                document.getElementById('center-mass').style.display = 'inline';
+                document.getElementById('vec-fg').style.display = 'inline';
+                document.getElementById('vec-fd').style.display = fdLen > 2 ? 'inline' : 'none';
+                document.getElementById('vec-fs').style.display = fsLen > 2 ? 'inline' : 'none';
+                
+                document.getElementById('line-proj-d').style.display = fdLen > 2 ? 'inline' : 'none';
+                document.getElementById('line-proj-s').style.display = fsLen > 2 ? 'inline' : 'none';
+                
+                document.getElementById('label-fg').style.display = 'inline';
+                document.getElementById('label-fd').style.display = fdLen > 2 ? 'inline' : 'none';
+                document.getElementById('label-fs').style.display = fsLen > 2 ? 'inline' : 'none';
+            } else {
+                // Če so sile skrite, skrijemo vse vektorje, oznake IN težišče
+                ['vec-fg', 'vec-fd', 'vec-fs', 'line-proj-d', 'line-proj-s', 'label-fg', 'label-fd', 'label-fs', 'center-mass'].forEach(id => {
+                    document.getElementById(id).style.display = 'none';
+                });
+            }
         }
 
         // Event Listenerji
