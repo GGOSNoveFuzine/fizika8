@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TlakLab: Sila na ploskev</title>
+    <style>
+        :root {
+            --primary: #2b6cb0;
+            --primary-dark: #1a365d;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --bg-page: #f7fafc;
+            --bg-panel: #ffffff;
+            --border: #e2e8f0;
+            --force-color: #e53e3e;   
+            --area-color: #38a169;    
+            --box-color: #ed8936;
+            
+            /* Barve za glineno podlago */
+            --clay-top: #e7e5e4;
+            --clay-wall: #a8a29e;
+            --clay-bottom: #78716c;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body {
+            margin: 0; padding: 0; background-color: var(--bg-page); color: var(--text-main);
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+        }
+
+        header { 
+            background: white; padding: 0 20px; border-bottom: 1px solid var(--border); 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 40px;
+            min-height: 60px;
+        }
+
+        h1 { margin: 0; font-size: 1.4rem; color: var(--primary); white-space: nowrap; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;}
+
+        .tabs { display: flex; gap: 5px; height: 100%; align-items: flex-end; }
+        .tab-btn {
+            background: transparent; border: none; padding: 18px 20px; font-size: 1rem;
+            font-weight: 600; color: var(--text-muted); cursor: pointer; transition: 0.2s;
+            border-bottom: 3px solid transparent; margin-bottom: -1px;
+        }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-btn:hover:not(.active) { color: var(--text-main); background: #f1f5f9; }
+
+        #app-container { display: flex; flex: 1; overflow: hidden; }
+
+        /* Stranska plošča s kontrolami */
+        #left-panel { 
+            width: 380px; background: var(--bg-panel); border-right: 1px solid var(--border); 
+            padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; 
+            box-shadow: 2px 0 5px rgba(0,0,0,0.02); z-index: 10;
+        }
+        
+        /* Območje simulacije */
+        #center-panel { 
+            flex: 1; display: flex; justify-content: center; align-items: center; 
+            background: #edf2f7; padding: 20px; overflow: auto; position: relative;
+        }
+        
+        #drawing-area {
+            background: white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            width: 1000px; max-width: none; height: auto; max-height: none; aspect-ratio: 4 / 3;
+            position: relative; overflow: hidden; flex: 0 0 auto; transition: width 0.18s ease;
+        }
+
+        .scale-note {
+            position: absolute; left: 12px; right: 12px; bottom: 10px;
+            background: rgba(255,255,255,0.92); border: 1px solid var(--border);
+            border-radius: 6px; padding: 6px 8px; font-size: 0.78rem;
+            color: var(--text-muted); text-align: center; z-index: 15;
+        }
+
+
+        .canvas-zoom-controls {
+            position: absolute; top: 15px; left: 15px; z-index: 25;
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,0.94); border: 1px solid var(--border);
+            border-radius: 8px; padding: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+        }
+        .canvas-zoom-controls button {
+            border: 1px solid var(--border); background: white; color: var(--primary);
+            border-radius: 6px; font-weight: 800; cursor: pointer; min-width: 34px;
+            height: 30px; padding: 0 8px;
+        }
+        .canvas-zoom-controls button:hover { background: #edf2f7; }
+        .canvas-zoom-controls span {
+            min-width: 48px; text-align: center; font-size: 0.85rem;
+            color: var(--text-main); font-weight: 700;
+        }
+
+        #btn-smooth {
+            position: absolute; top: 15px; right: 15px; background-color: var(--area-color); color: white;
+            border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.2s; z-index: 20; display: flex; align-items: center; gap: 8px;
+        }
+        #btn-smooth:hover { background-color: #2f855a; transform: translateY(-2px); }
+
+        /* Kontrole */
+        .control-group { background: var(--bg-page); padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
+        .control-group label { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 5px; font-size: 0.95rem; }
+        
+        input[type="range"] { width: 100%; cursor: pointer; margin-bottom: 10px; accent-color: var(--primary); }
+        select, input[type="number"], input[type="text"] { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; margin-top: 5px;}
+        
+        .radio-inline { display: flex; gap: 15px; margin-bottom: 10px; font-weight: normal; }
+        .radio-inline label { font-weight: normal; display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.95rem;}
+
+        /* Gumbi */
+        .btn-toggle {
+            width: 100%; padding: 10px; background-color: var(--primary); color: white;
+            border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer;
+            transition: background-color 0.2s; margin-bottom: 5px; display: flex; justify-content: center; align-items: center; gap: 8px;
+        }
+        .btn-toggle:hover { background-color: var(--primary-dark); }
+        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+        .btn-outline:hover { background: var(--primary); color: white; }
+        .btn-action { background-color: #ed8936; color: white; }
+        .btn-action:hover { background-color: #dd6b20; }
+
+        /* Prikaz podatkov za raziskuj */
+        .data-display { display: flex; flex-direction: column; gap: 8px; }
+        .data-row { display: flex; justify-content: space-between; padding: 8px 10px; border-radius: 4px; font-weight: 600; font-size: 1rem; }
+        .data-row.fg { background: #fed7d7; color: #9b2c2c; border-left: 4px solid var(--force-color); }
+        .data-row.fs { background: #c6f6d5; color: #22543d; border-left: 4px solid var(--area-color); }
+        .data-row.fp { background: #ede9fe; color: #4c1d95; border-left: 4px solid #8b5cf6; }
+
+        /* Vnosna polja za Naloge */
+        .input-card { padding: 10px 12px; border-radius: 6px; display: flex; flex-direction: column; gap: 5px; font-weight: 600; font-size: 0.95rem; margin-bottom: 8px; }
+        .input-card input, .input-card select { width: 100%; border: none; padding: 8px; border-radius: 4px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); font-weight: normal; font-size: 1.05rem; }
+        .input-card.green { background-color: #c6f6d5; border-left: 5px solid #38a169; color: #22543d; }
+        .input-card.purple { background-color: #ede9fe; border-left: 5px solid #8b5cf6; color: #4c1d95; }
+        .input-card.blue { background-color: #bee3f8; border-left: 5px solid #3182ce; color: #2a4365; }
+        .input-card.red { background-color: #fed7d7; border-left: 5px solid #e53e3e; color: #742a2a; }
+        .input-card.orange { background-color: #feebc8; border-left: 5px solid #dd6b20; color: #7b341e; }
+        .input-card.teal { background-color: #b2f5ea; border-left: 5px solid #319795; color: #234e52; }
+
+        .observation-box { background: #fffaf0; border-left: 4px solid #f6e05e; padding: 12px; border-radius: 0 6px 6px 0; font-size: 0.95rem; line-height: 1.4; color: #744210;}
+        .observation-box.correct { background: #f0fff4; border-left-color: #48bb78; color: #22543d;}
+        .observation-box.error { background: #fff5f5; border-left-color: #f56565; color: #9b2c2c;}
+
+        /* Pomoč panel in Tabele */
+        #pomoc-content { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); width: 100%; max-width: 900px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.95rem;}
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: var(--primary); color: white; }
+        tr:nth-child(even) { background: var(--bg-page); }
+
+        .mini-table { font-size: 0.9rem; margin-top: 10px; margin-bottom: 10px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+        .mini-table th { background-color: #4a5568; padding: 6px; }
+        .mini-table td { padding: 6px; }
+
+        .interactive-table tr:not(:first-child):hover { background-color: #e2e8f0; cursor: pointer; }
+        .interactive-table tr.selected { background-color: #c6f6d5 !important; border: 2px solid #38a169; }
+
+        .dim-list { padding-left: 20px; margin: 5px 0 10px 0; font-size: 1.05rem; }
+        .dim-list li { margin-bottom: 2px; }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 900px) {
+            header { flex-direction: column; align-items: flex-start; gap: 0; padding-top: 15px;}
+            .tabs { width: 100%; overflow-x: auto;}
+            #app-container { flex-direction: column; overflow-y: auto; }
+            #left-panel { width: 100%; border-right: none; border-bottom: 1px solid var(--border); box-shadow: none;}
+            #center-panel { min-height: 500px; padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-container">
+            <h1>TlakLab</h1>
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('raziskuj')">Raziskuj</button>
+                <button class="tab-btn" onclick="switchTab('naloge')">Naloge</button>
+                <button class="tab-btn" onclick="switchTab('pomoc')">Pomoč in formule</button>
+            </div>
+        </div>
+    </header>
+
+    <div id="app-container">
+        <!-- LEVI PANEL -->
+        <div id="left-panel">
+            
+            <!-- VSEBINA: RAZISKUJ -->
+            <div id="panel-raziskuj">
+                <p style="margin-top: 0; font-size: 0.95rem;">Nastavi mere in silo. Nato kvader položi na glineno podlago, da opazuješ njen ugrez.</p>
+
+                <button id="btn-place" class="btn-toggle btn-action" onclick="togglePlace()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+                    Položi na podlago
+                </button>
+
+                <div class="control-group">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span style="font-weight:bold;">Mere kvadra:</span>
+                        <select id="u-unit" style="width:auto; margin:0; padding:4px;" onchange="changeUnitMode()">
+                            <option value="m">m</option>
+                            <option value="cm">cm</option>
+                        </select>
+                    </div>
+                    <label style="font-weight:normal; font-size:0.9rem;">Stranica a: <span id="v-a">1,0</span> <span class="lbl-u">m</span></label>
+                    <input type="range" id="sl-a" min="0.5" max="10.0" step="0.1" value="1.0" oninput="updateSim()">
+                    
+                    <label style="font-weight:normal; font-size:0.9rem;">Stranica b: <span id="v-b">0,8</span> <span class="lbl-u">m</span></label>
+                    <input type="range" id="sl-b" min="0.5" max="10.0" step="0.1" value="0.8" oninput="updateSim()">
+                    
+                    <label style="font-weight:normal; font-size:0.9rem;">Višina h: <span id="v-h">0,5</span> <span class="lbl-u">m</span></label>
+                    <input type="range" id="sl-h" min="0.5" max="10.0" step="0.1" value="0.5" oninput="updateSim()">
+
+                    <button class="btn-toggle btn-outline" style="margin-top:10px;" onclick="rotateBlock()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                        Obrni kvader (spremeni lego)
+                    </button>
+                </div>
+
+                <div class="control-group">
+                    <div class="radio-inline">
+                        <label><input type="radio" name="f-mode" value="direct" checked onchange="updateSim()"> Sila neposredno</label>
+                        <label><input type="radio" name="f-mode" value="mass" onchange="updateSim()"> Sila iz snovi</label>
+                    </div>
+
+                    <div id="div-f-direct">
+                        <label style="font-weight:normal; font-size:0.9rem;">Sila F: <span id="v-f">100</span> N</label>
+                        <input type="range" id="sl-f" min="10" max="1000" step="10" value="100" oninput="updateSim()">
+                    </div>
+
+                    <div id="div-f-mass" class="hidden">
+                        <label style="font-weight:normal; font-size:0.9rem;">Izberi snov kvadra:</label>
+                        <select id="sel-mat" onchange="updateSim()"></select>
+                        <p style="margin:8px 0 0 0; font-size:0.85rem; color:var(--text-muted);">
+                            V tem načinu kvader predstavljajo samo trdne snovi. Tekočine in plini so v tabeli prikazani samo za primerjavo gostot.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="control-group data-display">
+                    <div class="data-row fg"><span>Sila (F):</span><span id="res-f">100,0 N</span></div>
+                    <div class="data-row fs"><span>Stična ploskev (S):</span><span id="res-s">0,08 m²</span></div>
+                    <div class="data-row fp"><span>Tlak (p):</span><span id="res-p">1250 Pa</span></div>
+                </div>
+
+                <div class="observation-box" id="obs-raziskuj">
+                    Pri manjši stični ploskvi se tlak ob enaki sili poveča, zato se kvader globlje ugrezne v glineno podlago.
+                </div>
+            </div>
+
+            <!-- VSEBINA: NALOGE -->
+            <div id="panel-naloge" class="hidden">
+                <div class="control-group" style="text-align:center; background:var(--primary); color:white; border-color:var(--primary-dark);">
+                    Zbrane točke: <span id="task-score" style="font-size:1.5rem; font-weight:bold; margin-left:10px;">0</span>
+                </div>
+
+                <select id="sel-level" class="btn-toggle" style="background:white; color:var(--text-main); border:1px solid var(--border);" onchange="generateTask()">
+                    <option value="1">Stopnja 1: Osnovno računanje tlaka</option>
+                    <option value="2">Stopnja 2: Določanje stične ploskve</option>
+                    <option value="3">Stopnja 3: Sila in masa (Obratno 1)</option>
+                    <option value="4">Stopnja 4: Izračun ploskve (Obratno 2)</option>
+                    <option value="5">Stopnja 5: Detektiv (Poišči snov)</option>
+                    <option value="6">Stopnja 6: Iz snovi v tlak</option>
+                    <option value="7">Stopnja 7: Inženir (Manjkajoča višina)</option>
+                </select>
+
+                <div class="observation-box" id="task-desc" style="background: white; border: 1px solid var(--border); border-left: 4px solid var(--primary); color:var(--text-main);">
+                    <!-- Opis naloge -->
+                </div>
+
+                <div class="data-display" id="task-inputs">
+                    
+                    <div id="inp-area-wrap" class="control-group hidden" style="margin-bottom:0; padding:10px 12px;">
+                        <label style="margin-bottom:5px;">Katera ploskev se dotika tal?</label>
+                        <select id="inp-area-sel" style="margin-top:0;">
+                            <option value="" disabled selected>Izberi ploskev...</option>
+                            <option value="ab">a · b</option>
+                            <option value="ah">a · h</option>
+                            <option value="bh">b · h</option>
+                        </select>
+                    </div>
+                    
+                    <div id="inp-v-wrap" class="input-card blue hidden">
+                        <label>Prostornina telesa (V) v m³:</label>
+                        <input type="text" inputmode="decimal" autocomplete="off" id="inp-v">
+                    </div>
+
+                    <div id="inp-f-wrap" class="input-card red hidden">
+                        <label>Sila teže (F<sub>g</sub>) v N:</label>
+                        <input type="text" inputmode="decimal" autocomplete="off" id="inp-f">
+                    </div>
+
+                    <div id="inp-m-wrap" class="input-card orange hidden">
+                        <label>Masa telesa (m) v kg:</label>
+                        <input type="text" inputmode="decimal" autocomplete="off" id="inp-m">
+                    </div>
+
+                    <div id="inp-s-wrap" class="input-card green hidden">
+                        <label>Ploščina stične ploskve (S) v m²:</label>
+                        <input type="text" inputmode="decimal" autocomplete="off" id="inp-s">
+                    </div>
+
+                    <div id="inp-h-wrap" class="input-card teal hidden">
+                        <label>Potrebna višina stebra (h) v metrih:</label>
+                        <input type="text" inputmode="decimal" autocomplete="off" id="inp-h">
+                    </div>
+
+                    <div id="inp-p-wrap" class="input-card purple hidden">
+                        <label>Izračunan tlak (p) v Pa:</label>
+                        <input type="text" inputmode="decimal" autocomplete="off" id="inp-p">
+                    </div>
+                </div>
+
+                <button class="btn-toggle" onclick="checkTask()">Preveri odgovor</button>
+                <button class="btn-toggle btn-outline" onclick="showHint()">Namig</button>
+                <button class="btn-toggle btn-outline" onclick="showSolution()">Prikaži postopek</button>
+                <button class="btn-toggle btn-outline" onclick="generateTask()">Nova naloga</button>
+
+                <div class="observation-box hidden" id="task-feedback"></div>
+            </div>
+
+        </div>
+
+        <!-- OSREDNJI PANEL -->
+        <div id="center-panel">
+            
+            <div id="drawing-area">
+                <div class="canvas-zoom-controls" title="Povečava prikaza za pametno tablo">
+                    <button type="button" onclick="changeCanvasZoom(-0.25)" aria-label="Pomanjšaj prikaz">−</button>
+                    <span id="canvas-zoom-label">100%</span>
+                    <button type="button" onclick="changeCanvasZoom(0.25)" aria-label="Povečaj prikaz">+</button>
+                    <button type="button" onclick="resetCanvasZoom()" aria-label="Ponastavi povečavo">100%</button>
+                </div>
+                <!-- Gumb za zgladitev gline znotraj same slike -->
+                <button id="btn-smooth" class="hidden" onclick="smoothClay()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    Zgladi glino
+                </button>
+
+                <svg viewBox="0 0 1000 760" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: 100%;">
+                    <defs>
+                        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                            <rect width="40" height="40" fill="none" stroke="#f1f5f9" stroke-width="1"/>
+                        </pattern>
+                        <marker id="arrow-f" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--force-color)" />
+                        </marker>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+                    <g id="sim-group"></g>
+                </svg>
+                <div class="scale-note">Opomba: pri metrih je glina velika 15 × 15 m, pri centimetrih 150 × 150 cm. Ob menjavi enote se kvader ponastavi.</div>
+            </div>
+
+            <!-- ZAVIHEK POMOČ -->
+            <div id="pomoc-content" class="hidden">
+                <h2 style="color:var(--primary); margin-top:0;">Fizikalne formule in Enote</h2>
+                
+                <p style="font-size:1.1rem; padding: 10px; background:var(--bg-page); border-radius:6px;"><strong>Tlak (p):</strong> p = F / S</p>
+                <p style="font-size:1.1rem; padding: 10px; background:var(--bg-page); border-radius:6px;"><strong>Masa in teža:</strong> Najprej masa: m = &rho; &middot; V. Nato teža: F<sub>g</sub> = m &middot; g ali direktno F<sub>g</sub> = &sigma; &middot; V</p>
+                <p>Za pravilen izračun tlaka v paskalih (Pa) mora biti sila nujno podana v newtonih (N), stična ploskev pa v kvadratnih metrih (m²).</p>
+                
+                <h3 style="margin-top:30px; border-bottom: 2px solid var(--border); padding-bottom:5px;">Pretvarjanje enot</h3>
+                
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:15px; margin-top:15px;">
+                    <div>
+                        <h4 style="margin:0 0 5px 0; color:var(--primary);">Dolžina (v metre - m)</h4>
+                        <ul style="font-size: 1.05rem; margin-top: 0; padding-left: 20px;">
+                            <li><strong>Iz cm v m:</strong> deliš s 100 (npr. 50 cm = 0,5 m)</li>
+                            <li><strong>Iz dm v m:</strong> deliš z 10 (npr. 5 dm = 0,5 m)</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 style="margin:0 0 5px 0; color:var(--primary);">Ploščina (v kvadratne metre - m²)</h4>
+                        <ul style="font-size: 1.05rem; margin-top: 0; padding-left: 20px;">
+                            <li><strong>Iz cm² v m²:</strong> deliš z 10.000 (npr. 500 cm² = 0,05 m²)</li>
+                            <li><strong>Iz dm² v m²:</strong> deliš s 100 (npr. 5 dm² = 0,05 m²)</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 style="margin:0 0 5px 0; color:var(--primary);">Prostornina (v kubične metre - m³)</h4>
+                        <ul style="font-size: 1.05rem; margin-top: 0; padding-left: 20px;">
+                            <li><strong>Iz cm³ v m³:</strong> deliš z 1.000.000 (npr. 500.000 cm³ = 0,5 m³)</li>
+                            <li><strong>Iz dm³ v m³:</strong> deliš s 1.000 (npr. 500 dm³ = 0,5 m³)</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 style="margin:0 0 5px 0; color:var(--primary);">Gostota (&rho;)</h4>
+                        <ul style="font-size: 1.05rem; margin-top: 0; padding-left: 20px;">
+                            <li><strong>Iz kg/m³ v g/cm³:</strong> deliš s 1.000 (npr. 1000 kg/m³ = 1 g/cm³)</li>
+                            <li><strong>Iz g/cm³ v kg/m³:</strong> množiš s 1.000 (npr. 1 g/cm³ = 1000 kg/m³)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3 style="margin-top:30px; border-bottom: 2px solid var(--border); padding-bottom:5px;">Tabela snovi</h3>
+                <p style="font-size:0.9rem; color:var(--text-muted);">Opomba: Zaradi poenostavitve pri pouku vzamemo težni pospešek g &approx; 10 m/s², zato velja &sigma; = &rho; &middot; 10.</p>
+                <table id="mat-table">
+                    <tr><th>Snov</th><th>Gostota &rho; (kg/m³)</th><th>Spec. teža &sigma; (N/m³)</th></tr>
+                </table>
+
+                <h3 style="margin-top:30px; border-bottom: 2px solid var(--border); padding-bottom:5px;">Kartice razmisleka</h3>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px; margin-top:15px;">
+                    <div style="background: var(--bg-page); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                        <h4 style="margin:0 0 10px 0; color:var(--primary);">Miza na štirih nogah</h4>
+                        Stična ploskev <b>ni</b> ploščina celotne mize! Je le seštevek majhnih ploskvic vseh štirih nog, s katerimi se miza dejansko dotika tal. (S<sub>skupaj</sub> = 4 · S<sub>noge</sub>)
+                    </div>
+                    <div style="background: var(--bg-page); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                        <h4 style="margin:0 0 10px 0; color:var(--primary);">Smuči in sneg</h4>
+                        Smuči močno povečajo stično ploskev (S). Ker je sila teže osebe enaka, večja ploskev pomeni <b>manjši tlak</b> na sneg, zato se smučar ne ugrezne.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+    // --- VSE SNOVI PO UČNEM NAČRTU ---
+    // Sedaj z vključenim sigma v vsakem objektu!
+    const materials = [
+        { name: "zrak", rho: 1.3, sigma: 13 },
+        { name: "smrekov les", rho: 500, sigma: 5000 },
+        { name: "bukov les", rho: 700, sigma: 7000 },
+        { name: "etanol", rho: 790, sigma: 7900 },
+        { name: "olje", rho: 800, sigma: 8000 },
+        { name: "voda", rho: 1000, sigma: 10000 },
+        { name: "apnenec", rho: 2700, sigma: 27000 },
+        { name: "aluminij", rho: 2700, sigma: 27000 },
+        { name: "železo", rho: 7800, sigma: 78000 },
+        { name: "svinec", rho: 11400, sigma: 114000 },
+        { name: "živo srebro", rho: 13590, sigma: 135900 },
+        { name: "zlato", rho: 19300, sigma: 193000 },
+        { name: "osmij", rho: 22600, sigma: 226000 }
+    ];
+
+    // Samo trdne snovi za naloge s kvadrom
+    const solidMaterials = materials.filter(m => !["zrak", "etanol", "olje", "voda", "živo srebro"].includes(m.name));
+
+    // --- STANJE APLIKACIJE ---
+    let state = {
+        mode: 'raziskuj',
+        a: 1.0, b: 0.8, h: 0.5,
+        ori: 1, // 1=ab, 2=ah, 3=bh
+        fMode: 'direct',
+        fDirect: 100,
+        matIdx: 6, // apnenec privzeto
+        F: 0, p: 0, S: 0,
+        
+        isPlaced: false,     
+        animY: -150,         
+        targetY: -150,       
+        clayDepth: 0,
+        claySignature: "", 
+        
+        taskLevel: 1,
+        taskData: {},
+        score: 0,
+        canvasZoom: 1.0
+    };
+
+    // --- POMOŽNE FUNKCIJE ---
+    function applyCanvasZoom() {
+        const area = document.getElementById('drawing-area');
+        const label = document.getElementById('canvas-zoom-label');
+        if (!area) return;
+        const zoom = Math.max(0.75, Math.min(2.0, state.canvasZoom || 1.0));
+        state.canvasZoom = zoom;
+        area.style.width = `${Math.round(1000 * zoom)}px`;
+        if (label) label.textContent = `${Math.round(zoom * 100)}%`;
+    }
+
+    function changeCanvasZoom(delta) {
+        state.canvasZoom = Math.max(0.75, Math.min(2.0, (state.canvasZoom || 1.0) + delta));
+        applyCanvasZoom();
+    }
+
+    function resetCanvasZoom() {
+        state.canvasZoom = 1.0;
+        applyCanvasZoom();
+    }
+
+    function getRandomChoice(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+function getActiveUnit() {
+        const el = document.getElementById('u-unit');
+        return el ? el.value : 'm';
+    }
+
+    function getUnitSettings(unit = getActiveUnit()) {
+        if (unit === 'cm') {
+            return {
+                unit: 'cm',
+                min: 10,
+                max: 100,
+                step: 1,
+                defaults: { a: 60, b: 50, h: 40 },
+                claySize: 150,
+                toMeters: 0.01,
+                decimals: 0
+            };
+        }
+        return {
+            unit: 'm',
+            min: 0.5,
+            max: 10,
+            step: 0.1,
+            defaults: { a: 1.0, b: 0.8, h: 0.5 },
+            claySize: 15,
+            toMeters: 1,
+            decimals: 1
+        };
+    }
+
+    function formatDimensionValue(value, unit) {
+        if (unit === 'cm') return String(Math.round(value));
+        return Number(value).toFixed(1).replace('.', ',');
+    }
+
+    function resetPlaceButton() {
+        const btn = document.getElementById('btn-place');
+        if (!btn) return;
+        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg> Položi na podlago`;
+        btn.style.backgroundColor = "var(--area-color)";
+    }
+
+    function applyUnitSettings(unit, shouldReset = false) {
+        const cfg = getUnitSettings(unit);
+        [['sl-a', cfg.defaults.a], ['sl-b', cfg.defaults.b], ['sl-h', cfg.defaults.h]].forEach(([id, defaultValue]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.min = cfg.min;
+            el.max = cfg.max;
+            el.step = cfg.step;
+            if (shouldReset) el.value = defaultValue;
+        });
+        document.querySelectorAll('.lbl-u').forEach(e => e.innerText = unit);
+    }
+
+    function changeUnitMode() {
+        const unit = getActiveUnit();
+        applyUnitSettings(unit, true);
+
+        state.ori = 1;
+        state.isPlaced = false;
+        state.animY = -150;
+        state.targetY = -150;
+        state.clayDepth = 0;
+        state.claySignature = "";
+
+        resetPlaceButton();
+        updateUI();
+        showObservation(`Merilo je preklopljeno na ${unit}. Mere kvadra so ponastavljene, glina pa je prilagojena novemu merilu.`);
+        updateSim();
+    }
+
+    function getMixedLength(mValue) {
+        const units = ['m', 'dm', 'cm'];
+        let u = getRandomChoice(units);
+        let displayVal;
+        
+        if (u === 'm') {
+            displayVal = mValue.toFixed(1).replace('.',',');
+            if (displayVal.endsWith(',0')) displayVal = displayVal.replace(',0', '');
+        } else if (u === 'dm') {
+            displayVal = Math.round(mValue * 10);
+        } else if (u === 'cm') {
+            displayVal = Math.round(mValue * 100);
+        }
+        return { m: mValue, text: `${displayVal} ${u}` };
+    }
+
+    function getCurrentConfigSignature() {
+        return `${state.a}-${state.b}-${state.h}-${state.ori}`;
+    }
+
+    function readDecimalInput(id) {
+        const el = document.getElementById(id);
+        if (!el) return NaN;
+        const cleaned = String(el.value)
+            .trim()
+            .replace(/\s/g, '')
+            .replace(/\u00A0/g, '')
+            .replace(',', '.');
+        return parseFloat(cleaned);
+    }
+
+    function fmt(value, digits = 2) {
+        if (typeof value !== 'number' || !isFinite(value)) return "";
+        return value.toLocaleString('sl-SI', {
+            maximumFractionDigits: digits
+        });
+    }
+
+    function fmtUnit(value, unit, digits = 2) {
+        return `${fmt(value, digits)} ${unit}`;
+    }
+
+    // Za interaktivno tabelo v 5. stopnji
+    function selectMaterial(matName, rowEl) {
+        state.taskData.userMat = matName;
+        // Odstrani 'selected' iz vseh vrstic tabele nalog
+        document.querySelectorAll('#det-table tr').forEach(tr => tr.classList.remove('selected'));
+        // Dodaj class na kliknjeno vrstico
+        rowEl.classList.add('selected');
+    }
+
+    // --- ZAGON ---
+    window.onload = () => {
+        let selMat = document.getElementById('sel-mat');
+        let table = document.getElementById('mat-table');
+        
+        materials.forEach((m, i) => {
+            // V raziskovalnem načinu kvader predstavljajo samo trdne snovi.
+            // Vrednost možnosti ostane originalni indeks iz seznama materials,
+            // da se obstoječi izračun specifične teže ne zamakne.
+            if (solidMaterials.some(sm => sm.name === m.name)) {
+                selMat.options.add(new Option(m.name, i));
+            }
+
+            let tr = table.insertRow();
+            tr.insertCell().innerText = m.name;
+            tr.insertCell().innerText = m.rho.toLocaleString('sl-SI');
+            tr.insertCell().innerText = m.sigma.toLocaleString('sl-SI');
+        });
+        selMat.value = state.matIdx;
+        
+        updateSim();
+        requestAnimationFrame(animationLoop); 
+    };
+
+    function showObservation(msg, type="normal") {
+        let obs = document.getElementById('obs-raziskuj');
+        obs.className = 'observation-box';
+        if(type === 'error') obs.classList.add('error');
+        if(type === 'correct') obs.classList.add('correct');
+        obs.innerHTML = msg;
+    }
+
+    function getDirectPressureLimit(unit = getActiveUnit()) {
+        // V načinu "Sila neposredno" je drsnik omejen po sili:
+        // m: do 1.000.000 N, cm: do 5.000 N.
+        // Za vizualni ugrez uporabimo tlak pri največji sili in najmanjši stični ploskvi.
+        return unit === 'cm' ? 500000 : 4000000;
+    }
+
+    function getMaterialBottomPressure(unit = getActiveUnit()) {
+        // V načinu "Sila iz snovi" je referenca osmij pri največji dovoljeni pokončni višini.
+        // m: 10 m, cm: 100 cm = 1 m. Tak osmijev kvader doseže "dno" gline.
+        const cfg = getUnitSettings(unit);
+        const osmium = materials.find(m => m.name === "osmij");
+        const sigmaOsmium = osmium ? osmium.sigma : 226000;
+        return sigmaOsmium * cfg.max * cfg.toMeters;
+    }
+
+    function pressureToSinkage(p) {
+        // Vizualni model ugreza: globina narašča s tlakom, vendar ni mišljena kot realna
+        // meritev globine v cm ali m. Merilo je ločeno za neposredno silo in za snovi.
+        const safeP = Math.max(0, Number(p) || 0);
+        const unit = state.mode === 'raziskuj' ? getActiveUnit() : 'm';
+        const maxDepth = 86;
+        const referencePressure = state.fMode === 'direct'
+            ? getDirectPressureLimit(unit)
+            : getMaterialBottomPressure(unit);
+        const normalized = Math.min(1, safeP / referencePressure);
+        return maxDepth * normalized;
+    }
+
+    function formatForceSliderValue(value) {
+        const n = Number(value) || 0;
+        if (Math.abs(n) >= 1000) return Math.round(n).toLocaleString('sl-SI');
+        if (Math.abs(n) >= 10) return Number(n.toFixed(1)).toLocaleString('sl-SI');
+        return Number(n.toFixed(2)).toLocaleString('sl-SI');
+    }
+
+    function chooseForceStep(maxForce) {
+        if (maxForce <= 100) return 0.1;
+        if (maxForce <= 1000) return 1;
+        if (maxForce <= 10000) return 10;
+        if (maxForce <= 100000) return 100;
+        if (maxForce <= 1000000) return 1000;
+        return 10000;
+    }
+
+    function updateDirectForceSlider(S) {
+        const slider = document.getElementById('sl-f');
+        if (!slider) return;
+        const unit = getActiveUnit();
+        const maxForce = unit === 'cm' ? 5000 : 1000000;
+        const step = unit === 'cm' ? 10 : 1000;
+
+        slider.min = 0;
+        slider.max = String(maxForce);
+        slider.step = String(step);
+
+        const current = parseFloat(slider.value);
+        if (!Number.isFinite(current) || current > maxForce) slider.value = String(maxForce);
+        if (Number(slider.value) < 0) slider.value = "0";
+    }
+
+    // --- LOGIKA GUMBOV ZA GLINO IN KVADER ---
+    function togglePlace() {
+        let currentSig = getCurrentConfigSignature();
+
+        if (!state.isPlaced) {
+            // Preden odložimo, preverimo ujemanje luknje
+            if (state.clayDepth > 1 && state.claySignature !== currentSig) {
+                showObservation("<b>Aparatura ni pripravljena!</b> Spremenil si mere ali lego kvadra. Odtis v glini se ne ujema, zato klikni gumb 'Zgladi glino'.", "error");
+                return;
+            }
+            
+            state.isPlaced = true;
+            state.claySignature = currentSig; 
+            let maxSinkage = 80;
+            state.targetY = pressureToSinkage(state.p);
+            
+            let btn = document.getElementById('btn-place');
+            btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg> Dvigni kvader`;
+            btn.style.backgroundColor = "#e53e3e"; // Red
+            showObservation("Kvader je položen na podlago. Tlak določa globino ugreza. (Črtkane črte prikazujejo potopljeni del.)");
+        } else {
+            // Dvignemo kvader
+            state.isPlaced = false;
+            state.targetY = -150;
+            let btn = document.getElementById('btn-place');
+            btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg> Položi na podlago`;
+            btn.style.backgroundColor = "var(--area-color)"; // Green
+            
+            if (state.clayDepth > 1) {
+                showObservation("Opazuj odtis! Oblika jame predstavlja stično ploskev, njena globina pa potrjuje, kako velik je bil tlak.", "correct");
+            }
+        }
+        updateUI();
+    }
+
+    function smoothClay() {
+        state.clayDepth = 0;
+        state.claySignature = "";
+        updateUI();
+        showObservation("Glina je zglajena in pripravljena na nov poskus spremembe stične ploskve ali sile.");
+    }
+
+    function updateUI() {
+        let btnSmooth = document.getElementById('btn-smooth');
+        if (!state.isPlaced && state.clayDepth > 1) {
+            btnSmooth.classList.remove('hidden');
+        } else {
+            btnSmooth.classList.add('hidden');
+        }
+    }
+
+    // --- TAB NAVIGACIJA ---
+    function switchTab(tab) {
+        state.mode = tab;
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+
+        document.getElementById('panel-raziskuj').classList.add('hidden');
+        document.getElementById('panel-naloge').classList.add('hidden');
+        document.getElementById('drawing-area').classList.add('hidden');
+        document.getElementById('pomoc-content').classList.add('hidden');
+
+        if (tab === 'raziskuj') {
+            document.getElementById('panel-raziskuj').classList.remove('hidden');
+            document.getElementById('drawing-area').classList.remove('hidden');
+            updateSim();
+        } else if (tab === 'naloge') {
+            document.getElementById('panel-naloge').classList.remove('hidden');
+            document.getElementById('drawing-area').classList.remove('hidden');
+            state.isPlaced = true; 
+            generateTask();
+        } else if (tab === 'pomoc') {
+            document.getElementById('pomoc-content').classList.remove('hidden');
+        }
+        updateUI();
+    }
+
+    // --- RAZISKUJ LOGIKA ---
+    function updateSim() {
+        if(state.mode !== 'raziskuj') return;
+
+        const unit = getActiveUnit();
+        const cfg = getUnitSettings(unit);
+        applyUnitSettings(unit, false);
+
+        const rawA = parseFloat(document.getElementById('sl-a').value);
+        const rawB = parseFloat(document.getElementById('sl-b').value);
+        const rawH = parseFloat(document.getElementById('sl-h').value);
+
+        // V izračunih so vse mere vedno v metrih.
+        state.a = rawA * cfg.toMeters;
+        state.b = rawB * cfg.toMeters;
+        state.h = rawH * cfg.toMeters;
+
+        document.getElementById('v-a').innerText = formatDimensionValue(rawA, unit);
+        document.getElementById('v-b').innerText = formatDimensionValue(rawB, unit);
+        document.getElementById('v-h').innerText = formatDimensionValue(rawH, unit);
+
+        // Izračunaj stično ploskev že pred branjem sile.
+        let S = 0;
+        if (state.ori === 1) S = state.a * state.b;
+        else if (state.ori === 2) S = state.a * state.h;
+        else S = state.b * state.h;
+
+        state.fMode = document.querySelector('input[name="f-mode"]:checked').value;
+        if (state.fMode === 'direct') {
+            document.getElementById('div-f-direct').classList.remove('hidden');
+            document.getElementById('div-f-mass').classList.add('hidden');
+            updateDirectForceSlider(S);
+            state.fDirect = parseFloat(document.getElementById('sl-f').value);
+            document.getElementById('v-f').innerText = formatForceSliderValue(state.fDirect);
+        } else {
+            document.getElementById('div-f-direct').classList.add('hidden');
+            document.getElementById('div-f-mass').classList.remove('hidden');
+            state.matIdx = parseInt(document.getElementById('sel-mat').value);
+        }
+
+        let F = state.fMode === 'direct' ? state.fDirect : (state.a * state.b * state.h) * materials[state.matIdx].sigma;
+        let p = F / S;
+
+        state.S = S; state.F = F; state.p = p;
+
+        document.getElementById('res-f').innerText = F.toFixed(1).replace('.', ',') + " N";
+        document.getElementById('res-s').innerText = S.toFixed(4).replace('.', ',') + " m²";
+        document.getElementById('res-p').innerText = Math.round(p).toLocaleString('sl-SI') + " Pa";
+
+        if (state.isPlaced) {
+            state.targetY = pressureToSinkage(p);
+        }
+    }
+
+    function rotateBlock() {
+        if(state.isPlaced) {
+            showObservation("<b>Ne moreš obrniti kvadra, ki je pritisnjen ob tla.</b> Najprej ga dvigni!", "error");
+            return;
+        }
+        state.ori = state.ori === 3 ? 1 : state.ori + 1;
+        updateSim();
+    }
+
+    // --- ANIMATION LOOP ---
+    function animationLoop() {
+        state.animY += (state.targetY - state.animY) * 0.15;
+
+        // Ko je kvader položen na glino, se odtis sproti prilagaja trenutnemu tlaku.
+        // Zato se pri stalni sili in večji stični ploskvi ugrez zmanjša.
+        if (state.isPlaced) {
+            state.clayDepth = Math.max(0, state.animY);
+        }
+
+        if (state.mode === 'raziskuj' || state.mode === 'naloge') {
+            drawSVGDynamic();
+        }
+
+        requestAnimationFrame(animationLoop);
+    }
+
+    // --- 2.5D RISANJE (Z LOČENIM ODTISOM IN "X-RAY" POGLEDOM KVADRA) ---
+
+    // --- DIDAKTIČNI PRIKAZ ZA ZAVIHEK NALOGE ---
+    // Raziskuj uporablja svojo obstoječo sceno. Naloge uporabljajo lokalno
+    // skaliranje glede na konkretne mere naloge, da sta kvader in stična
+    // ploskev jasno berljiva.
+    function drawTaskScene() {
+        let svgHTML = "";
+
+        const VIEW_W = 1000;
+        const VIEW_H = 760;
+        const ISO_COS = Math.cos(Math.PI / 6);
+        const ISO_SIN = Math.sin(Math.PI / 6);
+        const clayDrop = 86;
+
+        function ps(p) {
+            return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+        }
+
+        function poly(points, attrs) {
+            return `<polygon points="${points.map(ps).join(' ')}" ${attrs}/>`;
+        }
+
+        function line(p1, p2, attrs) {
+            return `<line x1="${p1.x.toFixed(2)}" y1="${p1.y.toFixed(2)}" x2="${p2.x.toFixed(2)}" y2="${p2.y.toFixed(2)}" ${attrs}/>`;
+        }
+
+        function textAt(p, txt, attrs = '') {
+            return `<text x="${p.x.toFixed(2)}" y="${p.y.toFixed(2)}" ${attrs}>${txt}</text>`;
+        }
+
+        function mid(p1, p2, dx = 0, dy = 0) {
+            return { x: (p1.x + p2.x) / 2 + dx, y: (p1.y + p2.y) / 2 + dy };
+        }
+
+        function shifted(p, dx = 0, dy = 0) {
+            return { x: p.x + dx, y: p.y + dy };
+        }
+
+        // Mere nalog so v notranjem modelu že v metrih.
+        const a = Math.max(0.001, Number(state.a) || 1);
+        const b = Math.max(0.001, Number(state.b) || 1);
+        const h = Math.max(0.001, Number(state.h) || 0.5);
+
+        let wx, wy, wz;
+        let labelX, labelZ, labelY;
+        if (state.ori === 1) {
+            wx = a; wz = b; wy = h;
+            labelX = 'a'; labelZ = 'b'; labelY = 'h';
+        } else if (state.ori === 2) {
+            wx = a; wz = h; wy = b;
+            labelX = 'a'; labelZ = 'h'; labelY = 'b';
+        } else {
+            wx = b; wz = h; wy = a;
+            labelX = 'b'; labelZ = 'h'; labelY = 'a';
+        }
+
+        // Pri Stopnji 2 mora biti vsaka stranica na sliki berljiva. Izračuni ostanejo
+        // narejeni z dejanskimi merami, spodnje vrednosti veljajo samo za risbo.
+        const actualMaxDim = Math.max(wx, wz, wy);
+        let wxDraw = wx;
+        let wzDraw = wz;
+        let wyDraw = wy;
+        if (state.taskLevel === 2) {
+            const minVisibleDim = Math.max(0.12, actualMaxDim * 0.16);
+            wxDraw = Math.max(wxDraw, minVisibleDim);
+            wzDraw = Math.max(wzDraw, minVisibleDim);
+            wyDraw = Math.max(wyDraw, minVisibleDim);
+        }
+
+        const maxDim = Math.max(wxDraw, wzDraw, wyDraw);
+        const minPad = Math.max(0.18, maxDim * 0.42);
+        const clayX = Math.max(wxDraw * 2.75, wxDraw + maxDim * 0.95, wxDraw + minPad * 2);
+        const clayZ = Math.max(wzDraw * 2.75, wzDraw + maxDim * 0.95, wzDraw + minPad * 2);
+        const objX = (clayX - wxDraw) * 0.34;
+        const objZ = (clayZ - wzDraw) * 0.34;
+
+        function rawPt(x, y, z) {
+            return {
+                x: (x + z) * ISO_COS,
+                y: -y + (z - x) * ISO_SIN
+            };
+        }
+
+        const rawPoints = [
+            rawPt(0, 0, 0), rawPt(clayX, 0, 0), rawPt(clayX, 0, clayZ), rawPt(0, 0, clayZ),
+            rawPt(0, -0.55, 0), rawPt(clayX, -0.55, 0), rawPt(clayX, -0.55, clayZ), rawPt(0, -0.55, clayZ),
+            rawPt(objX, 0, objZ), rawPt(objX + wxDraw, 0, objZ), rawPt(objX + wxDraw, 0, objZ + wzDraw), rawPt(objX, 0, objZ + wzDraw),
+            rawPt(objX, wyDraw, objZ), rawPt(objX + wxDraw, wyDraw, objZ), rawPt(objX + wxDraw, wyDraw, objZ + wzDraw), rawPt(objX, wyDraw, objZ + wzDraw)
+        ];
+
+        const minRawX = Math.min(...rawPoints.map(p => p.x));
+        const maxRawX = Math.max(...rawPoints.map(p => p.x));
+        const minRawY = Math.min(...rawPoints.map(p => p.y));
+        const maxRawY = Math.max(...rawPoints.map(p => p.y));
+        const rawW = Math.max(0.001, maxRawX - minRawX);
+        const rawH = Math.max(0.001, maxRawY - minRawY);
+
+        const usableW = VIEW_W * 0.62;
+        const usableH = VIEW_H * 0.60;
+        const forceSpace = 95;
+        let scale = Math.min(
+            usableW / rawW,
+            (usableH - clayDrop - forceSpace) / rawH
+        );
+
+        // Varovalke: pri nalogah gre za didaktično berljivost, zato scena ne sme
+        // postati mikroskopska ali pretirano velika.
+        scale = Math.max(42, Math.min(scale, 230));
+
+        // Po izračunu scale-a sceno postavimo v sredino risalnega prostora.
+        const sceneCenterX = VIEW_W * 0.52;
+        const sceneCenterY = VIEW_H * 0.50;
+        const base = {
+            x: sceneCenterX - ((minRawX + maxRawX) / 2) * scale,
+            y: sceneCenterY - ((minRawY + maxRawY) / 2) * scale + 34
+        };
+
+        function pt(x, y, z) {
+            const r = rawPt(x, y, z);
+            return {
+                x: base.x + r.x * scale,
+                y: base.y + r.y * scale
+            };
+        }
+
+        // --- LOKALNA PODLAGA: poln glineni kvader ---
+        const c00 = pt(0, 0, 0);
+        const c10 = pt(clayX, 0, 0);
+        const c11 = pt(clayX, 0, clayZ);
+        const c01 = pt(0, 0, clayZ);
+        const c00d = { x: c00.x, y: c00.y + clayDrop };
+        const c10d = { x: c10.x, y: c10.y + clayDrop };
+        const c11d = { x: c11.x, y: c11.y + clayDrop };
+        const c01d = { x: c01.x, y: c01.y + clayDrop };
+
+        svgHTML += poly([c00d, c10d, c11d, c01d], 'fill="#7d7770" stroke="#6f6964" stroke-width="1.2" opacity="0.92"');
+        svgHTML += poly([c00, c10, c10d, c00d], 'fill="#aaa39b" stroke="#78716c" stroke-width="1.8" opacity="0.96"');
+        svgHTML += poly([c10, c11, c11d, c10d], 'fill="#8f8983" stroke="#706a64" stroke-width="1.8" opacity="0.98"');
+        svgHTML += poly([c01, c11, c11d, c01d], 'fill="#9f9891" stroke="#706a64" stroke-width="1.8" opacity="0.96"');
+        svgHTML += poly([c00, c01, c01d, c00d], 'fill="#bdb6ae" stroke="#78716c" stroke-width="1.6" opacity="0.94"');
+        svgHTML += poly([c00, c10, c11, c01], 'fill="var(--clay-top)" stroke="#8b8580" stroke-width="2.4"');
+        svgHTML += `<polyline points="${[c00, c10, c11, c01, c00].map(ps).join(' ')}" fill="none" stroke="#6f6964" stroke-width="2.4"/>`;
+        svgHTML += `<polyline points="${[c00d, c10d, c11d, c01d, c00d].map(ps).join(' ')}" fill="none" stroke="#6f6964" stroke-width="1.2" opacity="0.42"/>`;
+
+        // --- KVADER ---
+        const b0 = pt(objX, 0, objZ);
+        const bX = pt(objX + wxDraw, 0, objZ);
+        const bXZ = pt(objX + wxDraw, 0, objZ + wzDraw);
+        const bZ = pt(objX, 0, objZ + wzDraw);
+        const t0 = pt(objX, wyDraw, objZ);
+        const tX = pt(objX + wxDraw, wyDraw, objZ);
+        const tXZ = pt(objX + wxDraw, wyDraw, objZ + wzDraw);
+        const tZ = pt(objX, wyDraw, objZ + wzDraw);
+
+        // Viden, a zmeren ugrez za naloge: gre za didaktično oznako stične ploskve.
+        const sink = Math.max(10, Math.min(34, Number(state.clayDepth) || 0));
+        const b0s = shifted(b0, 0, sink);
+        const bXs = shifted(bX, 0, sink);
+        const bXZs = shifted(bXZ, 0, sink);
+        const bZs = shifted(bZ, 0, sink);
+
+        svgHTML += poly([b0s, bXs, bXZs, bZs], 'fill="rgba(37, 99, 67, 0.18)" stroke="none"');
+        svgHTML += `<polyline points="${[b0s, bXs, bXZs, bZs, b0s].map(ps).join(' ')}" fill="none" stroke="var(--area-color)" stroke-width="2.4" stroke-dasharray="6 5" opacity="0.85"/>`;
+        svgHTML += line(b0, b0s, 'stroke="var(--area-color)" stroke-width="1.8" stroke-dasharray="5 4" opacity="0.65"');
+        svgHTML += line(bX, bXs, 'stroke="var(--area-color)" stroke-width="1.8" stroke-dasharray="5 4" opacity="0.65"');
+        svgHTML += line(bXZ, bXZs, 'stroke="var(--area-color)" stroke-width="1.8" stroke-dasharray="5 4" opacity="0.65"');
+        svgHTML += line(bZ, bZs, 'stroke="var(--area-color)" stroke-width="1.8" stroke-dasharray="5 4" opacity="0.65"');
+
+        // Rahla senca neposredno pod stično ploskvijo.
+        svgHTML += poly([b0, bX, bXZ, bZ], 'fill="rgba(0,0,0,0.22)"');
+
+        svgHTML += poly([b0, bX, tX, t0], 'fill="#f6ad55" stroke="#9c4221" stroke-width="2.2" stroke-linejoin="round"');
+        svgHTML += poly([bX, bXZ, tXZ, tX], 'fill="#dd6b20" stroke="#9c4221" stroke-width="2.2" stroke-linejoin="round"');
+        svgHTML += poly([bZ, bXZ, tXZ, tZ], 'fill="#c05621" stroke="#7b341e" stroke-width="2.2" stroke-linejoin="round"');
+        svgHTML += poly([b0, bZ, tZ, t0], 'fill="#ed8936" stroke="#9c4221" stroke-width="2.1" stroke-linejoin="round" opacity="0.94"');
+        svgHTML += poly([t0, tX, tXZ, tZ], 'fill="var(--box-color)" stroke="#9c4221" stroke-width="2.6" stroke-linejoin="round"');
+
+        svgHTML += line(b0, bX, 'stroke="#7b341e" stroke-width="2" opacity="0.95"');
+        svgHTML += line(b0, bZ, 'stroke="#7b341e" stroke-width="2" opacity="0.95"');
+        svgHTML += line(bX, bXZ, 'stroke="#7b341e" stroke-width="2" opacity="0.95"');
+        svgHTML += line(bZ, bXZ, 'stroke="#7b341e" stroke-width="2" opacity="0.95"');
+        svgHTML += line(b0, t0, 'stroke="#7b341e" stroke-width="2"');
+        svgHTML += line(bX, tX, 'stroke="#7b341e" stroke-width="2"');
+        svgHTML += line(bZ, tZ, 'stroke="#7b341e" stroke-width="2"');
+        svgHTML += line(bXZ, tXZ, 'stroke="#7b341e" stroke-width="2"');
+        svgHTML += `<polyline points="${[t0, tX, tXZ, tZ, t0].map(ps).join(' ')}" fill="none" stroke="#7b341e" stroke-width="2"/>`;
+
+        // Stična ploskev naj ostane vidna tudi po risanju kvadra.
+        const contactStroke = state.taskLevel === 2 ? 'stroke-width="5"' : 'stroke-width="3.5"';
+        svgHTML += `<polyline points="${[b0, bX, bXZ, bZ, b0].map(ps).join(' ')}" fill="none" stroke="var(--area-color)" ${contactStroke} stroke-linejoin="round" opacity="0.98"/>`;
+
+        // --- OZNAKE DIMENZIJ ---
+        function addReadableLabel(pos, txt, dx = 0, dy = 0, anchor = 'middle') {
+            svgHTML += textAt(
+                { x: pos.x + dx, y: pos.y + dy },
+                txt,
+                `fill="white" font-weight="900" font-size="22" style="paint-order: stroke; stroke: rgba(0,0,0,0.55); stroke-width: 4px; text-shadow: 1px 1px 2px black;" text-anchor="${anchor}"`
+            );
+        }
+
+        function addLeaderLabel(edgePoint, txt, labelPoint, anchor = 'middle') {
+            svgHTML += line(edgePoint, labelPoint, 'stroke="rgba(15,23,42,0.55)" stroke-width="1.5" stroke-dasharray="4 3"');
+            svgHTML += textAt(
+                labelPoint,
+                txt,
+                `fill="white" font-weight="900" font-size="24" style="paint-order: stroke; stroke: rgba(0,0,0,0.65); stroke-width: 4.5px; text-shadow: 1px 1px 2px black;" text-anchor="${anchor}"`
+            );
+        }
+
+        const xEdgeMid = mid(t0, tX);
+        const zEdgeMid = mid(b0, bZ);
+        const yEdgeMid = mid(bXZ, tXZ);
+
+        if (state.taskLevel === 2) {
+            addLeaderLabel(xEdgeMid, labelX, shifted(xEdgeMid, -28, -38));
+            addLeaderLabel(zEdgeMid, labelZ, shifted(zEdgeMid, -48, 36));
+            addLeaderLabel(yEdgeMid, labelY, shifted(yEdgeMid, 54, -4), 'start');
+        } else {
+            addReadableLabel(xEdgeMid, labelX, 0, -16);
+            addReadableLabel(zEdgeMid, labelZ, -18, 10);
+            addReadableLabel(yEdgeMid, labelY, 24, 6, 'start');
+        }
+
+        // --- SILA F ---
+        const topCenter = {
+            x: (t0.x + tX.x + tXZ.x + tZ.x) / 4,
+            y: (t0.y + tX.y + tXZ.y + tZ.y) / 4
+        };
+        const forceLen = Math.max(55, Math.min(90, 0.16 * VIEW_H));
+        const ftop = { x: topCenter.x, y: topCenter.y - forceLen };
+        const fbot = { x: topCenter.x, y: topCenter.y - 8 };
+        svgHTML += `
+            <line x1="${ftop.x.toFixed(2)}" y1="${ftop.y.toFixed(2)}" x2="${fbot.x.toFixed(2)}" y2="${fbot.y.toFixed(2)}" stroke="var(--force-color)" stroke-width="5" marker-end="url(#arrow-f)"/>
+            <text x="${ftop.x.toFixed(2)}" y="${(ftop.y - 10).toFixed(2)}" fill="var(--force-color)" font-weight="bold" font-size="24" text-anchor="middle">F</text>
+        `;
+
+        document.getElementById('sim-group').innerHTML = svgHTML;
+    }
+
+    function drawSVGDynamic() {
+        if (state.mode === 'naloge') {
+            drawTaskScene();
+            return;
+        }
+        let svgHTML = "";
+
+        // Fiksno, a skrito izhodišče kvadra na zgornji ploskvi gline.
+        // Pri zavihku "Raziskuj" se risalna skala prilagodi izbrani enoti (m ali cm).
+        const VIEW_W = 1000;
+        const VIEW_H = 760;
+        const drawUnit = state.mode === 'raziskuj' ? getActiveUnit() : 'm';
+        const cfg = getUnitSettings(drawUnit);
+        const dimMult = drawUnit === 'cm' ? 100 : 1;
+        const claySize = cfg.claySize;
+        const clayDrop = 105;
+        const ISO_COS = Math.cos(Math.PI / 6);
+        const ISO_SIN = Math.sin(Math.PI / 6);
+
+        // Leva začetna točka glinene plošče v SVG koordinatah.
+        // Položaj je namerno bolj sredinski, da glina in kvader bolje izkoristita risalni prostor.
+        const BASE = { x: 205, y: 430 };
+
+        // Merilo se izračuna iz velikosti gline, ne iz trenutnega kvadra.
+        // Pomembno: clayDrop je že podan v slikovnih enotah SVG, zato ga ne smemo
+        // prištevati v imenovalec skupaj z merami gline. Prejšnja različica je zato
+        // izračunala premajhno merilo in sta bila glina ter kvader miniaturna.
+        function getSceneScale() {
+            const usableW = 800;
+            const usableUp = 270;
+            const usableDown = 260;
+            const sx = usableW / (2 * claySize * ISO_COS);
+            const syUp = usableUp / (claySize * ISO_SIN);
+            const syDown = (usableDown - clayDrop) / (claySize * ISO_SIN);
+            return Math.min(sx, syUp, syDown);
+        }
+
+        const scale = getSceneScale();
+
+        // Skrito sidro kvadra je nekoliko odmaknjeno od robov glinene plošče.
+        const objectOffset = claySize * 0.10;
+
+        function scenePt(x, y, z, verticalOffset = 0) {
+            return {
+                x: BASE.x + (x + z) * scale * ISO_COS,
+                y: BASE.y + verticalOffset - y * scale + (z - x) * scale * ISO_SIN
+            };
+        }
+
+        function objPt(x, y, z, verticalOffset = 0) {
+            return scenePt(objectOffset + x, y, objectOffset + z, verticalOffset);
+        }
+
+        function ps(p) {
+            return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+        }
+
+        function poly(points, attrs) {
+            return `<polygon points="${points.map(ps).join(' ')}" ${attrs}/>`;
+        }
+
+        function line(p1, p2, attrs) {
+            return `<line x1="${p1.x.toFixed(2)}" y1="${p1.y.toFixed(2)}" x2="${p2.x.toFixed(2)}" y2="${p2.y.toFixed(2)}" ${attrs}/>`;
+        }
+
+        function textAt(p, txt, attrs = '') {
+            return `<text x="${p.x.toFixed(2)}" y="${p.y.toFixed(2)}" ${attrs}>${txt}</text>`;
+        }
+
+        function mid(p1, p2, dx = 0, dy = 0) {
+            return { x: (p1.x + p2.x) / 2 + dx, y: (p1.y + p2.y) / 2 + dy };
+        }
+
+        // Trenutna lega kvadra:
+        // wx in wz sta meri v stični ploskvi, wy je trenutna pokončna mera.
+        let wx, wy, wz;
+        let labelX, labelZ, labelY;
+        if (state.ori === 1) {
+            wx = state.a * dimMult; wz = state.b * dimMult; wy = state.h * dimMult;
+            labelX = 'a'; labelZ = 'b'; labelY = 'h';
+        } else if (state.ori === 2) {
+            wx = state.a * dimMult; wz = state.h * dimMult; wy = state.b * dimMult;
+            labelX = 'a'; labelZ = 'h'; labelY = 'b';
+        } else {
+            wx = state.b * dimMult; wz = state.h * dimMult; wy = state.a * dimMult;
+            labelX = 'b'; labelZ = 'h'; labelY = 'a';
+        }
+
+        // --- GLINENA PODLAGA KOT POLN 3D KVADER ---
+        const c00 = scenePt(0, 0, 0);
+        const c10 = scenePt(claySize, 0, 0);
+        const c11 = scenePt(claySize, 0, claySize);
+        const c01 = scenePt(0, 0, claySize);
+        const c00d = { x: c00.x, y: c00.y + clayDrop };
+        const c10d = { x: c10.x, y: c10.y + clayDrop };
+        const c11d = { x: c11.x, y: c11.y + clayDrop };
+        const c01d = { x: c01.x, y: c01.y + clayDrop };
+
+        // Stranice najprej, zgornja ploskev nazadnje: glina deluje kot poln blok.
+        svgHTML += poly([c00, c10, c10d, c00d], 'fill="#a8a29e" stroke="#78716c" stroke-width="1.6" opacity="0.95"');
+        svgHTML += poly([c10, c11, c11d, c10d], 'fill="#8f8983" stroke="#78716c" stroke-width="1.6" opacity="0.98"');
+        svgHTML += poly([c01, c11, c11d, c01d], 'fill="#78716c" stroke="#57534e" stroke-width="1.6" opacity="0.98"');
+        svgHTML += poly([c00, c01, c01d, c00d], 'fill="#b8b1aa" stroke="#78716c" stroke-width="1.3" opacity="0.75"');
+        svgHTML += poly([c00, c10, c11, c01], 'fill="var(--clay-top)" stroke="#a8a29e" stroke-width="2.4"');
+        svgHTML += `<polyline points="${[c00, c10, c11, c01, c00].map(ps).join(' ')}" fill="none" stroke="#78716c" stroke-width="2.2"/>`;
+
+        // Oznaki velikosti gline.
+        const clayLabel = `${claySize} ${drawUnit}`;
+        svgHTML += line(c01, c11, 'stroke="#4b5563" stroke-width="2" stroke-dasharray="5,4" opacity="0.75"');
+        svgHTML += textAt(mid(c01, c11, 0, 24), clayLabel, 'fill="#374151" font-weight="700" font-size="16" text-anchor="middle"');
+        svgHTML += line(c10, c11, 'stroke="#4b5563" stroke-width="2" stroke-dasharray="5,4" opacity="0.75"');
+        svgHTML += textAt(mid(c10, c11, 25, 4), clayLabel, 'fill="#374151" font-weight="700" font-size="16" text-anchor="start"');
+
+        // --- STIK IN ODTIS V GLINI ---
+        const g0 = objPt(0, 0, 0);
+        const gX = objPt(wx, 0, 0);
+        const gXZ = objPt(wx, 0, wz);
+        const gZ = objPt(0, 0, wz);
+
+        const depth = Math.max(0, state.clayDepth);
+        const h0 = objPt(0, 0, 0, depth);
+        const hX = objPt(wx, 0, 0, depth);
+        const hXZ = objPt(wx, 0, wz, depth);
+        const hZ = objPt(0, 0, wz, depth);
+
+        if (state.animY < -2 && depth < 1) {
+            svgHTML += poly([g0, gX, gXZ, gZ], 'fill="rgba(0,0,0,0.15)"');
+        }
+
+        if (depth > 0.5) {
+            // Stene jame sledijo trenutni stični ploskvi in trenutni globini ugreza.
+            svgHTML += poly([g0, gX, hX, h0], 'fill="#8b8580" stroke="#57534e" stroke-width="1" opacity="0.85"');
+            svgHTML += poly([gX, gXZ, hXZ, hX], 'fill="#9a948e" stroke="#57534e" stroke-width="1" opacity="0.86"');
+            svgHTML += poly([gZ, gXZ, hXZ, hZ], 'fill="#6f6964" stroke="#57534e" stroke-width="1" opacity="0.78"');
+            svgHTML += poly([g0, gZ, hZ, h0], 'fill="#b8b1aa" stroke="#78716c" stroke-width="1" opacity="0.70"');
+            svgHTML += poly([h0, hX, hXZ, hZ], 'fill="#5f5a55" stroke="#57534e" stroke-width="1.2"');
+            svgHTML += poly([h0, hX, hXZ, hZ], 'fill="var(--area-color)" opacity="0.13"');
+            svgHTML += `<polyline points="${[g0, gX, gXZ, gZ, g0].map(ps).join(' ')}" fill="none" stroke="#38a169" stroke-width="3.5" stroke-dasharray="7,4" stroke-linejoin="round" opacity="0.98"/>`;
+        }
+
+        // --- KVADER ---
+        const b0 = objPt(0, 0, 0, state.animY);
+        const bX = objPt(wx, 0, 0, state.animY);
+        const bXZ = objPt(wx, 0, wz, state.animY);
+        const bZ = objPt(0, 0, wz, state.animY);
+        const t0 = objPt(0, wy, 0, state.animY);
+        const tX = objPt(wx, wy, 0, state.animY);
+        const tXZ = objPt(wx, wy, wz, state.animY);
+        const tZ = objPt(0, wy, wz, state.animY);
+
+        // Obris stične ploskve, ko je kvader nad glino.
+        if (state.animY <= 0) {
+            svgHTML += `<polyline points="${[b0, bX, bXZ, bZ, b0].map(ps).join(' ')}" fill="none" stroke="var(--area-color)" stroke-width="4" stroke-linejoin="round"/>`;
+        }
+
+        // Ploskve kvadra: stranice pred zgornjo ploskvijo, da kvader deluje kot polno telo.
+        svgHTML += poly([b0, bX, tX, t0], 'fill="#f6ad55" stroke="#9c4221" stroke-width="2" stroke-linejoin="round"');
+        svgHTML += poly([bX, bXZ, tXZ, tX], 'fill="#dd6b20" stroke="#9c4221" stroke-width="2" stroke-linejoin="round"');
+        svgHTML += poly([bZ, bXZ, tXZ, tZ], 'fill="#c05621" stroke="#7b341e" stroke-width="2" stroke-linejoin="round"');
+        svgHTML += poly([b0, bZ, tZ, t0], 'fill="#ed8936" stroke="#9c4221" stroke-width="2" stroke-linejoin="round" opacity="0.92"');
+        svgHTML += poly([t0, tX, tXZ, tZ], 'fill="var(--box-color)" stroke="#9c4221" stroke-width="2.4" stroke-linejoin="round"');
+
+        // Robovi kvadra.
+        svgHTML += line(b0, bX, 'stroke="#7b341e" stroke-width="2" opacity="0.9"');
+        svgHTML += line(b0, bZ, 'stroke="#7b341e" stroke-width="2" opacity="0.9"');
+        svgHTML += line(bX, bXZ, 'stroke="#7b341e" stroke-width="2" opacity="0.9"');
+        svgHTML += line(bZ, bXZ, 'stroke="#7b341e" stroke-width="2" opacity="0.9"');
+        svgHTML += line(b0, t0, 'stroke="#7b341e" stroke-width="2"');
+        svgHTML += line(bX, tX, 'stroke="#7b341e" stroke-width="2"');
+        svgHTML += line(bZ, tZ, 'stroke="#7b341e" stroke-width="2"');
+        svgHTML += line(bXZ, tXZ, 'stroke="#7b341e" stroke-width="2"');
+        svgHTML += `<polyline points="${[t0, tX, tXZ, tZ, t0].map(ps).join(' ')}" fill="none" stroke="#7b341e" stroke-width="2"/>`;
+
+        // Rentgenski prikaz potopljenega dela.
+        if (state.animY > 0) {
+            svgHTML += poly([b0, bX, bXZ, bZ], 'fill="var(--area-color)" opacity="0.16"');
+            svgHTML += `<polyline points="${[b0, bX, bXZ, bZ, b0].map(ps).join(' ')}" fill="none" stroke="var(--area-color)" stroke-width="4" stroke-dasharray="7,4" stroke-linejoin="round" opacity="0.95"/>`;
+            svgHTML += line(g0, b0, 'stroke="#7b341e" stroke-width="2" stroke-dasharray="6,4" opacity="0.65"');
+            svgHTML += line(gX, bX, 'stroke="#7b341e" stroke-width="2" stroke-dasharray="6,4" opacity="0.65"');
+            svgHTML += line(gXZ, bXZ, 'stroke="#7b341e" stroke-width="2" stroke-dasharray="6,4" opacity="0.65"');
+            svgHTML += line(gZ, bZ, 'stroke="#7b341e" stroke-width="2" stroke-dasharray="6,4" opacity="0.65"');
+        }
+
+        // --- OZNAKE STRANIC ---
+        function addBoxLabel(p, txt, dx = 0, dy = 0, anchor = 'middle') {
+            svgHTML += textAt({ x: p.x + dx, y: p.y + dy }, txt, `fill="white" font-weight="bold" font-size="17" style="text-shadow: 1px 1px 2px black;" text-anchor="${anchor}"`);
+        }
+
+        const labelXPos = objPt(wx / 2, wy, 0, state.animY);
+        const labelZPos = objPt(0, wy, wz / 2, state.animY);
+        const labelYPos = objPt(wx, wy / 2, wz, state.animY);
+        addBoxLabel(labelXPos, labelX, 0, -8);
+        addBoxLabel(labelZPos, labelZ, -8, 20);
+        addBoxLabel(labelYPos, labelY, 18, 4, 'start');
+
+        // --- SILA F (samo za raziskuj) ---
+        if (state.mode === 'raziskuj') {
+            const forceLen = Math.min(84, Math.max(52, scale * claySize * 0.22));
+            const topCenter = objPt(wx / 2, wy, wz / 2, state.animY);
+            const ftop = { x: topCenter.x, y: topCenter.y - forceLen };
+            const fbot = { x: topCenter.x, y: topCenter.y - 8 };
+            svgHTML += `
+                <line x1="${ftop.x.toFixed(2)}" y1="${ftop.y.toFixed(2)}" x2="${fbot.x.toFixed(2)}" y2="${fbot.y.toFixed(2)}" stroke="var(--force-color)" stroke-width="5" marker-end="url(#arrow-f)"/>
+                <text x="${ftop.x.toFixed(2)}" y="${(ftop.y - 10).toFixed(2)}" fill="var(--force-color)" font-weight="bold" font-size="20" text-anchor="middle">F</text>
+            `;
+        }
+
+        document.getElementById('sim-group').innerHTML = svgHTML;
+    }
+
+
+    // --- NALOGE LOGIKA ---
+    function hideAllInputs() {
+        ['inp-area-wrap', 'inp-v-wrap', 'inp-f-wrap', 'inp-m-wrap', 'inp-s-wrap', 'inp-p-wrap', 'inp-h-wrap'].forEach(id => {
+            let el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        });
+        document.querySelectorAll('#task-inputs input, #task-inputs select').forEach(i => { i.value = ""; i.disabled = false; i.style.background="white";});
+        
+        let oldTable = document.getElementById('det-table');
+        if(oldTable) oldTable.remove();
+    }
+
+    function generateTask() {
+        let lvl = parseInt(document.getElementById('sel-level').value);
+        state.taskLevel = lvl;
+        
+        let desc = document.getElementById('task-desc');
+        let fb = document.getElementById('task-feedback');
+        fb.classList.add('hidden');
+        hideAllInputs();
+
+        state.isPlaced = true;
+        document.getElementById('btn-smooth').classList.add('hidden');
+
+        if (lvl === 1) { // 1. p = F / S
+            let S_choices = [0.1, 0.2, 0.5, 1.0, 1.5, 2.0, 2.5, 4.0, 5.0, 8.0, 10.0];
+            let S = getRandomChoice(S_choices);
+            let p = (Math.floor(Math.random() * 50) + 10) * 100;
+            let F = S * p;
+            
+            state.taskData = { F: F, S: S, p: p };
+            desc.innerHTML = `Na ploskev <b>${S.toFixed(1).replace('.',',')} m²</b> deluje sila <b>${F.toLocaleString('sl-SI')} N</b>. Izračunaj tlak na podlago.`;
+            
+            document.getElementById('inp-p-wrap').classList.remove('hidden');
+
+            state.a = Math.sqrt(S); state.b = Math.sqrt(S); state.h = 0.1; state.ori = 1;
+            state.clayDepth = state.targetY = pressureToSinkage(p);
+        }
+        else if (lvl === 2) { // 2. Določanje ploskve, enote, S, p
+            let dim1 = getRandomChoice([0.5, 1.0, 1.5, 2.0, 2.5, 4.0, 5.0, 8.0, 10.0]);
+            let dim2 = getRandomChoice([0.2, 0.4, 0.5, 1.0, 1.5, 2.0, 2.5, 5.0]);
+            let dim3 = getRandomChoice([0.1, 0.2, 0.5, 1.0]);
+            
+            let dims = [dim1, dim2, dim3].sort(() => Math.random() - 0.5);
+            let a = dims[0], b = dims[1], h = dims[2];
+            
+            let oris = [ {v:'ab', S: a*b}, {v:'ah', S: a*h}, {v:'bh', S: b*h} ];
+            let ori = Math.floor(Math.random() * 3);
+            let S = parseFloat(oris[ori].S.toFixed(2));
+            
+            let p = (Math.floor(Math.random() * 90) + 10) * 10;
+            let F = parseFloat((S * p).toFixed(2));
+            
+            state.taskData = { a:a, b:b, h:h, oriStr: oris[ori].v, S: S, F: F, p: p };
+            
+            let aObj = getMixedLength(a);
+            let bObj = getMixedLength(b);
+            let hObj = getMixedLength(h);
+
+            desc.innerHTML = `Kvader pritiska na tla s silo <b>${F.toLocaleString('sl-SI')} N</b>.<br>Njegove mere so:<br>
+                <ul class="dim-list">
+                    <li><b>a = ${aObj.text}</b></li>
+                    <li><b>b = ${bObj.text}</b></li>
+                    <li><b>h = ${hObj.text}</b></li>
+                </ul>
+                Glede na sliko določi stično ploskev, jo izračunaj (v m²) in določi tlak.`;
+            
+            document.getElementById('inp-area-wrap').classList.remove('hidden');
+            document.getElementById('inp-s-wrap').classList.remove('hidden');
+            document.getElementById('inp-p-wrap').classList.remove('hidden');
+
+            state.a = a; state.b = b; state.h = h; state.ori = ori+1;
+            state.clayDepth = state.targetY = pressureToSinkage(p);
+        }
+        else if (lvl === 3) { // 3. Obratno 1: iz tlaka in ploskve do sile in mase
+            let S_choices = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0];
+            let S = getRandomChoice(S_choices);
+            let p = (Math.floor(Math.random() * 40) + 10) * 50; 
+            let F = S * p;
+            let m = F / 10; 
+            
+            state.taskData = { p: p, S: S, F: F, m: m };
+            desc.innerHTML = `Kvader s stično ploskvijo <b>${S.toFixed(1).replace('.',',')} m²</b> povzroča na podlago tlak <b>${p.toLocaleString('sl-SI')} Pa</b>.<br>Izračunaj s kolikšno silo (F) pritiska na tla in določi njegovo maso (m).`;
+            
+            document.getElementById('inp-f-wrap').classList.remove('hidden');
+            document.getElementById('inp-m-wrap').classList.remove('hidden');
+
+            state.a = Math.sqrt(S); state.b = Math.sqrt(S); state.h = 0.2; state.ori = 1;
+            state.clayDepth = state.targetY = pressureToSinkage(p);
+        }
+        else if (lvl === 4) { // 4. Obratno 2: izračun ploskve
+            let S_choices = [0.1, 0.2, 0.4, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5];
+            let S = getRandomChoice(S_choices);
+            let p = (Math.floor(Math.random() * 50) + 10) * 100;
+            let F = S * p;
+            
+            state.taskData = { F: F, p: p, S: S };
+            desc.innerHTML = `Kvader tehta <b>${F.toLocaleString('sl-SI')} N</b> in na tla ustvarja tlak <b>${p.toLocaleString('sl-SI')} Pa</b>.<br>Kolikšna mora biti ploščina (S) njegove stične ploskve?`;
+            
+            document.getElementById('inp-s-wrap').classList.remove('hidden');
+
+            state.a = Math.sqrt(S); state.b = Math.sqrt(S); state.h = 0.2; state.ori = 1;
+            state.clayDepth = state.targetY = pressureToSinkage(p);
+        }
+        else if (lvl === 5) { // 5. Detektiv: Poišči snov
+            let a = getRandomChoice([0.5, 1.0, 2.0, 4.0]);
+            let b = getRandomChoice([0.5, 1.0, 2.0]);
+            let h = getRandomChoice([0.1, 0.2, 0.4, 0.5]);
+            
+            let mat = getRandomChoice(solidMaterials);
+            
+            let V = parseFloat((a * b * h).toFixed(2));
+            let F = V * mat.sigma;
+            let S = parseFloat((a * b).toFixed(2));
+            let p = F / S; 
+
+            // Interaktivna tabela 
+            let chosenMats = [];
+            while(chosenMats.length < 3) {
+                let rMat = getRandomChoice(solidMaterials);
+                if(!chosenMats.includes(rMat) && rMat.name !== mat.name) chosenMats.push(rMat);
+            }
+            chosenMats.push(mat);
+            chosenMats.sort(() => Math.random() - 0.5); // Shuffle
+
+            state.taskData = { a:a, b:b, h:h, V:V, F:F, S:S, p:p, matName: mat.name, rho: mat.rho, sigma: mat.sigma, userMat: "" };
+            
+            let aObj = getMixedLength(a);
+            let bObj = getMixedLength(b);
+            let hObj = getMixedLength(h);
+
+            let tableHTML = `<div id="det-table" style="margin-top:15px; border-top: 1px solid var(--border); padding-top:10px;">
+                <label style="font-weight:bold; color:var(--text-main);">Klikni na pravo snov v tabeli!</label>
+                <table class="mini-table interactive-table" style="width:100%; margin-top:5px; background:white;">
+                <tr><th>Snov</th><th>Gostota ρ (kg/m³)</th></tr>`;
+            chosenMats.forEach(m => {
+                tableHTML += `<tr onclick="selectMaterial('${m.name}', this)"><td>${m.name}</td><td>${m.rho.toLocaleString('sl-SI')}</td></tr>`;
+            });
+            tableHTML += `</table></div>`;
+
+            desc.innerHTML = `Detektivska naloga! Kvader ima prostornino <b>V = ${V.toFixed(2).replace('.',',')} m³</b> in stoji na ploskvi <b>S = ${S.toFixed(2).replace('.',',')} m²</b>.<br>
+                Tlak na podlago je izmerjen: <b>${p.toLocaleString('sl-SI')} Pa</b>.<br><br>
+                Izračunaj silo teže (F), nato pa iz podatkov ugotovi gostoto (ρ) ter s klikom na tabelo označi, za katero snov gre!
+                ${tableHTML}`;
+            
+            document.getElementById('inp-f-wrap').classList.remove('hidden');
+
+            state.a = a; state.b = b; state.h = h; state.ori = 1;
+            state.clayDepth = state.targetY = pressureToSinkage(p);
+        }
+        else if (lvl === 6) { // 6. Snov in tlak 
+            let a = getRandomChoice([1.0, 2.0, 2.5, 4.0, 5.0]);
+            let b = getRandomChoice([0.5, 1.0, 2.0, 4.0]);
+            let h = getRandomChoice([0.1, 0.2, 0.4, 0.5, 0.8]);
+            
+            let chosenMats = [];
+            while(chosenMats.length < 3) {
+                let rMat = getRandomChoice(solidMaterials);
+                if(!chosenMats.includes(rMat)) chosenMats.push(rMat);
+            }
+            let mat = chosenMats[Math.floor(Math.random() * chosenMats.length)];
+            
+            let V = parseFloat((a * b * h).toFixed(2));
+            let F = V * mat.sigma;
+            let S = parseFloat((a * b).toFixed(2));
+            let p = F / S; 
+
+            state.taskData = { V: V, F: F, S: S, p: p, matName: mat.name, rho: mat.rho, sigma: mat.sigma };
+            
+            let aObj = getMixedLength(a);
+            let bObj = getMixedLength(b);
+            let hObj = getMixedLength(h);
+
+            let tableHTML = `<table class="mini-table" style="width:100%; margin-top:10px; background:white;"><tr><th>Snov</th><th>Gostota ρ (kg/m³)</th></tr>`;
+            chosenMats.forEach(m => {
+                tableHTML += `<tr><td>${m.name}</td><td>${m.rho.toLocaleString('sl-SI')}</td></tr>`;
+            });
+            tableHTML += `</table>`;
+
+            desc.innerHTML = `Kvader iz snovi <b>${mat.name}</b> stoji na ploskvi a × b.<br>Njegove mere so:<br>
+                <ul class="dim-list">
+                    <li><b>a = ${aObj.text}</b></li>
+                    <li><b>b = ${bObj.text}</b></li>
+                    <li><b>h = ${hObj.text}</b></li>
+                </ul>
+                ${tableHTML}
+                Izračunaj prostornino, težo, ploščino in tlak na podlago.`;
+            
+            document.getElementById('inp-v-wrap').classList.remove('hidden');
+            document.getElementById('inp-f-wrap').classList.remove('hidden');
+            document.getElementById('inp-s-wrap').classList.remove('hidden');
+            document.getElementById('inp-p-wrap').classList.remove('hidden');
+
+            state.a = a; state.b = b; state.h = h; state.ori = 1;
+            state.clayDepth = state.targetY = pressureToSinkage(p);
+        }
+        else if (lvl === 7) { // 7. Inženir: Manjkajoča višina h
+            let h_m = getRandomChoice([0.1, 0.2, 0.4, 0.5, 1.0, 2.0]);
+            
+            let chosenMats = [];
+            while(chosenMats.length < 3) {
+                let rMat = getRandomChoice(solidMaterials);
+                if(!chosenMats.includes(rMat)) chosenMats.push(rMat);
+            }
+            let mat = chosenMats[Math.floor(Math.random() * chosenMats.length)];
+            
+            let p = mat.sigma * h_m; 
+            
+            let a = getRandomChoice([1.0, 2.0, 4.0]);
+            let b = getRandomChoice([0.5, 1.0, 2.0]);
+            
+            state.taskData = { h: h_m, matName: mat.name, rho: mat.rho, sigma: mat.sigma, p: p };
+            
+            let aObj = getMixedLength(a);
+            let bObj = getMixedLength(b);
+
+            let tableHTML = `<table class="mini-table" style="width:100%; margin-top:10px; background:white;"><tr><th>Snov</th><th>Gostota ρ (kg/m³)</th></tr>`;
+            chosenMats.forEach(m => {
+                tableHTML += `<tr><td>${m.name}</td><td>${m.rho.toLocaleString('sl-SI')}</td></tr>`;
+            });
+            tableHTML += `</table>`;
+
+            desc.innerHTML = `Inženirski izziv! Zgraditi moraš steber iz snovi <b>${mat.name}</b>.<br>
+                ${tableHTML}
+                Steber ima tloris (stično ploskev na tleh):<br>
+                <ul class="dim-list">
+                    <li><b>a = ${aObj.text}</b></li>
+                    <li><b>b = ${bObj.text}</b></li>
+                </ul>
+                Steber mora na tla ustvariti tlak natanko <b>${p.toLocaleString('sl-SI')} Pa</b>.<br>
+                Izračunaj, kakšna mora biti njegova višina (h) v metrih!`;
+            
+            document.getElementById('inp-h-wrap').classList.remove('hidden');
+
+            state.a = a; state.b = b; state.h = h_m; state.ori = 1;
+            state.clayDepth = state.targetY = pressureToSinkage(p);
+        }
+    }
+
+    function getTaskHint() {
+        switch (state.taskLevel) {
+            case 1:
+                return "Najprej zapiši formulo <b>p = F / S</b>. Sila je že v N, ploščina je že v m², zato samo deli.";
+            case 2:
+                return "Najprej izberi ploskev, ki se dotika tal. Nato pretvori dolžine v metre, izračunaj <b>S</b> in na koncu uporabi <b>p = F / S</b>.";
+            case 3:
+                return "Iz znanega tlaka in ploskve najprej izračunaj silo: <b>F = p · S</b>. Nato maso izračunaj iz <b>m = F / 10</b>.";
+            case 4:
+                return "Ker poznaš silo in tlak, preoblikuj formulo <b>p = F / S</b> v <b>S = F / p</b>.";
+            case 5:
+                return "Najprej uporabi <b>F = p · S</b>. Nato izračunaj maso <b>m = F / 10</b> in gostoto <b>ρ = m / V</b>. Dobljeno gostoto primerjaj s tabelo.";
+            case 6:
+                return "Postopek: <b>V = a · b · h</b>, nato <b>m = ρ · V</b>, nato <b>F<sub>g</sub> = m · 10</b>, potem <b>S = a · b</b> in na koncu <b>p = F / S</b>.";
+            case 7:
+                return "Pri stebru je tlak odvisen od specifične teže snovi in višine: <b>p = σ · h</b>. Zato je <b>h = p / σ</b>.";
+            default:
+                return "Preberi nalogo, zapiši znane količine in izberi ustrezno formulo.";
+        }
+    }
+
+    function getTaskSolution() {
+        let td = state.taskData;
+        switch (state.taskLevel) {
+            case 1:
+                return `<b>Postopek:</b><br>
+                    p = F / S<br>
+                    p = ${fmtUnit(td.F, "N")} / ${fmtUnit(td.S, "m²")}<br>
+                    p = <b>${fmtUnit(td.p, "Pa")}</b>`;
+            case 2:
+                return `<b>Postopek:</b><br>
+                    Pravilna stična ploskev je <b>${td.oriStr}</b>.<br>
+                    S = <b>${fmtUnit(td.S, "m²")}</b><br>
+                    p = F / S = ${fmtUnit(td.F, "N")} / ${fmtUnit(td.S, "m²")}<br>
+                    p = <b>${fmtUnit(td.p, "Pa")}</b>`;
+            case 3:
+                return `<b>Postopek:</b><br>
+                    F = p · S<br>
+                    F = ${fmtUnit(td.p, "Pa")} · ${fmtUnit(td.S, "m²")} = <b>${fmtUnit(td.F, "N")}</b><br>
+                    m = F / 10 = ${fmtUnit(td.F, "N")} / 10 = <b>${fmtUnit(td.m, "kg")}</b>`;
+            case 4:
+                return `<b>Postopek:</b><br>
+                    S = F / p<br>
+                    S = ${fmtUnit(td.F, "N")} / ${fmtUnit(td.p, "Pa")}<br>
+                    S = <b>${fmtUnit(td.S, "m²")}</b>`;
+            case 5: {
+                let m = td.F / 10;
+                let rho = m / td.V;
+                return `<b>Postopek:</b><br>
+                    F = p · S = ${fmtUnit(td.p, "Pa")} · ${fmtUnit(td.S, "m²")} = <b>${fmtUnit(td.F, "N")}</b><br>
+                    m = F / 10 = ${fmtUnit(td.F, "N")} / 10 = <b>${fmtUnit(m, "kg")}</b><br>
+                    ρ = m / V = ${fmtUnit(m, "kg")} / ${fmtUnit(td.V, "m³")} = <b>${fmtUnit(rho, "kg/m³")}</b><br>
+                    Prava snov je <b>${td.matName}</b>.`;
+            }
+            case 6: {
+                let m = td.F / 10;
+                return `<b>Postopek:</b><br>
+                    V = a · b · h = <b>${fmtUnit(td.V, "m³")}</b><br>
+                    m = ρ · V = ${fmtUnit(td.rho, "kg/m³", 0)} · ${fmtUnit(td.V, "m³")} = <b>${fmtUnit(m, "kg")}</b><br>
+                    F<sub>g</sub> = m · 10 = <b>${fmtUnit(td.F, "N")}</b><br>
+                    S = a · b = <b>${fmtUnit(td.S, "m²")}</b><br>
+                    p = F / S = ${fmtUnit(td.F, "N")} / ${fmtUnit(td.S, "m²")} = <b>${fmtUnit(td.p, "Pa")}</b>`;
+            }
+            case 7:
+                return `<b>Postopek:</b><br>
+                    Za steber velja p = σ · h, zato h = p / σ.<br>
+                    h = ${fmtUnit(td.p, "Pa")} / ${fmtUnit(td.sigma, "N/m³", 0)}<br>
+                    h = <b>${fmtUnit(td.h, "m")}</b>`;
+            default:
+                return "Za to nalogo postopek še ni pripravljen.";
+        }
+    }
+
+    function showHint() {
+        let fb = document.getElementById('task-feedback');
+        fb.classList.remove('hidden', 'correct', 'error');
+        fb.innerHTML = `<b>Namig:</b> ${getTaskHint()}`;
+    }
+
+    function showSolution() {
+        let fb = document.getElementById('task-feedback');
+        fb.classList.remove('hidden', 'correct', 'error');
+        fb.innerHTML = getTaskSolution();
+    }
+
+    function checkTask() {
+        let fb = document.getElementById('task-feedback');
+        let error = "";
+        let td = state.taskData;
+
+        // Vrednosti iz inputov: sprejeta sta decimalna pika in decimalna vejica.
+        let pIn = readDecimalInput('inp-p');
+        let aIn = document.getElementById('inp-area-sel').value;
+        let sIn = readDecimalInput('inp-s');
+        let vIn = readDecimalInput('inp-v');
+        let fIn = readDecimalInput('inp-f');
+        let mIn = readDecimalInput('inp-m');
+        let hIn = readDecimalInput('inp-h');
+
+        if (state.taskLevel === 1) {
+            if (isNaN(pIn) || Math.abs(pIn - td.p) > 0.01) error = "Tlak ni pravilen. Uporabi formulo p = F / S.";
+        }
+        else if (state.taskLevel === 2) {
+            if (aIn !== td.oriStr) error = "Izbral si napačno ploskev. Poglej kateri stranici se dotikata zelenega roba tal.";
+            else if (isNaN(sIn) || Math.abs(sIn - td.S) > 0.01) error = "Ploščina S ni pravilna. Si vse mere pravilno pretvoril v metre?";
+            else if (isNaN(pIn) || Math.abs(pIn - td.p) > 0.01) error = "Tlak ni pravilen. Deli silo s pravilno izračunano ploščino.";
+        }
+        else if (state.taskLevel === 3) {
+            if (isNaN(fIn) || Math.abs(fIn - td.F) > 0.01) error = "Sila (F) ni pravilna. Uporabi F = p · S.";
+            else if (isNaN(mIn) || Math.abs(mIn - td.m) > 0.01) error = "Masa (m) ni pravilna. Upoštevaj, da je Fg = m · 10.";
+        }
+        else if (state.taskLevel === 4) {
+            if (isNaN(sIn) || Math.abs(sIn - td.S) > 0.01) error = "Ploščina S ni pravilna. S = F / p.";
+        }
+        else if (state.taskLevel === 5) {
+            if (isNaN(fIn) || Math.abs(fIn - td.F) > 0.01) error = "Teža (F) ni pravilna. F = p · S.";
+            else if (!td.userMat) error = "V tabeli moraš s klikom izbrati pravo snov! (Izračunaj gostoto ρ = m / V)";
+            else if (td.userMat !== td.matName) error = "Izbral si napačno snov. Izračunaj gostoto (ρ = m / V) in jo poišči v tabeli.";
+        }
+        else if (state.taskLevel === 6) {
+            if (isNaN(vIn) || Math.abs(vIn - td.V) > 0.01) error = "Prostornina (V) ni pravilna. Zmnoži a, b in h v metrih.";
+            else if (isNaN(fIn) || Math.abs(fIn - td.F) > 0.01) error = "Teža (Fg) ni pravilna. Najprej izračunaj maso in nato Fg = m · 10.";
+            else if (isNaN(sIn) || Math.abs(sIn - td.S) > 0.01) error = "Stična ploskev (S) ni pravilna.";
+            else if (isNaN(pIn) || Math.abs(pIn - td.p) > 0.01) error = "Tlak ni pravilen.";
+        }
+        else if (state.taskLevel === 7) {
+            if (isNaN(hIn) || Math.abs(hIn - td.h) > 0.01) error = "Višina h ni pravilna. Ali si opazil bližnjico (p = ρ · 10 · h), in s tem h = p / (ρ · 10)?";
+        }
+
+        fb.classList.remove('hidden', 'correct', 'error');
+        if (error) {
+            fb.classList.add('error');
+            fb.innerHTML = "<b>Napaka:</b> " + error;
+        } else {
+            fb.classList.add('correct');
+            fb.innerHTML = "<b>Odlično!</b> Vse zahtevane količine so pravilno izračunane.";
+            state.score += 2;
+            document.getElementById('task-score').innerText = state.score;
+            document.querySelectorAll('#task-inputs input, #task-inputs select').forEach(i => { i.disabled = true; i.style.background="#f0fff4";});
+        }
+    }
+</script>
+
+</body>
+</html>
