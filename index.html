@@ -112,6 +112,22 @@
       box-shadow: 0 0 20px rgba(71, 85, 105, 0.4);
     }
     .moon-card .icon { background: #1e293b; border-color: #334155; }
+
+    .yearly-card {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, #064e3b, #0f172a);
+      border: 1px solid #10b981;
+      box-shadow: 0 0 24px rgba(16, 185, 129, 0.35);
+    }
+    .yearly-card .icon { background: #052e1a; border-color: #065f46; }
+    .yearly-card .badge {
+      background: linear-gradient(180deg, #facc15, #eab308);
+      color: #1f2937;
+    }
+    .yearly-card .pill {
+      background: linear-gradient(180deg, #86efac, #22c55e);
+      color: #052e1a;
+    }
   </style>
 </head>
 <body>
@@ -127,6 +143,14 @@
 
     <main class="panel" id="glavne-povezave" role="navigation" aria-label="Glavne povezave">
       <div class="grid" aria-label="Osnovne vaje in igre">
+        <a class="card yearly-card" href="celoletni_pregled.html">
+          <span class="badge">PRIPOROČENO</span>
+          <div class="icon" aria-hidden="true">🧭</div>
+          <h3>Celoletni pregled</h3>
+          <p>Mirno in po korakih ponovi najpomembnejše vsebine fizike iz celega leta.</p>
+          <span class="pill">Začni pregled →</span>
+        </a>
+
         <a class="card" href="pretvarjanje_enot.html">
           <div class="icon">⚖️</div>
           <h3>Pretvarjanje enot</h3>
