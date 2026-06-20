@@ -87,11 +87,13 @@
 
     .section-title{margin:18px 4px 10px; font-size:20px}
     .grid{display:grid; gap:16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));}
+    
     .card{position:relative; overflow:hidden; display:block; text-decoration:none; color:inherit;
       background:linear-gradient(180deg, #121a2b, #0e1627); border:1px solid #0a1020;
       border-radius:16px; padding:16px; transition:transform .08s ease, box-shadow .2s ease, border-color .2s ease; min-height:205px;}
     .card:hover{transform:translateY(-2px); border-color:#1f2a44; box-shadow:0 12px 30px var(--shadow);}
     .card:focus-visible{outline:none; box-shadow:0 0 0 3px var(--ring), 0 12px 30px var(--shadow);}
+    
     .badge{position:absolute; top:12px; right:12px; font-size:12px; color:#052e1a;
       background:linear-gradient(180deg,var(--pri),var(--pri2)); padding:4px 8px; border-radius:999px; font-weight:800;}
     .icon{width:48px; height:48px; border-radius:12px; display:grid; place-items:center;
@@ -101,20 +103,29 @@
     .pill{display:inline-block; font-weight:700; color:#041a10;
       background:linear-gradient(180deg, var(--acc), #1ea0d7); border-radius:999px; padding:6px 10px; font-size:12px;}
 
-    .motion-card {
-      background: linear-gradient(135deg, #064e3b, #0f172a);
-      border: 1px solid #047857;
-      box-shadow: 0 0 20px rgba(4, 120, 87, 0.32);
-    }
+    /* Prilagojene barve posameznih kartic */
+    .motion-card { background: linear-gradient(135deg, #064e3b, #0f172a); border: 1px solid #047857; box-shadow: 0 0 20px rgba(4, 120, 87, 0.32); }
     .motion-card .icon { background:#052e2b; border-color:#065f46; }
 
-    .density-card {
-      background: linear-gradient(135deg, #7c2d12, #111827);
-      border: 1px solid #c2410c;
-      box-shadow: 0 0 20px rgba(249, 115, 22, 0.25);
-    }
+    .density-card { background: linear-gradient(135deg, #7c2d12, #111827); border: 1px solid #c2410c; box-shadow: 0 0 20px rgba(249, 115, 22, 0.25); }
     .density-card .icon { background:#431407; border-color:#9a3412; }
     .density-card .badge { background:linear-gradient(180deg, var(--gold), var(--gold2)); color:#1f2937; }
+
+    .spring-card { background: linear-gradient(135deg, #4c1d95, #111827); border: 1px solid #7c3aed; box-shadow: 0 0 20px rgba(124, 58, 237, 0.25); }
+    .spring-card .icon { background: #2e1065; border-color: #5b21b6; }
+    .spring-card .badge { background: linear-gradient(180deg, #c084fc, #a855f7); color: #fff; }
+
+    .pressure-card { background: linear-gradient(135deg, #1e3a8a, #111827); border: 1px solid #2563eb; box-shadow: 0 0 20px rgba(37, 99, 235, 0.25); }
+    .pressure-card .icon { background: #172554; border-color: #1d4ed8; }
+    .pressure-card .badge { background: linear-gradient(180deg, #60a5fa, #3b82f6); color: #111827; }
+
+    .fluid-card { background: linear-gradient(135deg, #083344, #111827); border: 1px solid #0891b2; box-shadow: 0 0 20px rgba(8, 145, 178, 0.25); }
+    .fluid-card .icon { background: #082f49; border-color: #0e7490; }
+    .fluid-card .badge { background: linear-gradient(180deg, #22d3ee, #06b6d4); color: #083344; }
+
+    .buoyancy-card { background: linear-gradient(135deg, #172554, #111827); border: 1px solid #3b82f6; box-shadow: 0 0 20px rgba(59, 130, 246, 0.25); }
+    .buoyancy-card .icon { background: #1e3a8a; border-color: #2563eb; }
+    .buoyancy-card .badge { background: linear-gradient(180deg, #93c5fd, #60a5fa); color: #1e3a8a; }
 
     .note{margin-top:16px; padding:14px 16px; border:1px dashed #334155; border-radius:14px; color:#cbd5e1; background:#0b1527;}
     footer{color:var(--muted); font-size:14px; text-align:center; margin-top:24px;}
@@ -167,6 +178,7 @@
 
       <h2 class="section-title">Teme za pregled</h2>
       <div class="grid" aria-label="Teme za celoletni pregled">
+        
         <a class="card motion-card" href="enakomerno_gibanje.html">
           <span class="badge">1. KORAK</span>
           <div class="icon" aria-hidden="true">🏃‍♂️</div>
@@ -182,6 +194,33 @@
           <p>Razumi povezavo med maso, prostornino in gostoto. Primerjaj snovi, opazuj tehtnico in utrdi računanje.</p>
           <span class="pill">Odpri vajo →</span>
         </a>
+
+        <a class="card spring-card" href="vzmet.html">
+          <span class="badge">3. KORAK</span>
+          <div class="icon" aria-hidden="true">📏</div>
+          <h3>Hookov zakon</h3>
+          <p>Opazuj raztegovanje vzmeti pod obremenitvijo. Spoznaj koeficient togosti, mejo elastičnosti in rešuj naloge.</p>
+          <span class="pill">Odpri vajo →</span>
+        </a>
+
+        <a class="card pressure-card" href="tlak.html">
+          <span class="badge">4. KORAK</span>
+          <div class="icon" aria-hidden="true">🔨</div>
+          <h3>Tlak trdnih teles</h3>
+          <p>Razumi, zakaj se v sneg udreš v čevljih in zakaj ne na smučeh. Poveži silo, ploskev in tlak.</p>
+          <span class="pill">Odpri vajo →</span>
+        </a>
+
+        <a class="card fluid-card" href="tlaktekocine.html">
+          <span class="badge">5. KORAK</span>
+          <div class="icon" aria-hidden="true">🤿</div>
+          <h3>Tlak v tekočinah</h3>
+          <p>Razišči, kako tlak narašča z globino in kako nanj vpliva gostota tekočine v različnih bazenih.</p>
+          <span class="pill">Odpri vajo →</span>
+        </a>
+
+
+
       </div>
 
       <div class="note">
