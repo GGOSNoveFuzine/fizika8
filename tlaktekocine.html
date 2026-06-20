@@ -377,6 +377,21 @@ function toggleAtmosphere() {
     }
 })();
 
+
+function cPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    // Podpira tako miško kot dotik (za mobilne naprave)
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+    };
+}
+
+
+
+
 /* ---- Generiranje življenja ---- */
 
 (function initFish(){
